@@ -11,7 +11,11 @@ import { IoIosPause } from "react-icons/io";
 import { PiInfo } from "react-icons/pi";
 import { HiCheck } from "react-icons/hi2";
 import { useAppTimezone } from "@/hooks/useAppTimezone";
-import { createDateTimeInTimezone } from "@/utils/appTimezone";
+import {
+  createDateTimeInTimezone,
+  formatDateForApi,
+  getTodayInTimezone,
+} from "@/utils/appTimezone";
 
 type Props = {
   onClose: () => void;
@@ -142,7 +146,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
         startTime: actualStart,
         endTime: actualEnd,
         duration: actualDuration,
-        date: actualStart.toISOString().split("T")[0]!,
+        date: formatDateForApi(actualStart, timezone),
         team: "Default team",
         type: mode,
       }
@@ -200,20 +204,28 @@ const EditTime = ({ onClose, onSave }: Props) => {
     if (type === "hour") newDate.setHours(value);
     if (type === "minute") newDate.setMinutes(value);
 
-    const earliestDate = new Date();
+    if (backdatingLimit > 0) {
+      const todayStr = getTodayInTimezone(timezone);
+      const [tY, tM, tD] = todayStr.split("-").map(Number) as [number, number, number];
+      const earliestAllowedDate = new Date(tY, tM - 1, tD - backdatingLimit, 0, 0, 0, 0);
 
-    earliestDate.setHours(0, 0, 0, 0);
-
-    earliestDate.setDate(
-      earliestDate.getDate() - backdatingLimit
-    );
-
-    if (newDate < earliestDate) {
-      toast.error(
-        `You can only add manual time up to ${backdatingLimit} day(s) in the past.`
+      const candidateDate = new Date(
+        newDate.getFullYear(),
+        newDate.getMonth(),
+        newDate.getDate(),
+        0,
+        0,
+        0,
+        0,
       );
 
-      return;
+      if (candidateDate < earliestAllowedDate) {
+        toast.error(
+          `You can only add manual time up to ${backdatingLimit} day(s) in the past.`
+        );
+
+        return;
+      }
     }
 
     if (isStart) {
@@ -246,16 +258,16 @@ const EditTime = ({ onClose, onSave }: Props) => {
         <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full transform rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:max-w-4xl"
+            className="relative w-full transform rounded-lg bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:max-w-4xl"
           >
             <div className="mt-3 text-center sm:mt-5">
               <h3
                 id="headlessui-dialog-title-v-0-24"
                 data-headlessui-state="open"
-                className="text-base font-semibold leading-6 text-gray-900"
+                className="text-base font-semibold leading-6 text-gray-900 dark:text-white"
               >
                 <div className="flex items-center mb-5">
-                  <Clock3 className="h-6 w-6 text-indigo-600 mr-2" />
+                  <Clock3 className="h-6 w-6 text-indigo-600 dark:text-indigo-400 mr-2" />
                   Add Manual Time
                 </div>
               </h3>
@@ -263,9 +275,9 @@ const EditTime = ({ onClose, onSave }: Props) => {
 
             {/*  FORM */}
             <form onSubmit={handleSubmit}>
-              <div className="bg-white rounded-lg border border-gray-200 p-5 mb-6 shadow-sm">
-                <h3 className="text-sm font-medium text-gray-700 mb-4 flex items-center">
-                  <IoCalendarClearOutline className="h-5 w-5 text-indigo-500 mr-2" />
+              <div className="bg-white dark:bg-slate-800/80 rounded-lg border border-gray-200 dark:border-slate-700 p-5 mb-6 shadow-sm">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-slate-200 mb-4 flex items-center">
+                  <IoCalendarClearOutline className="h-5 w-5 text-indigo-500 dark:text-indigo-400 mr-2" />
                   Time Entry
                 </h3>
                 <div className="mb-5">
@@ -277,7 +289,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                         onClick={() => setMode("work")}
                         className={`relative inline-flex items-center rounded-l-md px-4 py-2 text-sm font-medium transition-colors ${mode === "work"
                           ? "bg-indigo-500 text-white"
-                          : "bg-white text-gray-700 border border-gray-300"
+                          : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600"
                           }`}
                       >
                         <HiBriefcase className="h-4 w-4 mr-1.5" />
@@ -290,7 +302,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                         onClick={() => setMode("break")}
                         className={`relative -ml-px inline-flex items-center rounded-r-md px-4 py-2 text-sm font-medium transition-colors ${mode === "break"
                           ? "bg-indigo-500 text-white"
-                          : "bg-white text-gray-700 border border-gray-300"
+                          : "bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600"
                           }`}
                       >
                         <IoIosPause className="h-4 w-4 mr-1.5" />
@@ -299,26 +311,26 @@ const EditTime = ({ onClose, onSave }: Props) => {
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+                  <div className="bg-gray-50 dark:bg-slate-900/60 rounded-lg p-4 border border-gray-200 dark:border-slate-700 mb-4">
                     <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center">
-                        <IoCalendarClearOutline className="w-5 h-5 text-indigo-500 mr-2" />
-                        <span className="text-sm font-medium text-gray-700">
+                        <IoCalendarClearOutline className="w-5 h-5 text-indigo-500 dark:text-indigo-400 mr-2" />
+                        <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
                           Select Time Range
                         </span>
                       </div>
 
-                      <div className="flex items-center bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+                      <div className="flex items-center bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full text-sm font-medium">
                         <Clock3 className="h-4 w-4 mr-1.5" />
                         {formatted}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white rounded-md p-3 border border-gray-200 shadow-sm">
+                      <div className="bg-white dark:bg-slate-800 rounded-md p-3 border border-gray-200 dark:border-slate-700 shadow-sm">
                         <div className="flex items-center mb-2">
                           <div className="h-4 w-4 rounded-full bg-indigo-500 mr-2"></div>
-                          <label className="text-sm font-medium text-gray-700">
+                          <label className="text-sm font-medium text-gray-700 dark:text-slate-200">
                             Start
                           </label>
                         </div>
@@ -326,7 +338,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                         <div className="space-y-2">
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full items-end">
                             <div className="w-full">
-                              <label className="block text-sm font-medium text-gray-900">
+                              <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Year
                               </label>
                               <div className="mt-1 relative">
@@ -341,7 +353,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       true,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={2026}>2026</option>
                                   <option value={2025}>2025</option>
@@ -371,12 +383,12 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={2001}>2001</option>
                                   <option value={2000}>2000</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
 
                             <div className="w-full">
-                              <label htmlFor="start-month" className="block text-sm font-medium text-gray-900">
+                              <label htmlFor="start-month" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Month
                               </label>
                               <div className="mt-1 relative">
@@ -391,7 +403,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       true,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={1}>January</option>
                                   <option value={2}>February</option>
@@ -406,12 +418,12 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={11}>November</option>
                                   <option value={12}>December</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
 
                             <div className="w-full">
-                              <label htmlFor="start-day" className="block text-sm font-medium text-gray-900">
+                              <label htmlFor="start-day" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Day
                               </label>
                               <div className="mt-1 relative">
@@ -426,7 +438,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       true,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   {Array.from(
                                     {
@@ -443,14 +455,14 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                     </option>
                                   ))}
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-end">
                             <div className="w-full">
-                              <label className="block text-sm font-medium text-gray-900">
+                              <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Hour
                               </label>
                               <div className="mt-1 relative">
@@ -464,7 +476,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       true,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={0}>00</option>
                                   <option value={1}>01</option>
@@ -491,12 +503,12 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={22}>22</option>
                                   <option value={23}>23</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
 
                             <div className="w-full">
-                              <label className="block text-sm font-medium text-gray-900">
+                              <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Minute
                               </label>
                               <div className="mt-1 relative">
@@ -510,7 +522,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       true,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={0}>00</option>
                                   <option value={1}>01</option>
@@ -573,17 +585,17 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={58}>58</option>
                                   <option value={59}>59</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="bg-white rounded-md p-3 border border-gray-200 shadow-sm">
+                      <div className="bg-white dark:bg-slate-800 rounded-md p-3 border border-gray-200 dark:border-slate-700 shadow-sm">
                         <div className="flex items-center mb-2">
                           <div className="h-4 w-4 rounded-full bg-green-500 mr-2"></div>
-                          <label className="text-sm font-medium text-gray-700">
+                          <label className="text-sm font-medium text-gray-700 dark:text-slate-200">
                             End
                           </label>
                         </div>
@@ -591,7 +603,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                         <div className="space-y-2">
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full items-end">
                             <div className="w-full">
-                              <label className="block text-sm font-medium text-gray-900">
+                              <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Year
                               </label>
                               <div className="mt-1 relative">
@@ -606,7 +618,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       false,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={2026}>2026</option>
                                   <option value={2025}>2025</option>
@@ -636,12 +648,12 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={2001}>2001</option>
                                   <option value={2000}>2000</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
 
                             <div className="w-full">
-                              <label htmlFor="end-month" className="block text-sm font-medium text-gray-900">
+                              <label htmlFor="end-month" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Month
                               </label>
                               <div className="mt-1 relative">
@@ -656,7 +668,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       false,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={1}>January</option>
                                   <option value={2}>February</option>
@@ -671,12 +683,12 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={11}>November</option>
                                   <option value={12}>December</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
 
                             <div className="w-full">
-                              <label className="block text-sm font-medium text-gray-900">
+                              <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Day
                               </label>
                               <div className="mt-1 relative">
@@ -691,7 +703,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       false,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   {Array.from(
                                     {
@@ -708,14 +720,14 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                     </option>
                                   ))}
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-end">
                             <div className="w-full">
-                              <label className="block text-sm font-medium text-gray-900">
+                              <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Hour
                               </label>
                               <div className="mt-1 relative">
@@ -730,7 +742,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       false,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={0}>00</option>
                                   <option value={1}>01</option>
@@ -757,12 +769,12 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={22}>22</option>
                                   <option value={23}>23</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
 
                             <div className="w-full">
-                              <label htmlFor="end-minute" className="block text-sm font-medium text-gray-900">
+                              <label htmlFor="end-minute" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                 Minute
                               </label>
                               <div className="mt-1 relative">
@@ -777,7 +789,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                       false,
                                     )
                                   }
-                                  className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                  className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                 >
                                   <option value={0}>00</option>
                                   <option value={1}>01</option>
@@ -840,7 +852,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                                   <option value={58}>58</option>
                                   <option value={59}>59</option>
                                 </select>
-                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                               </div>
                             </div>
                           </div>
@@ -853,21 +865,22 @@ const EditTime = ({ onClose, onSave }: Props) => {
                 {effectiveSettings?.manualTime?.requireProjectTask && (
                   <>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">
+                      <label className="text-sm font-medium text-gray-700 dark:text-slate-200">
                         Project
                       </label>
 
                       <select
                         value={selectedProject}
                         onChange={(e) => setSelectedProject(e.target.value)}
-                        className="w-full rounded-lg border px-3 py-2"
+                        className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-200 px-3 py-2"
                       >
-                        <option value="">Select Project</option>
+                        <option value="" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-200">Select Project</option>
 
                         {projects.map((project) => (
                           <option
                             key={project._id}
                             value={project._id}
+                            className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-200"
                           >
                             {project.name}
                           </option>
@@ -876,7 +889,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">
+                      <label className="text-sm font-medium text-gray-700 dark:text-slate-200">
                         Task
                       </label>
 
@@ -884,14 +897,15 @@ const EditTime = ({ onClose, onSave }: Props) => {
                         value={selectedTask}
                         onChange={(e) => setSelectedTask(e.target.value)}
                         disabled={!selectedProject}
-                        className="w-full rounded-lg border px-3 py-2 disabled:opacity-50"
+                        className="w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-200 px-3 py-2 disabled:opacity-50"
                       >
-                        <option value="">Select Task</option>
+                        <option value="" className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-200">Select Task</option>
 
                         {tasks.map((task) => (
                           <option
                             key={task._id}
                             value={task._id}
+                            className="bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-200"
                           >
                             {task.title}
                           </option>
@@ -902,7 +916,7 @@ const EditTime = ({ onClose, onSave }: Props) => {
                 )}
 
                 <div className="mb-5">
-                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-slate-200 mb-2">
                     Reason for Manual Time
                   </label>
 
@@ -914,13 +928,13 @@ const EditTime = ({ onClose, onSave }: Props) => {
                     rows={4}
                     required
                     placeholder="Explain why you're requesting manual work or break time..."
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+                    className="w-full rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none placeholder-gray-400 dark:placeholder-slate-500"
                   />
                 </div>
 
                 <div>
-                  <div className="text-sm text-gray-600 bg-gray-50 p-4 border border-gray-200 flex items-start">
-                    <PiInfo className="w-5 h-5 text-indigo-500 mr-2 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/60 p-4 border border-gray-200 dark:border-slate-700 flex items-start">
+                    <PiInfo className="w-5 h-5 text-indigo-500 dark:text-indigo-400 mr-2 flex-shrink-0 mt-0.5" />
                     <span>
                       Any existing tracking data for the selected period will be
                       overwritten.

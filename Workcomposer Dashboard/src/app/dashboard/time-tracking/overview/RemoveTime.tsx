@@ -162,38 +162,38 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center overflow-y-auto p-2 sm:p-4">
                         <div
                             ref={modalRef}
-                            className="w-full max-w-4xl transform overflow-hidden rounded-xl bg-white p-4 sm:p-6 shadow-xl transition-all">
+                            className="w-full max-w-4xl transform overflow-hidden rounded-xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 p-4 sm:p-6 shadow-xl transition-all">
 
                             {/* HEADER */}
-                            <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                                <HiOutlineTrash className="h-6 w-6 text-red-600 mr-2" />
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                                <HiOutlineTrash className="h-6 w-6 text-red-600 dark:text-red-400 mr-2" />
                                 Delete Tracking Records
                             </h2>
 
-                            <div className="bg-white rounded-lg border border-gray-200 p-5 mb-6 shadow-sm">
-                                <h3 className="text-sm font-medium text-gray-700 mb-4 flex items-center">
-                                    <IoCalendarClearOutline className="h-5 w-5 text-indigo-500 mr-2" />
+                            <div className="bg-white dark:bg-slate-800/80 rounded-lg border border-gray-200 dark:border-slate-700 p-5 mb-6 shadow-sm">
+                                <h3 className="text-sm font-medium text-gray-700 dark:text-slate-200 mb-4 flex items-center">
+                                    <IoCalendarClearOutline className="h-5 w-5 text-indigo-500 dark:text-indigo-400 mr-2" />
                                     Time Range Selection
                                 </h3>
 
-                                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+                                <div className="bg-gray-50 dark:bg-slate-900/60 rounded-lg p-4 border border-gray-200 dark:border-slate-700 mb-4">
                                     <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div className="flex items-center">
-                                            <Clock3 className="h-5 w-5 text-indigo-500 mr-2" />
-                                            <span className="text-sm font-medium text-gray-700">Select Time Range to Delete</span>
+                                            <Clock3 className="h-5 w-5 text-indigo-500 dark:text-indigo-400 mr-2" />
+                                            <span className="text-sm font-medium text-gray-700 dark:text-slate-200">Select Time Range to Delete</span>
                                         </div>
 
-                                        <div className="flex items-center bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium ">
+                                        <div className="flex items-center bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 px-3 py-1 rounded-full text-sm font-medium ">
                                             <Clock3 className="h-4 w-4 mr-1.5" />
                                             {Math.floor(totalSeconds / 3600)}h {Math.floor((totalSeconds % 3600) / 60)}m
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-white rounded-md p-3 border border-gray-200 shadow-sm">
+                                        <div className="bg-white dark:bg-slate-800 rounded-md p-3 border border-gray-200 dark:border-slate-700 shadow-sm">
                                             <div className="flex items-center mb-2">
                                                 <div className="h-4 w-4 rounded-full bg-indigo-500 mr-2"></div>
-                                                <label className="text-sm font-medium text-gray-700">
+                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-200">
                                                     Start
                                                 </label>
                                             </div>
@@ -201,7 +201,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                             <div className="space-y-2">
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full items-end">
                                                     <div className="w-full">
-                                                        <label className="block text-sm font-medium text-gray-900">
+                                                        <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Year
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -217,7 +217,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         true,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={2026}>2026</option>
                                                                 <option value={2025}>2025</option>
@@ -247,12 +247,12 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={2001}>2001</option>
                                                                 <option value={2000}>2000</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
 
                                                     <div className="w-full">
-                                                        <label htmlFor="start-month" className="block text-sm font-medium text-gray-900">
+                                                        <label htmlFor="start-month" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Month
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -267,7 +267,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         true,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={1}>January</option>
                                                                 <option value={2}>February</option>
@@ -282,12 +282,12 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={11}>November</option>
                                                                 <option value={12}>December</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
 
                                                     <div className="w-full">
-                                                        <label htmlFor="start-day" className="block text-sm font-medium text-gray-900">
+                                                        <label htmlFor="start-day" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Day
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -302,7 +302,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         true,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 {Array.from(
                                                                     {
@@ -319,14 +319,14 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                     </option>
                                                                 ))}
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-end">
                                                     <div className="w-full">
-                                                        <label className="block text-sm font-medium text-gray-900">
+                                                        <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Hour
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -340,7 +340,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         true,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={0}>00</option>
                                                                 <option value={1}>01</option>
@@ -367,12 +367,12 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={22}>22</option>
                                                                 <option value={23}>23</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
 
                                                     <div className="w-full">
-                                                        <label className="block text-sm font-medium text-gray-900">
+                                                        <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Minute
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -386,7 +386,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         true,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={0}>00</option>
                                                                 <option value={1}>01</option>
@@ -449,17 +449,17 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={58}>58</option>
                                                                 <option value={59}>59</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="bg-white rounded-md p-3 border border-gray-200 shadow-sm">
+                                        <div className="bg-white dark:bg-slate-800 rounded-md p-3 border border-gray-200 dark:border-slate-700 shadow-sm">
                                             <div className="flex items-center mb-2">
                                                 <div className="h-4 w-4 rounded-full bg-green-500 mr-2"></div>
-                                                <label className="text-sm font-medium text-gray-700">
+                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-200">
                                                     End
                                                 </label>
                                             </div>
@@ -467,7 +467,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                             <div className="space-y-2">
                                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full items-end">
                                                     <div className="w-full">
-                                                        <label className="block text-sm font-medium text-gray-900">
+                                                        <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Year
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -482,7 +482,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         false,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={2026}>2026</option>
                                                                 <option value={2025}>2025</option>
@@ -512,12 +512,12 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={2001}>2001</option>
                                                                 <option value={2000}>2000</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
 
                                                     <div className="w-full">
-                                                        <label htmlFor="end-month" className="block text-sm font-medium text-gray-900">
+                                                        <label htmlFor="end-month" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Month
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -532,7 +532,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         false,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={1}>January</option>
                                                                 <option value={2}>February</option>
@@ -547,12 +547,12 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={11}>November</option>
                                                                 <option value={12}>December</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
 
                                                     <div className="w-full">
-                                                        <label className="block text-sm font-medium text-gray-900">
+                                                        <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Day
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -567,7 +567,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         false,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 {Array.from(
                                                                     {
@@ -584,14 +584,14 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                     </option>
                                                                 ))}
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
                                                 </div>
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full items-end">
                                                     <div className="w-full">
-                                                        <label className="block text-sm font-medium text-gray-900">
+                                                        <label className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Hour
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -606,7 +606,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         false,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={0}>00</option>
                                                                 <option value={1}>01</option>
@@ -633,12 +633,12 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={22}>22</option>
                                                                 <option value={23}>23</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
 
                                                     <div className="w-full">
-                                                        <label htmlFor="end-minute" className="block text-sm font-medium text-gray-900">
+                                                        <label htmlFor="end-minute" className="block text-sm font-medium text-gray-900 dark:text-slate-200">
                                                             Minute
                                                         </label>
                                                         <div className="mt-1 relative">
@@ -653,7 +653,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                         false,
                                                                     )
                                                                 }
-                                                                className="block w-full appearance-none rounded-md bg-white py-1.5 pr-8 pl-3 text-sm text-gray-900 outline outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600"
+                                                                className="block w-full appearance-none rounded-md bg-white dark:bg-slate-900 py-1.5 pr-8 pl-3 text-sm text-gray-900 dark:text-slate-200 outline outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600"
                                                             >
                                                                 <option value={0}>00</option>
                                                                 <option value={1}>01</option>
@@ -716,7 +716,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                                                 <option value={58}>58</option>
                                                                 <option value={59}>59</option>
                                                             </select>
-                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                                                            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-slate-400" />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -726,7 +726,7 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                 </div>
 
 
-                                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-md border border-gray-200 flex items-start ">
+                                <div className="text-sm text-gray-600 dark:text-slate-300 bg-gray-50 dark:bg-slate-900/60 p-4 rounded-md border border-gray-200 dark:border-slate-700 flex items-start ">
                                     <PiInfo className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
                                     <span>All tracking data for the selected period will be permanently deleted. This action cannot be undone.</span>
                                 </div>
@@ -741,35 +741,35 @@ const RemoveTime = ({ onClose, onDelete }: Props) => {
                                         }
                                         setShowPreview(prev => !prev);
                                     }}
-                                    className="inline-flex items-center justify-center rounded-md bg-indigo-100 px-5 py-2.5 text-sm font-semibold text-indigo-600 shadow-sm hover:bg-indigo-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
+                                    className="inline-flex items-center justify-center rounded-md bg-indigo-100 dark:bg-indigo-950/60 px-5 py-2.5 text-sm font-semibold text-indigo-600 dark:text-indigo-400 shadow-sm hover:bg-indigo-200 dark:hover:bg-indigo-900/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-colors">
                                     <Eye className="h-5 w-5 mr-1.5" />
                                     {previewLoading ? "Loading..." : "Preview Deletion"}
                                 </button>
                             </div>
                             {showPreview && (
-                                <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
-                                    <h3 className="text-sm font-medium text-gray-700 mb-4 flex items-center">
-                                        <AiOutlineFileText className="w-5 h-5 text-indigo-500 mr-2" />
+                                <div className="bg-white dark:bg-slate-800/80 rounded-lg border border-gray-200 dark:border-slate-700 p-5 shadow-sm">
+                                    <h3 className="text-sm font-medium text-gray-700 dark:text-slate-200 mb-4 flex items-center">
+                                        <AiOutlineFileText className="w-5 h-5 text-indigo-500 dark:text-indigo-400 mr-2" />
                                         Deletion Preview
                                     </h3>
 
-                                    <div className="bg-red-50 rounded-lg p-4 border border-red-100 mb-4">
-                                        <h5 className="text-base font-medium text-gray-900 mb-3 flex items-center"> You&apos;re about to delete: </h5>
+                                    <div className="bg-red-50 dark:bg-red-950/40 rounded-lg p-4 border border-red-100 dark:border-red-900/60 mb-4">
+                                        <h5 className="text-base font-medium text-gray-900 dark:text-slate-100 mb-3 flex items-center"> You&apos;re about to delete: </h5>
 
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div className="bg-white rounded-md p-3 border border-gray-200 shadow-sm text-center">
-                                                <div className="text-sm text-gray-500 mb-1">Work Time</div>
-                                                <div className="text-lg font-semibold text-indigo-600">{previewData ? (previewData.workTime / 3600).toFixed(1) : "0.0"} hours</div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-md p-3 border border-gray-200 dark:border-slate-700 shadow-sm text-center">
+                                                <div className="text-sm text-gray-500 dark:text-slate-400 mb-1">Work Time</div>
+                                                <div className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">{previewData ? (previewData.workTime / 3600).toFixed(1) : "0.0"} hours</div>
                                             </div>
 
-                                            <div className="bg-white rounded-md p-3 border border-gray-200 shadow-sm text-center">
-                                                <div className="text-sm text-gray-500 mb-1">Break time</div>
-                                                <div className="text-lg font-semibold text-indigo-600">{previewData ? (previewData.breakTime / 3600).toFixed(1) : "0.0"} hours</div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-md p-3 border border-gray-200 dark:border-slate-700 shadow-sm text-center">
+                                                <div className="text-sm text-gray-500 dark:text-slate-400 mb-1">Break time</div>
+                                                <div className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">{previewData ? (previewData.breakTime / 3600).toFixed(1) : "0.0"} hours</div>
                                             </div>
 
-                                            <div className="bg-white rounded-md p-3 border border-gray-200 shadow-sm text-center">
-                                                <div className="text-sm text-gray-500 mb-1">ScreenShots</div>
-                                                <div className="text-lg font-semibold text-indigo-600">{previewData ? previewData.screenshots : 0}</div>
+                                            <div className="bg-white dark:bg-slate-800 rounded-md p-3 border border-gray-200 dark:border-slate-700 shadow-sm text-center">
+                                                <div className="text-sm text-gray-500 dark:text-slate-400 mb-1">ScreenShots</div>
+                                                <div className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">{previewData ? previewData.screenshots : 0}</div>
                                             </div>
 
                                         </div>

@@ -10,6 +10,7 @@ import {
     Tooltip,
     Cell,
 } from "recharts";
+import { useTheme } from "@/context/ThemeContext";
 
 
 const CustomTooltip = ({
@@ -22,12 +23,12 @@ const CustomTooltip = ({
     const data = payload[0].payload;
 
     return (
-        <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-2 py-2">
-            <p className="text-xs font-semibold text-indigo-900 mb-2">
+        <div className="bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] rounded-lg shadow-lg px-2 py-2">
+            <p className="text-xs font-semibold text-indigo-900 dark:text-indigo-300 mb-2">
                 {label}
             </p>
 
-            <div className="flex items-center gap-2 text-xs text-indigo-700">
+            <div className="flex items-center gap-2 text-xs text-indigo-700 dark:text-indigo-300">
                 <div className="flex items-center gap-2">
                     <span
                         className="w-3 h-3 rounded-full"
@@ -63,6 +64,8 @@ type Props = {
 export default function ActivityChart({
     data,
 }: Props) {
+    const { effectiveTheme } = useTheme();
+    const isDark = effectiveTheme === "dark";
 
     return (
         <div className="h-full w-full">
@@ -78,7 +81,7 @@ export default function ActivityChart({
                 >
 
                     <CartesianGrid
-                        stroke="#E5E7EB"
+                        stroke={isDark ? "#22324D" : "#E5E7EB"}
                         strokeDasharray="2 2"
                         vertical={false}
                     />
@@ -88,6 +91,7 @@ export default function ActivityChart({
                         ticks={[0, 20, 40, 60, 80, 100]}
                         tick={{
                             fontSize: 12,
+                            fill: isDark ? "#94A3B8" : "#64748B",
                         }}
                         tickFormatter={(value) => `${value}%`}
                         axisLine={false}
@@ -100,6 +104,7 @@ export default function ActivityChart({
                         interval={3}
                         tick={{
                             fontSize: 12,
+                            fill: isDark ? "#94A3B8" : "#64748B",
                         }}
                         axisLine={false}
                         tickLine={false}

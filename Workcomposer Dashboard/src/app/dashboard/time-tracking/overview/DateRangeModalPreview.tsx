@@ -6,6 +6,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useAppTimezone } from "@/hooks/useAppTimezone";
+import useDesktopNavigation from "@/hooks/useDesktopNavigation";
 import { createDateInTimezone } from "@/utils/appTimezone";
 
 interface DateRangeModalPreviewProps {
@@ -27,6 +28,7 @@ interface DateRangeModalPreviewProps {
 export default function DateRangeModalPreview({ onClose, onApply, initialDate, }: DateRangeModalPreviewProps) {
 
   const timezone = useAppTimezone();
+  const { isDesktop, navigateToSetting } = useDesktopNavigation();
 
   const getTimezoneDateParts = (date: Date = new Date()) => {
     const parts = new Intl.DateTimeFormat("en-US", {
@@ -465,13 +467,13 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-[3px] transition-all duration-300">
-      <div className="bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden w-full max-w-4xl max-h-[90vh] flex flex-col transition-all duration-300">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden w-full max-w-4xl max-h-[90vh] flex flex-col transition-all duration-300">
 
         {/* Top Header - Close Button */}
-        <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-end">
+        <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 px-6 py-4 flex items-center justify-end">
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition duration-150 cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition duration-150 cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -479,11 +481,11 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
         </div>
 
         {/* Modal Columns */}
-        <div className="flex flex-col lg:flex-row lg:divide-x divide-slate-100 overflow-y-auto flex-1 min-h-0">
+        <div className="flex flex-col lg:flex-row lg:divide-x divide-slate-100 dark:divide-slate-700 overflow-y-auto flex-1 min-h-0">
 
           {/* Left Column: Quick Select */}
-          <div className="w-full lg:w-1/3 p-5 bg-[#fafbfd] overflow-y-auto">
-            <h3 className="text-[11px] font-bold mb-4 text-slate-400 uppercase tracking-wider">
+          <div className="w-full lg:w-1/3 p-5 bg-[#fafbfd] dark:bg-slate-900/60 overflow-y-auto">
+            <h3 className="text-[11px] font-bold mb-4 text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               Quick Select
             </h3>
 
@@ -495,8 +497,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                     <button
                       onClick={() => handleQuickSelect(item)}
                       className={`w-full text-left text-sm px-4 py-2.5 rounded-lg transition-all duration-200 font-semibold cursor-pointer ${isActive
-                        ? 'bg-[#e6efff] text-blue-600'
-                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        ? 'bg-[#e6efff] text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                         }`}
                     >
                       {item}
@@ -508,11 +510,11 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
           </div>
 
           {/* Right Column: Calendar & Controls */}
-          <div className="w-full lg:w-2/3 p-6 space-y-6 bg-white overflow-y-auto">
+          <div className="w-full lg:w-2/3 p-6 space-y-6 bg-white dark:bg-slate-800 overflow-y-auto">
 
             {/* Date Range Type Selector */}
             <div className="space-y-3">
-              <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+              <h3 className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
                 Date Range
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -531,8 +533,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                         }
                       }}
                       className={`px-5 py-2.5 rounded-lg border text-sm font-semibold transition-all duration-150 cursor-pointer ${isActive
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-200'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-200 dark:shadow-none'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white shadow-2xs'
                         }`}
                     >
                       {item}
@@ -544,8 +546,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
 
             {/* Calendar Container or Week Selector or Custom Selector */}
             {selectedDateRangeType === 'Week' ? (
-              <div className="bg-[#f8fafc] rounded-xl p-5 border border-slate-100 shadow-xs">
-                <fieldset className="space-y-2 bg-slate-50 rounded-xl p-4 min-h-[340px] max-h-[340px] overflow-y-auto">
+              <div className="bg-[#f8fafc] dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700 shadow-xs">
+                <fieldset className="space-y-2 bg-slate-50 dark:bg-slate-800/80 rounded-xl p-4 min-h-[340px] max-h-[340px] overflow-y-auto">
                   <legend className="sr-only">Select Week</legend>
                   {generateWeeks().map((week, idx) => {
                     const isChecked = selectedWeek === week.value;
@@ -556,7 +558,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                           setSelectedWeek(week.value)
                           setSelectedQuickSelect("Week")
                         }}
-                        className="group flex items-start gap-3 cursor-pointer hover:bg-white hover:shadow-xs rounded-lg p-2 transition-all duration-200"
+                        className="group flex items-start gap-3 cursor-pointer hover:bg-white dark:hover:bg-slate-700/60 hover:shadow-xs rounded-lg p-2 transition-all duration-200"
                       >
                         <div className="flex h-6 shrink-0 items-center">
                           <div className="grid size-5 grid-cols-1">
@@ -569,7 +571,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                                 setSelectedWeek(week.value)
                                 setSelectedQuickSelect("Week")
                               }}
-                              className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 bg-white checked:border-blue-600 checked:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 hover:border-blue-400 transition-all duration-200 cursor-pointer"
+                              className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-blue-600 checked:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 hover:border-blue-400 transition-all duration-200 cursor-pointer"
                               value={week.value}
                             />
                             <svg
@@ -584,7 +586,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                         <div className="text-sm">
                           <label
                             htmlFor={`week-${week.value}`}
-                            className="font-medium text-slate-800 cursor-pointer"
+                            className="font-medium text-slate-800 dark:text-slate-200 cursor-pointer"
                           >
                             {week.label}
                           </label>
@@ -596,12 +598,12 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
               </div>
             ) : selectedDateRangeType === 'Month' ? (
               /* Month and Year dual list selector exactly like requested */
-              <div className="bg-[#f8fafc] rounded-xl p-5 border border-slate-100 shadow-xs">
-                <div className="flex flex-col lg:flex-row gap-4 bg-white rounded-xl p-4 border border-slate-100 shadow-2xs" style={{ minHeight: '340px', maxHeight: '340px' }}>
+              <div className="bg-[#f8fafc] dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700 shadow-xs">
+                <div className="flex flex-col lg:flex-row gap-4 bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-100 dark:border-slate-700 shadow-2xs" style={{ minHeight: '340px', maxHeight: '340px' }}>
 
                   {/* Year fieldset */}
                   <fieldset className="w-1/2 space-y-3">
-                    <legend className="text-sm font-bold text-slate-800 uppercase tracking-wide px-1">Year</legend>
+                    <legend className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide px-1">Year</legend>
                     <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                       {years.map((yr) => {
                         const isDisabled = false;
@@ -614,7 +616,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                                 setCurrentYear(yr);
                               }
                             }}
-                            className={`group flex items-start gap-3 cursor-pointer hover:bg-white hover:shadow-sm rounded-lg p-2 transition-all duration-200 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}
+                            className={`group flex items-start gap-3 cursor-pointer hover:bg-white dark:hover:bg-slate-700/60 hover:shadow-sm rounded-lg p-2 transition-all duration-200 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}
                           >
                             <div className="flex h-6 shrink-0 items-center">
                               <div className="grid size-5 grid-cols-1">
@@ -625,7 +627,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                                   checked={isChecked}
                                   disabled={isDisabled}
                                   onChange={() => { }}
-                                  className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 bg-white checked:border-blue-600 checked:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:border-slate-200 disabled:bg-slate-100 hover:border-blue-400 transition-all duration-200 cursor-pointer"
+                                  className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-blue-600 checked:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:border-slate-200 disabled:bg-slate-100 hover:border-blue-400 transition-all duration-200 cursor-pointer"
                                   value={yr}
                                 />
                                 <svg
@@ -637,7 +639,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                                 </svg>
                               </div>
                             </div>
-                            <label htmlFor={`year-${yr}`} className="text-sm font-medium text-slate-800 select-none cursor-pointer">
+                            <label htmlFor={`year-${yr}`} className="text-sm font-medium text-slate-800 dark:text-slate-200 select-none cursor-pointer">
                               {yr}
                             </label>
                           </div>
@@ -648,7 +650,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
 
                   {/* Month fieldset */}
                   <fieldset className="w-1/2 space-y-3">
-                    <legend className="text-sm font-bold text-slate-800 uppercase tracking-wide px-1">Month</legend>
+                    <legend className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide px-1">Month</legend>
                     <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                       {monthsList.map((monthName, index) => {
                         const monthVal = index; // 0-indexed month
@@ -657,7 +659,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                           <div
                             key={monthVal}
                             onClick={() => setCurrentMonth(monthVal)}
-                            className="group flex items-start gap-3 cursor-pointer hover:bg-white hover:shadow-sm rounded-lg p-2 transition-all duration-200"
+                            className="group flex items-start gap-3 cursor-pointer hover:bg-white dark:hover:bg-slate-700/60 hover:shadow-sm rounded-lg p-2 transition-all duration-200"
                           >
                             <div className="flex h-6 shrink-0 items-center">
                               <div className="grid size-5 grid-cols-1">
@@ -667,7 +669,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                                   type="radio"
                                   checked={isChecked}
                                   onChange={() => { }}
-                                  className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 bg-white checked:border-blue-600 checked:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 hover:border-blue-400 transition-all duration-200 cursor-pointer"
+                                  className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-blue-600 checked:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 hover:border-blue-400 transition-all duration-200 cursor-pointer"
                                   value={`${currentYear}-${monthVal + 1}`}
                                 />
                                 <svg
@@ -679,7 +681,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                                 </svg>
                               </div>
                             </div>
-                            <label htmlFor={`month-${currentYear}-${monthVal + 1}`} className="text-sm font-medium text-slate-800 select-none cursor-pointer">
+                            <label htmlFor={`month-${currentYear}-${monthVal + 1}`} className="text-sm font-medium text-slate-800 dark:text-slate-200 select-none cursor-pointer">
                               {monthName}
                             </label>
                           </div>
@@ -692,8 +694,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
               </div>
             ) : selectedDateRangeType === 'Year' ? (
 
-              <div className="bg-[#f8fafc] rounded-xl p-5 border border-slate-100 shadow-xs">
-                <fieldset className="space-y-2 bg-white rounded-xl p-4 max-h-[340px] overflow-y-auto">
+              <div className="bg-[#f8fafc] dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700 shadow-xs">
+                <fieldset className="space-y-2 bg-white dark:bg-slate-800 rounded-xl p-4 max-h-[340px] overflow-y-auto">
 
                   {years.map((yr) => {
                     const isChecked = currentYear === yr;
@@ -702,7 +704,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                       <div
                         key={yr}
                         onClick={() => setCurrentYear(yr)}
-                        className="group flex items-start gap-3 cursor-pointer hover:bg-slate-50 rounded-lg p-2"
+                        className="group flex items-start gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg p-2"
                       >
                         <div className="flex h-6 shrink-0 items-center">
                           <div className="grid size-5 grid-cols-1">
@@ -710,7 +712,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                               type="radio"
                               checked={isChecked}
                               onChange={() => { }}
-                              className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 bg-white checked:border-blue-600 checked:bg-blue-600"
+                              className="col-start-1 row-start-1 appearance-none rounded-md border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-blue-600 checked:bg-blue-600"
                             />
 
                             <svg
@@ -729,7 +731,7 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                           </div>
                         </div>
 
-                        <label className="text-sm font-medium text-slate-800 cursor-pointer">
+                        <label className="text-sm font-medium text-slate-800 dark:text-slate-200 cursor-pointer">
                           {yr}
                         </label>
                       </div>
@@ -739,12 +741,12 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
               </div>
             ) : selectedDateRangeType === 'Custom' ? (
               /* Custom double side-by-side calendar */
-              <div className="bg-[#f8fafc] rounded-xl p-4 border border-slate-100 shadow-xs">
+              <div className="bg-[#f8fafc] dark:bg-slate-900/50 rounded-xl p-4 border border-slate-100 dark:border-slate-700 shadow-xs">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
 
                   {/* Start Date Calendar */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-100 shadow-2xs">
-                    <h5 className="text-sm font-semibold mb-2 text-slate-700 px-1 py-0.5">Start Date</h5>
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700 shadow-2xs">
+                    <h5 className="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200 px-1 py-0.5">Start Date</h5>
                     <div className="w-full text-sm">
                       <div className="flex items-center justify-between mb-3">
                         <button
@@ -756,11 +758,11 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                               setStartCalMonth(prev => prev - 1);
                             }
                           }}
-                          className="p-1 hover:bg-gray-100 rounded cursor-pointer text-slate-500 transition"
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-pointer text-slate-500 dark:text-slate-400 transition"
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <div className="flex items-center gap-1 font-semibold text-slate-800">
+                        <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-100">
                           <span>{monthsList[startCalMonth]}</span>
                           <span>{startCalYear}</span>
                         </div>
@@ -773,13 +775,13 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                               setStartCalMonth(prev => prev + 1);
                             }
                           }}
-                          className="p-1 hover:bg-gray-100 rounded cursor-pointer text-slate-500 transition"
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-pointer text-slate-500 dark:text-slate-400 transition"
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-7 text-center font-bold text-slate-400 text-xs mb-2.5">
+                      <div className="grid grid-cols-7 text-center font-bold text-slate-400 dark:text-slate-500 text-xs mb-2.5">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                           <div key={d} className="pb-1">{d}</div>
                         ))}
@@ -795,8 +797,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                               className={`w-8 h-8 flex items-center justify-center rounded-full mx-auto transition-all duration-150 cursor-pointer ${isSelected
                                 ? 'bg-blue-600 text-white font-bold shadow-sm'
                                 : dayObj.isCurrentMonth
-                                  ? 'text-slate-800 hover:bg-gray-200'
-                                  : 'text-gray-400 hover:bg-gray-200'
+                                  ? 'text-slate-800 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700'
+                                  : 'text-gray-400 dark:text-slate-600 hover:bg-gray-200 dark:hover:bg-slate-700/50'
                                 }`}
                             >
                               {dayObj.day}
@@ -808,8 +810,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                   </div>
 
                   {/* End Date Calendar */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-100 shadow-2xs">
-                    <h5 className="text-sm font-semibold mb-2 text-slate-700 px-1 py-0.5">End Date</h5>
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700 shadow-2xs">
+                    <h5 className="text-sm font-semibold mb-2 text-slate-700 dark:text-slate-200 px-1 py-0.5">End Date</h5>
                     <div className="w-full text-sm">
                       <div className="flex items-center justify-between mb-3">
                         <button
@@ -821,11 +823,11 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                               setEndCalMonth(prev => prev - 1);
                             }
                           }}
-                          className="p-1 hover:bg-gray-100 rounded cursor-pointer text-slate-500 transition"
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-pointer text-slate-500 dark:text-slate-400 transition"
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <div className="flex items-center gap-1 font-semibold text-slate-800">
+                        <div className="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-100">
                           <span>{monthsList[endCalMonth]}</span>
                           <span>{endCalYear}</span>
                         </div>
@@ -838,13 +840,13 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                               setEndCalMonth(prev => prev + 1);
                             }
                           }}
-                          className="p-1 hover:bg-gray-100 rounded cursor-pointer text-slate-500 transition"
+                          className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-pointer text-slate-500 dark:text-slate-400 transition"
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-7 text-center font-bold text-slate-400 text-xs mb-2.5">
+                      <div className="grid grid-cols-7 text-center font-bold text-slate-400 dark:text-slate-500 text-xs mb-2.5">
                         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                           <div key={d} className="pb-1">{d}</div>
                         ))}
@@ -860,8 +862,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                               className={`w-8 h-8 flex items-center justify-center rounded-full mx-auto transition-all duration-150 cursor-pointer ${isSelected
                                 ? 'bg-blue-600 text-white font-bold shadow-sm'
                                 : dayObj.isCurrentMonth
-                                  ? 'text-slate-800 hover:bg-gray-200'
-                                  : 'text-gray-400 hover:bg-gray-200'
+                                  ? 'text-slate-800 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-700'
+                                  : 'text-gray-400 dark:text-slate-600 hover:bg-gray-200 dark:hover:bg-slate-700/50'
                                 }`}
                             >
                               {dayObj.day}
@@ -876,32 +878,32 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
               </div>
             ) : (
               /* Calendar Container */
-              <div className="bg-[#f8fafc] rounded-xl p-5 border border-slate-100 shadow-xs">
-                <div className="bg-white rounded-lg p-5 max-w-md mx-auto shadow-xs border border-slate-100/80">
+              <div className="bg-[#f8fafc] dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700 shadow-xs">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-5 max-w-md mx-auto shadow-xs border border-slate-100/80 dark:border-slate-700">
 
                   {/* Calendar Header */}
                   <div className="flex items-center justify-between mb-5 px-1">
                     <button
                       onClick={handlePrevMonth}
-                      className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                      className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
 
-                    <h2 className="font-bold text-slate-800 text-sm tracking-wide">
+                    <h2 className="font-bold text-slate-800 dark:text-slate-100 text-sm tracking-wide">
                       {monthsList[currentMonth]} {currentYear}
                     </h2>
 
                     <button
                       onClick={handleNextMonth}
-                      className="p-1.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                      className="p-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
 
                   {/* Week Days Headers */}
-                  <div className="grid grid-cols-7 text-center text-xs font-bold text-slate-400 mb-3 gap-2">
+                  <div className="grid grid-cols-7 text-center text-xs font-bold text-slate-400 dark:text-slate-500 mb-3 gap-2">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(
                       (day) => (
                         <div key={day} className="py-1">
@@ -921,10 +923,10 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                           key={index}
                           onClick={() => setSelectedDate(new Date(dayObj.year, dayObj.month, dayObj.day))}
                           className={`w-9 h-9 flex items-center justify-center rounded-full mx-auto transition-all duration-150 cursor-pointer ${isSelected
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm ring-2 ring-blue-100'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm ring-2 ring-blue-100 dark:ring-blue-900/60'
                             : dayObj.isCurrentMonth
-                              ? 'text-slate-800 font-semibold hover:bg-slate-100'
-                              : 'text-slate-300 font-medium hover:bg-slate-50'
+                              ? 'text-slate-800 dark:text-slate-200 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700'
+                              : 'text-slate-300 dark:text-slate-600 font-medium hover:bg-slate-50 dark:hover:bg-slate-700/50'
                             }`}
                         >
                           {dayObj.day}
@@ -937,8 +939,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
             )}
 
             {/* Group By Option */}
-            <div className="bg-[#f8fafc] rounded-xl p-5 border border-slate-100 shadow-xs">
-              <h4 className="text-[11px] font-bold mb-3 text-slate-400 uppercase tracking-wider">
+            <div className="bg-[#f8fafc] dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700 shadow-xs">
+              <h4 className="text-[11px] font-bold mb-3 text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Group By
               </h4>
 
@@ -950,8 +952,8 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
                       key={item}
                       onClick={() => setSelectedGroupBy(item)}
                       className={`px-5 py-2.5 rounded-lg border text-sm font-semibold transition-all duration-150 cursor-pointer ${isActive
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs shadow-blue-200'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 shadow-2xs'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs shadow-blue-200 dark:shadow-none'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white shadow-2xs'
                         }`}
                     >
                       {item}
@@ -964,16 +966,23 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
             {/* Report Timezone — read only, sourced from the user's real Settings.
                 (Previously this was a second, disconnected timezone picker that
                 didn't match the real app timezone and wasn't saved anywhere.) */}
-            <div className="bg-[#f8fafc] rounded-xl p-5 border border-slate-100 shadow-xs">
-              <h4 className="text-[11px] font-bold mb-3 text-slate-400 uppercase tracking-wider">
+            <div className="bg-[#f8fafc] dark:bg-slate-900/50 rounded-xl p-5 border border-slate-100 dark:border-slate-700 shadow-xs">
+              <h4 className="text-[11px] font-bold mb-3 text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                 Report Timezone
               </h4>
 
-              <div className="flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-700">
+              <div className="flex items-center justify-between px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 <span>{timezone}</span>
                 <a
                   href="/dashboard/settings/profile"
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                  onClick={(e) => {
+                    if (isDesktop) {
+                      e.preventDefault();
+                      onClose?.();
+                      navigateToSetting("profile", "/dashboard/settings/profile");
+                    }
+                  }}
+                  className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer"
                 >
                   Change in Settings
                 </a>
@@ -985,10 +994,10 @@ export default function DateRangeModalPreview({ onClose, onApply, initialDate, }
 
 
         </div>
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex flex-col-reverse sm:flex-row justify-end gap-3">
+        <div className="sticky bottom-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 px-6 py-4 flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+            className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
           >
             Cancel
           </button>

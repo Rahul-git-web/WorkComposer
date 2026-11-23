@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import API from "@/api";
 import socket from "@/socket/socket";
 
@@ -9,6 +9,9 @@ import EditTime from "@/app/dashboard/time-tracking/overview/EditTime";
 import RemoveTime from "@/app/dashboard/time-tracking/overview/RemoveTime";
 import { formatDateForApi } from "@/utils/appTimezone";
 import { useTimeTracking } from "@/context/TimeTrackingContext";
+import { useOptionalTimer } from "@/context/TimerContext";
+import { useDashboard } from "@/context/DashboardContext";
+import { isTeamReportAccess } from "@/utils/reportAccess";
 
 import type { ReportContentProps } from "../types";
 
@@ -26,15 +29,24 @@ export default function OverviewContentModule({
 }) {
 
     const { timezone } = useTimeTracking();
+    const timerContext = useOptionalTimer();
+    const isTracking = timerContext?.isTracking ?? false;
+    const { user } = useDashboard();
+    const isTeamReport = isTeamReportAccess(user);
 
     const [data, setData] = useState<any[]>([]);
     const [allUsers, setAllUsers] = useState<any[]>([]);
+    const [productivityMap, setProductivityMap] = useState<Record<string, number>>({});
+    const [activityMap, setActivityMap] = useState<Record<string, number>>({});
 
     const [showModal, setShowModal] = useState(false);
 
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     const [isOverviewLoading, setIsOverviewLoading] = useState(true);
     const [refresh, setRefresh] = useState(0);
+
+    const inFlightRef = useRef(false);
+    const fetchRequestIdRef = useRef(0);
 
     const formattedDate = formatDateForApi(
         reportRange.startDate,
@@ -70,9 +82,14 @@ export default function OverviewContentModule({
 
             setAllUsers(users);
 
-        } catch (err) {
-            console.error("FAILED TO FETCH USERS:", err);
-            setAllUsers([]);
+        } catch (err: any) {
+            if (err?.response?.status === 403) {
+                // Expected for managers/roles without manage_users permission
+                setAllUsers([]);
+            } else {
+                console.error("FAILED TO FETCH USERS:", err);
+                setAllUsers([]);
+            }
         }
     };
 
@@ -80,137 +97,214 @@ export default function OverviewContentModule({
         fetchAllUsers();
     }, []);
 
-    const fetchOverview = async () => {
-        setIsOverviewLoading(true);
+    const fetchOverview = useCallback(
+        async (isBackground = false) => {
+            if (inFlightRef.current && isBackground) {
+                return;
+            }
+            const requestId = ++fetchRequestIdRef.current;
+            inFlightRef.current = true;
 
-        try {
-            const res = await API.get(
-                `/sessions/overview?startDate=${startDate}&endDate=${endDate}`
-            );
-
-            let overviewData = Array.isArray(res.data)
-                ? res.data
-                : [];
-
-            // TEAM FILTER
-            if (selectedTeams.length > 0) {
-                const selectedTeamIds = selectedTeams.map((team: any) =>
-                    String(typeof team === "object" ? team._id : team)
-                );
-
-                overviewData = overviewData.filter((item: any) => {
-                    const itemTeamId =
-                        typeof item.team === "object"
-                            ? item.team?._id
-                            : item.team;
-
-                    return selectedTeamIds.includes(String(itemTeamId));
-                });
+            if (!isBackground) {
+                setIsOverviewLoading(true);
             }
 
-            // USER FILTER
-            if (selectedUsers.length > 0) {
-                overviewData = overviewData.filter((item: any) =>
-                    selectedUsers.some(
-                        (user: any) =>
-                            String(user._id) === String(item.id)
-                    )
-                );
-            }
+            try {
+                const [overviewResult, prodResult] = await Promise.allSettled([
+                    API.get(`/sessions/overview?startDate=${startDate}&endDate=${endDate}`),
+                    API.get(`/reports/productivity?startDate=${startDate}&endDate=${endDate}`)
+                ]);
 
-            // SORT
-            overviewData.sort((a: any, b: any) => {
-                let valueA: any;
-                let valueB: any;
-
-                switch (sortBy) {
-                    case "team":
-                        valueA =
-                            typeof a.team === "object"
-                                ? a.team?.name
-                                : a.team;
-
-                        valueB =
-                            typeof b.team === "object"
-                                ? b.team?.name
-                                : b.team;
-                        break;
-
-                    case "trackingStatus":
-                        valueA = a.status || "";
-                        valueB = b.status || "";
-                        break;
-
-                    case "externalId":
-                        valueA = a.externalId || "";
-                        valueB = b.externalId || "";
-                        break;
-
-                    case "name":
-                    default:
-                        valueA = a.name || "";
-                        valueB = b.name || "";
-                        break;
+                if (requestId !== fetchRequestIdRef.current) {
+                    return;
                 }
 
-                valueA = String(valueA).toLowerCase();
-                valueB = String(valueB).toLowerCase();
+                const res = overviewResult.status === "fulfilled" ? overviewResult.value : { data: [] };
 
-                const comparison = valueA.localeCompare(valueB);
+                // Map productivity by user ID
+                const newProdMap: Record<string, number> = {};
+                if (prodResult.status === "fulfilled" && Array.isArray(prodResult.value?.data)) {
+                    for (const u of prodResult.value.data) {
+                        const uid = String(u._id || u.id);
+                        if (typeof u.productivePercent === "number") {
+                            newProdMap[uid] = u.productivePercent;
+                        }
+                    }
+                }
+                setProductivityMap(newProdMap);
 
-                return order === "desc"
-                    ? -comparison
-                    : comparison;
-            });
+                let overviewData = Array.isArray(res.data)
+                    ? res.data
+                    : [];
 
-            const formattedData = overviewData.map(
-                (item: any) => ({
-                    id: item.id,
-                    name: item.name,
-                    avatar: item.avatar,
-                    team: item.team,
-                    date: formattedDate,
-                    workTime: item.workTime,
-                    breakTime: item.breakTime,
-                    status: item.status,
-                    lastSync: item.lastSync,
-                    externalId: item.externalId,
-                })
-            );
+                // TEAM FILTER
+                if (selectedTeams.length > 0) {
+                    const selectedTeamIds = selectedTeams.map((team: any) =>
+                        String(typeof team === "object" ? (team._id || team.id) : team)
+                    );
 
-            setData(formattedData);
+                    overviewData = overviewData.filter((item: any) => {
+                        const itemTeamId =
+                            typeof item.team === "object"
+                                ? (item.team?._id || item.team?.id)
+                                : item.team;
 
-        } catch (err) {
-            console.error("FAILED TO FETCH OVERVIEW:", err);
-            setData([]);
-        } finally {
-            setIsOverviewLoading(false);
-        }
-    };
+                        return selectedTeamIds.includes(String(itemTeamId));
+                    });
+                }
+
+                // USER FILTER
+                if (selectedUsers.length > 0) {
+                    overviewData = overviewData.filter((item: any) =>
+                        selectedUsers.some(
+                            (user: any) =>
+                                String(user._id || user.id) === String(item.id || item._id)
+                        )
+                    );
+                }
+
+                // SORT
+                overviewData.sort((a: any, b: any) => {
+                    let valueA: any;
+                    let valueB: any;
+
+                    switch (sortBy) {
+                        case "team":
+                            valueA =
+                                typeof a.team === "object"
+                                    ? a.team?.name
+                                    : a.team;
+
+                            valueB =
+                                typeof b.team === "object"
+                                    ? b.team?.name
+                                    : b.team;
+                            break;
+
+                        case "trackingStatus":
+                            valueA = a.status || "";
+                            valueB = b.status || "";
+                            break;
+
+                        case "externalId":
+                            valueA = a.externalId || "";
+                            valueB = b.externalId || "";
+                            break;
+
+                        case "name":
+                        default:
+                            valueA = a.name || "";
+                            valueB = b.name || "";
+                            break;
+                    }
+
+                    valueA = String(valueA).toLowerCase();
+                    valueB = String(valueB).toLowerCase();
+
+                    const comparison = valueA.localeCompare(valueB);
+
+                    return order === "desc"
+                        ? -comparison
+                        : comparison;
+                });
+
+                const formattedData = overviewData.map(
+                    (item: any) => ({
+                        id: item.id,
+                        name: item.name,
+                        avatar: item.avatar,
+                        team: item.team,
+                        date: formattedDate,
+                        workTime: item.workTime,
+                        breakTime: item.breakTime,
+                        status: item.status,
+                        lastSync: item.lastSync,
+                        externalId: item.externalId,
+                    })
+                );
+
+                setData(formattedData);
+
+                // In Employee View (1 row), single O(1) fetch for activityScore
+                const singleUser = formattedData[0];
+                if (!isTeamReport && singleUser?.id) {
+                    try {
+                        const actRes = await API.get(`/activity/${singleUser.id}?date=${startDate}`);
+                        if (typeof actRes.data?.activityScore === "number") {
+                            setActivityMap({ [String(singleUser.id)]: actRes.data.activityScore });
+                        }
+                    } catch {
+                        // Non-critical, ignore
+                    }
+                }
+
+            } catch (err) {
+                if (requestId === fetchRequestIdRef.current) {
+                    console.error("FAILED TO FETCH OVERVIEW:", err);
+                    if (!isBackground) {
+                        setData([]);
+                    }
+                }
+            } finally {
+                if (requestId === fetchRequestIdRef.current) {
+                    inFlightRef.current = false;
+                    if (!isBackground) {
+                        setIsOverviewLoading(false);
+                    }
+                }
+            }
+        },
+        [startDate, endDate, selectedTeams, selectedUsers, sortBy, order, formattedDate, isTeamReport]
+    );
+
     useEffect(() => {
-        fetchOverview();
+        fetchOverview(false);
     }, [
-        formattedDate,
-        startDate,
-        endDate,
+        fetchOverview,
         refresh,
         refreshKey,
-        selectedTeams,
-        selectedUsers,
-        sortBy,
-        order,
         timezone,
     ]);
 
     useEffect(() => {
+        const handleInvalidate = () => {
+            fetchOverview(true);
+        };
+
         socket.on("connect", () => {
             console.info("Frontend connected:", socket.id);
         });
+        socket.on("timerStarted", handleInvalidate);
+        socket.on("timerStopped", handleInvalidate);
+        socket.on("tracking:started", handleInvalidate);
+        socket.on("tracking:stopped", handleInvalidate);
+        socket.on("session:updated", handleInvalidate);
 
         return () => {
             socket.off("connect");
+            socket.off("timerStarted", handleInvalidate);
+            socket.off("timerStopped", handleInvalidate);
+            socket.off("tracking:started", handleInvalidate);
+            socket.off("tracking:stopped", handleInvalidate);
+            socket.off("session:updated", handleInvalidate);
         };
-    }, []);
+    }, [fetchOverview]);
+
+    const hasActiveTracking =
+        isTracking ||
+        data.some((item) => item.status?.toLowerCase().includes("running"));
+
+    useEffect(() => {
+        if (!hasActiveTracking) return;
+
+        const intervalId = setInterval(() => {
+            fetchOverview(true);
+        }, 60000);
+
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [hasActiveTracking, fetchOverview]);
 
     return (
         <>
@@ -243,6 +337,8 @@ export default function OverviewContentModule({
                     data={data}
                     loading={isOverviewLoading}
                     allUsers={allUsers}
+                    productivityMap={productivityMap}
+                    activityMap={activityMap}
                     reportRange={reportRange}
                     onAddManualTime={() => setShowModal(true)}
                     onRemoveTime={() => setShowRemoveModal(true)}

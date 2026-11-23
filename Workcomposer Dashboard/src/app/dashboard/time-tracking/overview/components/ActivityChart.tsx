@@ -10,6 +10,7 @@ import {
     Tooltip,
     Cell,
 } from "recharts";
+import { useTheme } from "@/context/ThemeContext";
 
 type Props = {
     data: {
@@ -22,6 +23,9 @@ type Props = {
 export default function ActivityChart({
     data,
 }: Props) {
+    const { effectiveTheme } = useTheme();
+    const isDark = effectiveTheme === "dark";
+
     return (
         <div className="h-52 sm:h-64 lg:h-full w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -31,7 +35,7 @@ export default function ActivityChart({
                 >
 
                     <CartesianGrid
-                        stroke="#E5E7EB"
+                        stroke={isDark ? "#22324D" : "#E5E7EB"}
                         strokeDasharray="2 2"
                         vertical={false}
                     />
@@ -39,7 +43,7 @@ export default function ActivityChart({
                     <YAxis
                         domain={[0, 100]}
                         ticks={[0, 100]}
-                        tick={{ fontSize: 11 }}
+                        tick={{ fontSize: 11, fill: isDark ? "#94A3B8" : "#64748B" }}
                         tickFormatter={(value) => `${value}%`}
                         axisLine={false}
                         tickLine={false}
@@ -50,7 +54,7 @@ export default function ActivityChart({
                         dataKey="time"
                         interval="preserveStartEnd"
                         minTickGap={20}
-                        tick={{ fontSize: 11 }}
+                        tick={{ fontSize: 11, fill: isDark ? "#94A3B8" : "#64748B" }}
                         axisLine={false}
                         tickLine={false}
                     />
@@ -61,8 +65,8 @@ export default function ActivityChart({
                             zIndex: 100,
                         }}
                         contentStyle={{
-                            backgroundColor: "#1F2937",
-                            border: "none",
+                            backgroundColor: isDark ? "#0F172A" : "#1F2937",
+                            border: isDark ? "1px solid #22324D" : "none",
                             borderRadius: "8px",
                             color: "#fff",
                             fontSize: 11,

@@ -111,14 +111,14 @@ export default function DateControls({
               handleToday();
               setIsDateModalOpen(true);
             }}
-            className="text-sm font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg shadow-sm px-4 py-2 ring-1 ring-slate-100 hover:shadow-md hover:border-slate-300 hover:bg-slate-500 transition-all duration-200 cursor-pointer"
+            className="text-sm font-semibold text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm px-4 py-2 ring-1 ring-slate-100 dark:ring-0 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200 cursor-pointer"
           >
             {dateLabel}
           </button>
 
           <button
             onClick={handlePrev}
-            className="text-slate-600 hover:text-slate-800 p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all duration-200 cursor-pointer font-medium"
+            className="text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer font-medium"
             title="Previous"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -128,16 +128,16 @@ export default function DateControls({
             onClick={() =>
               setIsDateModalOpen(true)
             }
-            className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 sm:px-4 py-2 text-sm font-medium text-slate-800 shadow-sm ring-1 ring-slate-100 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-md cursor-pointer">
+            className="flex min-w-0 items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 sm:px-4 py-2 text-sm font-medium text-slate-800 dark:text-slate-200 shadow-sm ring-1 ring-slate-100 dark:ring-0 transition-all duration-200 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:shadow-md cursor-pointer">
             <span className="truncate font-semibold">{dateRangeText}</span>
             <ChevronRight
-              className="w-4 h-4 text-slate-500 transition-transform duration-200"
+              className="w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200"
             />
           </button>
 
           <button
             onClick={handleNext}
-            className="text-slate-600 cursor-pointer font-medium hover:text-slate-800 p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all duration-200"
+            className="text-slate-600 dark:text-slate-300 cursor-pointer font-medium hover:text-slate-800 dark:hover:text-white p-2 rounded-lg hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all duration-200"
             title="Next"
           >
             <ChevronRight className="w-4 h-4" />
@@ -149,7 +149,7 @@ export default function DateControls({
   type="button"
   onClick={onRefresh}
   disabled={isRefreshing}
-  className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-white p-2 text-gray-500 hover:bg-gray-100 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+  className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-white dark:bg-slate-800 p-2 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
   title="Refresh"
 >
   <RefreshCw

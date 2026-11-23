@@ -7,6 +7,7 @@ import {
     ResponsiveContainer,
     Tooltip,
 } from "recharts";
+import { useTheme } from "@/context/ThemeContext";
 
 type Props = {
     data: {
@@ -19,6 +20,8 @@ type Props = {
 const AppUsageChart = ({
     data,
 }: Props) => {
+    const { effectiveTheme } = useTheme();
+    const isDark = effectiveTheme === "dark";
 
     const formatDuration = (seconds: number) => {
         const hours = Math.floor(seconds / 3600);
@@ -44,6 +47,9 @@ const AppUsageChart = ({
                             fontSize: "11px",
                             padding: "6px 10px",
                             borderRadius: "8px",
+                            backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
+                            borderColor: isDark ? "#22324D" : "#E5E7EB",
+                            color: isDark ? "#FFFFFF" : "#0F172A",
                         }}
                         labelStyle={{
                             fontSize: "11px",
