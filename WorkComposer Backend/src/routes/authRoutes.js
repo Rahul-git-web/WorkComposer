@@ -16,16 +16,41 @@ import {
   microsoftLogin,
   microsoftCallback,
   getMicrosoftSignupInfo,
+  getCsrfToken,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { getUserPermissions } from "../utils/getUserPermissions.js";
+import { resolveEffectiveAuthContext } from "../security/effectiveAuthContext.js";
 import Role from "../models/role.model.js";
+import {
+  authBurstLimiter,
+  loginIpLimiter,
+  loginIdentityLimiter,
+  twoFactorIpLimiter,
+  twoFactorIdentityLimiter,
+  forgotPasswordIpLimiter,
+  forgotPasswordIdentityLimiter,
+  resendVerificationIpLimiter,
+  resendVerificationIdentityLimiter,
+  registerLimiter,
+  resetPasswordLimiter,
+  refreshLimiter,
+} from "../middleware/authRateLimit.middleware.js";
 
 const router = express.Router();
 
-router.post("/register", registerUser);
+router.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
 
-router.post("/login", loginUser);
+router.use(authBurstLimiter);
+
+router.get("/csrf", getCsrfToken);
+
+router.post("/register", registerLimiter, registerUser);
+
+router.post("/login", loginIpLimiter, loginIdentityLimiter, loginUser);
 
 router.get("/google", googleLogin);
 
@@ -39,13 +64,13 @@ router.get("/microsoft/callback", microsoftCallback);
 
 router.get("/microsoft-signup-info", getMicrosoftSignupInfo);
 
-router.post("/refresh", refreshAccessToken);
+router.post("/refresh", refreshLimiter, refreshAccessToken);
 
 router.post("/logout", logoutUser);
 
 router.get("/verify/:token", verifyEmail);
 
-router.post("/resend-verification", resendVerification);
+router.post("/resend-verification", resendVerificationIpLimiter, resendVerificationIdentityLimiter, resendVerification);
 
 router.get("/me", protect, async (req, res) => {
   try {
@@ -56,16 +81,17 @@ router.get("/me", protect, async (req, res) => {
 
     const userObj = user.toObject();
 
-    const permissions = await getUserPermissions(user);
+    const roleDoc = user.roleRef
+      ? await Role.findById(user.roleRef)
+      : null;
+
+    const authContext = resolveEffectiveAuthContext(user, roleDoc);
+    const permissions = Array.from(authContext.effectivePermissions);
 
     userObj.permissions = permissions;
-
-    const role = await Role.findById(user.roleRef).select(
-      "reportAccess screenshotAccess",
-    );
-
-    userObj.reportAccess = role?.reportAccess || "none";
-    userObj.screenshotAccess = role?.screenshotAccess || "none";
+    userObj.manageUsers = permissions.includes("manage_users") || user.role === "owner";
+    userObj.reportAccess = authContext.effectiveReportAccess;
+    userObj.screenshotAccess = authContext.effectiveScreenshotAccess;
 
     if (
       userObj.avatar &&
@@ -85,10 +111,10 @@ router.get("/me", protect, async (req, res) => {
   }
 });
 
-router.post("/forgot-password", forgotPassword);
+router.post("/forgot-password", forgotPasswordIpLimiter, forgotPasswordIdentityLimiter, forgotPassword);
 
-router.post("/reset-password", resetPassword);
+router.post("/reset-password", resetPasswordLimiter, resetPassword);
 
-router.post("/verify-two-factor", verifyTwoFactor);
+router.post("/verify-two-factor", twoFactorIpLimiter, twoFactorIdentityLimiter, verifyTwoFactor);
 
 export default router;
