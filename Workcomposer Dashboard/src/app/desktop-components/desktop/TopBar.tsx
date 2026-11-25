@@ -33,6 +33,7 @@ export default function TopBar() {
     duration,
 
     todayWorkSeconds,
+    displayedWorkSeconds: contextDisplayedWorkSeconds,
     todayBreakSeconds,
     refreshTodayWork,
 
@@ -50,9 +51,15 @@ export default function TopBar() {
   useEffect(() => {
     if (!window.electronAPI) return;
 
-    window.electronAPI.onIdleTimeout(() => {
-      stop();
+    const removeListener = window.electronAPI.onIdleTimeout(() => {
+      stop({ isBreak: true } as any);
     });
+
+    return () => {
+      if (typeof removeListener === "function") {
+        removeListener();
+      }
+    };
   }, [stop]);
 
   const formatDuration = (seconds: number) => {
@@ -63,9 +70,8 @@ export default function TopBar() {
     return `${h}h ${m}m ${s}s`;
   };
 
-  const displayedWorkSeconds = isTracking
-    ? todayWorkSeconds + duration
-    : todayWorkSeconds;
+  const displayedWorkSeconds =
+    contextDisplayedWorkSeconds ?? todayWorkSeconds;
 
   useEffect(() => {
     if (lastStartedAt || lastStoppedAt) {
@@ -103,9 +109,11 @@ export default function TopBar() {
 
       min-h-16
 
-      bg-[#162742]
+      bg-white
+      dark:bg-[#162742]
       border-b
-      border-[#263852]
+      border-gray-200
+      dark:border-[#263852]
 
       flex
       items-center
@@ -120,6 +128,8 @@ export default function TopBar() {
       xl:gap-4
 
       overflow-visible
+      transition-colors
+      duration-200
     "
     >
       {/* =====================================================
@@ -146,9 +156,11 @@ export default function TopBar() {
             min-w-0
             max-w-full
 
-            bg-[#0F1B31]
+            bg-gray-50
+            dark:bg-[#0F1B31]
             border
-            border-[#263852]
+            border-gray-200
+            dark:border-[#263852]
             rounded-lg
 
             px-3
@@ -162,17 +174,18 @@ export default function TopBar() {
             hover:shadow-[0_0_16px_rgba(96,165,250,0.25)]
           "
           >
-            <Clipboard className="w-4 h-4 text-blue-400 shrink-0" />
+            <Clipboard className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
 
             <div className="min-w-0">
-              <p className="text-[10px] text-gray-400 uppercase">
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">
                 Current Task
               </p>
 
               <p
                 className="
                 text-sm
-                text-white
+                text-gray-900
+                dark:text-white
                 font-medium
                 truncate
 
@@ -205,7 +218,7 @@ export default function TopBar() {
             bg-blue-600
             hover:bg-blue-700
 
-            text-gray-200
+            text-white
 
             transition-shadow
             duration-300
@@ -241,9 +254,11 @@ export default function TopBar() {
       ==================================================== */}
         <div
           className="
-          bg-[#0F1B31]
+          bg-gray-50
+          dark:bg-[#0F1B31]
           border
-          border-[#263852]
+          border-gray-200
+          dark:border-[#263852]
           rounded-xl
 
           px-2
@@ -275,7 +290,8 @@ export default function TopBar() {
 
             rounded-lg
 
-            bg-[#113B35]
+            bg-green-100
+            dark:bg-[#113B35]
 
             flex
             items-center
@@ -286,7 +302,7 @@ export default function TopBar() {
             shadow-[0_0_10px_rgba(74,222,128,0.4)]
           "
           >
-            <Clock className="w-4 h-4 text-green-400" />
+            <Clock className="w-4 h-4 text-green-600 dark:text-green-400" />
           </div>
 
           <div className="min-w-0">
@@ -295,7 +311,8 @@ export default function TopBar() {
               text-[10px]
               lg:text-[11px]
 
-              text-gray-400
+              text-gray-500
+              dark:text-gray-400
               font-bold
 
               whitespace-nowrap
@@ -306,7 +323,8 @@ export default function TopBar() {
 
             <h3
               className="
-              text-white
+              text-gray-900
+              dark:text-white
               font-bold
 
               text-base
@@ -326,9 +344,11 @@ export default function TopBar() {
       ==================================================== */}
         <div
           className="
-          bg-[#0F1B31]
+          bg-gray-50
+          dark:bg-[#0F1B31]
           border
-          border-[#263852]
+          border-gray-200
+          dark:border-[#263852]
           rounded-lg
 
           px-2
@@ -360,7 +380,8 @@ export default function TopBar() {
 
             rounded-lg
 
-            bg-[#3B2418]
+            bg-orange-100
+            dark:bg-[#3B2418]
 
             flex
             items-center
@@ -371,7 +392,7 @@ export default function TopBar() {
             shadow-[0_0_10px_rgba(251,146,60,0.4)]
           "
           >
-            <CirclePause className="w-4 h-4 text-orange-400" />
+            <CirclePause className="w-4 h-4 text-orange-600 dark:text-orange-400" />
           </div>
 
           <div className="min-w-0">
@@ -380,7 +401,8 @@ export default function TopBar() {
               text-[10px]
               lg:text-[11px]
 
-              text-gray-400
+              text-gray-500
+              dark:text-gray-400
               font-bold
 
               whitespace-nowrap
@@ -391,7 +413,8 @@ export default function TopBar() {
 
             <h3
               className="
-              text-white
+              text-gray-900
+              dark:text-white
               font-bold
 
               text-base
@@ -411,12 +434,13 @@ export default function TopBar() {
       ==================================================== */}
         <button
           onClick={() => {
-            if (!user?._id) return;
+            const uid = user?._id || user?.id;
+            if (!uid) return;
 
             if (isTracking) {
-              stop();
+              stop({ isBreak: false });
             } else {
-              start(user._id);
+              start(uid);
             }
           }}
           className={`
@@ -485,8 +509,8 @@ export default function TopBar() {
           duration-300
 
           ${finishedToday
-              ? "bg-[#243447] text-gray-400 cursor-not-allowed"
-              : "bg-[#243447] text-white hover:bg-[#30445A] hover:shadow-[0_0_16px_rgba(148,163,184,0.25)]"
+              ? "bg-gray-100 dark:bg-[#243447] text-gray-400 cursor-not-allowed"
+              : "bg-gray-200 dark:bg-[#243447] text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-[#30445A] hover:shadow-[0_0_16px_rgba(148,163,184,0.25)]"
             }
         `}
         >
@@ -530,20 +554,22 @@ export default function TopBar() {
 
             rounded-xl
 
-            bg-[#16253D]
+            bg-white
+            dark:bg-[#16253D]
             border
-            border-[#263852]
+            border-gray-200
+            dark:border-[#263852]
 
             p-6
 
             shadow-2xl
           "
           >
-            <h2 className="text-lg font-semibold text-white">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               Finish your workday?
             </h2>
 
-            <p className="text-sm text-gray-400 mt-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
               You&apos;ve finished working for today. You won&apos;t be able
               to start tracking again until tomorrow.
             </p>
@@ -561,10 +587,13 @@ export default function TopBar() {
                 text-sm
                 font-medium
 
-                bg-[#243447]
-                text-gray-300
+                bg-gray-100
+                dark:bg-[#243447]
+                text-gray-700
+                dark:text-gray-300
 
-                hover:bg-[#30445A]
+                hover:bg-gray-200
+                dark:hover:bg-[#30445A]
               "
               >
                 Cancel

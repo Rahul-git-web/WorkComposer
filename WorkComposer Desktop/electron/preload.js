@@ -71,7 +71,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   stopTrackingFromBar: () => ipcRenderer.send("trackingbar-stop"),
 
-  stopTracking: () => ipcRenderer.send("stop-tracking"),
+  stopTracking: (options) => ipcRenderer.send("stop-tracking", options),
 
   openMainWindow: () => ipcRenderer.send("open-main-window"),
 
@@ -94,8 +94,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   onAutoStartTracking: (callback) => {
-    const listener = (...args) => {
-      callback();
+    const listener = (_, data) => {
+      callback(data);
     };
 
     ipcRenderer.on("auto-start-tracking", listener);
@@ -175,4 +175,57 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ipcRenderer.removeListener("tracking-update", listener);
     };
   },
+
+  getOfflineQueueStatus: () => ipcRenderer.invoke("get-offline-queue-status"),
+
+  onScreenshotCapturePaused: (callback) => {
+    const listener = (_, data) => callback(data);
+
+    ipcRenderer.on("screenshot-capture-paused", listener);
+
+    return () => {
+      ipcRenderer.removeListener("screenshot-capture-paused", listener);
+    };
+  },
+
+  onScreenshotCaptureThrottled: (callback) => {
+    const listener = (_, data) => callback(data);
+
+    ipcRenderer.on("screenshot-capture-throttled", listener);
+
+    return () => {
+      ipcRenderer.removeListener("screenshot-capture-throttled", listener);
+    };
+  },
+
+  onScreenshotCaptureResumed: (callback) => {
+    const listener = (_, data) => callback(data);
+
+    ipcRenderer.on("screenshot-capture-resumed", listener);
+
+    return () => {
+      ipcRenderer.removeListener("screenshot-capture-resumed", listener);
+    };
+  },
+
+  startIntegrationOAuth: (provider) =>
+    ipcRenderer.invoke("start-integration-oauth", provider),
+
+  consumePendingIntegrationOAuthResult: () =>
+    ipcRenderer.invoke("consume-pending-integration-oauth-result"),
+
+  onIntegrationOAuthResult: (callback) => {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+
+    const listener = (_, data) => callback(data);
+
+    ipcRenderer.on("integration-oauth-result", listener);
+
+    return () => {
+      ipcRenderer.removeListener("integration-oauth-result", listener);
+    };
+  },
 });
+

@@ -1,38 +1,60 @@
 "use client";
 
-import { Play, Square, ChevronRight } from "lucide-react";
+import { Play, Pause, Square, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
+
+type BarStatus = "working" | "break" | "stopped";
 
 export default function TrackingBar() {
     const [seconds, setSeconds] = useState(0);
+    const [status, setStatus] = useState<BarStatus>("working");
 
     useEffect(() => {
-        let startTime: number | null = null;
-        let todayWorkSeconds = 0;
-        let isTracking = false;
+        let baseSeconds = 0;
+        let lastWorkSeconds = 0;
+        let lastBreakSeconds = 0;
+        let lastReceivedAt = 0;
+        let currentStatus: BarStatus = "working";
 
         const updateTimer = () => {
-            if (!isTracking || !startTime) {
-                setSeconds(0);
+            if (currentStatus === "stopped") {
+                setSeconds(baseSeconds);
                 return;
             }
 
-            const elapsed = Math.floor(
-                (Date.now() - startTime) / 1000
-            );
+            const elapsedSinceUpdate = lastReceivedAt
+                ? Math.max(0, Math.floor((Date.now() - lastReceivedAt) / 1000))
+                : 0;
 
-            setSeconds(todayWorkSeconds + elapsed);
+            setSeconds(baseSeconds + elapsedSinceUpdate);
         };
 
-        const removeListener = window.electronAPI.onTrackingUpdate((data) => {
-            isTracking = Boolean(data.isTracking);
+        const removeListener = window.electronAPI?.onTrackingUpdate?.((data: any) => {
+            const isBreak = Boolean(data?.isOnBreak) || data?.status === "break";
+            const isWorking = Boolean(data?.isTracking) && !isBreak;
 
-            todayWorkSeconds = Number(data.todayWorkSeconds || 0);
+            currentStatus = isBreak
+                ? "break"
+                : isWorking
+                ? "working"
+                : "stopped";
 
-            if (data.startTime) {
-                startTime = new Date(data.startTime).getTime();
+            const incomingWork =
+                data?.displayedWorkSeconds ?? data?.todayWorkSeconds;
+            if (incomingWork !== undefined && incomingWork !== null) {
+                lastWorkSeconds = Number(incomingWork) || 0;
             }
 
+            const incomingBreak =
+                data?.displayedBreakSeconds ?? data?.todayBreakSeconds;
+            if (incomingBreak !== undefined && incomingBreak !== null) {
+                lastBreakSeconds = Number(incomingBreak) || 0;
+            }
+
+            baseSeconds = isBreak ? lastBreakSeconds : lastWorkSeconds;
+            lastReceivedAt = Date.now();
+
+            setStatus(currentStatus);
             updateTimer();
         });
 
@@ -93,18 +115,52 @@ export default function TrackingBar() {
 
                 {/* Left: Indicator, Timer, and Status */}
                 <div className="relative z-10 flex items-center gap-2.5">
-                    {/* Glowing status pill with blinking green pulse */}
-                    <div className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-indigo-500/20 border border-indigo-400/40 shadow-[0_0_14px_rgba(99,102,241,0.35)]">
-                        <Play
-                            size={9}
-                            fill="currentColor"
-                            className="text-indigo-300 translate-x-[0.5px]"
-                        />
-                        {/* Blinking Green Pulse Dot */}
-                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.9)] animate-pulse" />
-                        </span>
+                    {/* Glowing status pill */}
+                    <div
+                        className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${
+                            status === "break"
+                                ? "bg-amber-500/20 border-amber-400/40 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
+                                : status === "stopped"
+                                ? "bg-slate-500/20 border-slate-400/30"
+                                : "bg-indigo-500/20 border-indigo-400/40 shadow-[0_0_14px_rgba(99,102,241,0.35)]"
+                        }`}
+                    >
+                        {status === "break" ? (
+                            <Pause
+                                size={9}
+                                fill="currentColor"
+                                className="text-amber-300"
+                            />
+                        ) : status === "stopped" ? (
+                            <Square
+                                size={9}
+                                fill="currentColor"
+                                className="text-slate-300"
+                            />
+                        ) : (
+                            <Play
+                                size={9}
+                                fill="currentColor"
+                                className="text-indigo-300 translate-x-[0.5px]"
+                            />
+                        )}
+                        {/* Blinking Pulse Dot */}
+                        {status !== "stopped" && (
+                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center">
+                                <span
+                                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-80 ${
+                                        status === "break" ? "bg-amber-400" : "bg-emerald-400"
+                                    }`}
+                                />
+                                <span
+                                    className={`relative inline-flex rounded-full h-2 w-2 animate-pulse ${
+                                        status === "break"
+                                            ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.9)]"
+                                            : "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
+                                    }`}
+                                />
+                            </span>
+                        )}
                     </div>
 
                     {/* Timer */}
@@ -112,14 +168,28 @@ export default function TrackingBar() {
                         {time}
                     </span>
 
-                    {/* Status Badge in Indigo with Green Blinking Dot */}
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
-                        <span className="relative flex h-1.5 w-1.5">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                    {/* Status Badge */}
+                    {status === "break" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-400/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                            <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
+                            </span>
+                            Break
                         </span>
-                        Working
-                    </span>
+                    ) : status === "stopped" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-500/20 text-slate-300 border border-slate-400/30">
+                            Stopped
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                            <span className="relative flex h-1.5 w-1.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                            </span>
+                            Working
+                        </span>
+                    )}
                 </div>
 
                 {/* Right: Actions Container */}

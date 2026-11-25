@@ -601,6 +601,8 @@ let lastActivityAt = Date.now();
 let idleWarningShown = false;
 
 let isTracking = false;
+let isOnBreak = false;
+let lastBreakContext = null;
 let currentUserId = null;
 
 let currentProjectId = null;
@@ -659,6 +661,40 @@ function isWithinScheduledBreak() {
   return shiftSchedule.isWithinScheduledBreak(schedule, new Date(), timezone);
 }
 
+function handleActivityResumeInput() {
+  lastActivityAt = Date.now();
+
+  if (idleWarningShown) {
+    hideIdleWindow();
+  }
+
+  if (
+    isOnBreak &&
+    !isTracking &&
+    !(
+      trackingSettings?.shift?.enabled &&
+      trackingSettings?.shift?.stopTrackingDuringBreaks &&
+      autoStoppedForBreak &&
+      isWithinScheduledBreak()
+    )
+  ) {
+    devLog("ACTIVITY RESUMED DURING BREAK - AUTO-RESUMING WORK");
+
+    const resumeContext = lastBreakContext || {
+      projectId: currentProjectId || null,
+      taskId: currentTaskId || null,
+    };
+
+    isOnBreak = false;
+    lastBreakContext = null;
+    updateTrackingBarVisibility();
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("auto-start-tracking", resumeContext);
+    }
+  }
+}
+
 uIOhook.on("click", () => {
   devLog("CLICK DETECTED");
 
@@ -666,13 +702,7 @@ uIOhook.on("click", () => {
   screenshotMouseClicks++;
   eventGapTracker.recordEvent("click");
 
-  lastActivityAt = Date.now();
-
-  devLog("idleWarningShown =", idleWarningShown);
-
-  if (idleWarningShown) {
-    hideIdleWindow();
-  }
+  handleActivityResumeInput();
 });
 
 uIOhook.on("keydown", () => {
@@ -680,11 +710,7 @@ uIOhook.on("keydown", () => {
   screenshotKeyPresses++;
   eventGapTracker.recordEvent("keydown");
 
-  lastActivityAt = Date.now();
-
-  if (idleWarningShown) {
-    hideIdleWindow();
-  }
+  handleActivityResumeInput();
 });
 
 let lastMouseMoveUpdate = 0;
@@ -698,14 +724,11 @@ uIOhook.on("mousemove", () => {
   devLog("MOUSE MOVE");
 
   lastMouseMoveUpdate = now;
-  lastActivityAt = now;
   mouseMoves++;
   screenshotMouseMoves++;
   eventGapTracker.recordEvent("mousemove");
 
-  if (idleWarningShown) {
-    hideIdleWindow();
-  }
+  handleActivityResumeInput();
 });
 
 ipcMain.on("reset-idle", () => {
@@ -884,7 +907,7 @@ function updateTrackingBarVisibility() {
       break;
 
     case "during_tracking":
-      if (isTracking) {
+      if (isTracking || isOnBreak) {
         trackingBar.show();
       } else {
         trackingBar.hide();
@@ -1034,7 +1057,7 @@ function startIdleCountdown() {
 }
 
 async function checkIdle() {
-  if (!authToken) return;
+  if (!authToken || !isTracking || isOnBreak) return;
 
   if (trackingSettings?.tracking?.allowWorkAwayFromComputer) {
     return;
@@ -1088,20 +1111,21 @@ async function checkIdle() {
       return;
     }
 
-    devLog("PASSED IDLE LIMIT");
+    devLog("PASSED IDLE LIMIT - SWITCHING TO BREAK MODE");
 
-    idleWarningShown = true;
+    idleWarningShown = false;
+    isOnBreak = true;
+    lastBreakContext = {
+      projectId: currentProjectId || null,
+      taskId: currentTaskId || null,
+    };
 
-    devLog(`USER IDLE FOR ${idleSeconds} SECONDS`);
+    devLog(`USER IDLE FOR ${idleSeconds} SECONDS - ENTERING BREAK`);
 
-    if (idleWindow) {
-      devLog("SHOW IDLE WINDOW");
+    updateTrackingBarVisibility();
 
-      idleWindow.center();
-      idleWindow.setAlwaysOnTop(true, "screen-saver");
-      idleWindow.show();
-      idleWindow.focus();
-      startIdleCountdown();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("idle-timeout");
     }
   } catch (err) {
     logError(err, "CHECK BREAK MODE");
@@ -1568,6 +1592,10 @@ async function startTracking(projectId = null, taskId = null) {
   devLog("WITHIN BREAK:", isWithinScheduledBreak());
 
   isTracking = true;
+  isOnBreak = false;
+  lastBreakContext = null;
+  lastActivityAt = Date.now();
+  idleWarningShown = false;
 
   try {
     const devInfo = typeof getDeviceInfo === "function" ? getDeviceInfo() : null;
@@ -1609,9 +1637,14 @@ async function startTracking(projectId = null, taskId = null) {
   updateTrackingBarVisibility();
 }
 
-function stopTracking() {
-  devLog("STOP TRACKING RECEIVED");
+function stopTracking(options = {}) {
+  devLog("STOP TRACKING RECEIVED", options);
+  const stoppedForBreakMode = Boolean(options?.isBreak);
   isTracking = false;
+  isOnBreak = stoppedForBreakMode;
+  if (!stoppedForBreakMode) {
+    lastBreakContext = null;
+  }
   lastCapturePauseReason = null;
 
   try {
@@ -1654,22 +1687,28 @@ function stopTracking() {
     trackingBar.webContents.send("tracking-update", {
       duration: 0,
       isTracking: false,
+      isOnBreak: stoppedForBreakMode,
+      status: stoppedForBreakMode ? "break" : "stopped",
     });
 
-    if (trackingSettings?.tracking?.statusBarVisibility === "during_tracking") {
-      trackingBar.hide();
-    }
+    updateTrackingBarVisibility();
   }
 }
 
-ipcMain.on("stop-tracking", () => {
-  stopTracking();
+ipcMain.on("stop-tracking", (_, options = {}) => {
+  stopTracking(options);
 
-  manuallyStoppedDuringShift = true;
+  if (!options?.isBreak) {
+    manuallyStoppedDuringShift = true;
+  }
 });
 
 ipcMain.on("trackingbar-stop", () => {
   devLog("TRACKING BAR STOP CLICKED");
+
+  isOnBreak = false;
+  lastBreakContext = null;
+  manuallyStoppedDuringShift = true;
 
   // Notify the dashboard
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1678,9 +1717,18 @@ ipcMain.on("trackingbar-stop", () => {
     mainWindow.webContents.send("trackingbar-stop");
   }
 
-  // Hide the floating toolbar immediately
+  // Hide the floating toolbar immediately unless status bar mode is "always"
   if (trackingBar && !trackingBar.isDestroyed()) {
-    trackingBar.hide();
+    trackingBar.webContents.send("tracking-update", {
+      duration: 0,
+      isTracking: false,
+      isOnBreak: false,
+      status: "stopped",
+    });
+
+    if (trackingSettings?.tracking?.statusBarVisibility !== "always") {
+      trackingBar.hide();
+    }
   }
 });
 

@@ -6,6 +6,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useMemo,
 } from "react";
 import type { ReactNode } from "react";
 
@@ -22,6 +23,7 @@ import { useDashboard } from "@/context/DashboardContext";
 type TimerContextType = {
   timer: any;
   isTracking: boolean;
+  isOnBreak: boolean;
 
   start: (
     userId: string,
@@ -34,16 +36,25 @@ type TimerContextType = {
     taskId: string | null
   ) => void;
 
-  stop: () => void;
+  stop: (options?: { isBreak?: boolean }) => void;
 
   finishDay: () => Promise<any>;
 
   duration: number;
 
   todayWorkSeconds: number;
+  displayedWorkSeconds: number;
   todayBreakSeconds: number;
+  displayedBreakSeconds: number;
   finishedToday: boolean;
   refreshTodayWork: () => Promise<void>;
+  stats: {
+    todaySeconds: number;
+    weekSeconds: number;
+    monthSeconds: number;
+    avgDaySeconds: number;
+  };
+  refreshStats: () => Promise<void>;
   lastStartedAt: number;
   lastStoppedAt: number;
 };
@@ -60,9 +71,23 @@ type Props = {
 export const TimerProvider = ({ children }: Props) => {
   const [timer, setTimer] = useState<any>(null);
   const [isTracking, setIsTracking] = useState<boolean>(false);
+  const [isOnBreak, setIsOnBreak] = useState<boolean>(false);
+  const [breakStartedAt, setBreakStartedAt] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
-  const [todayWorkSeconds, setTodayWorkSeconds] = useState(0);
-  const [todayBreakSeconds, setTodayBreakSeconds] = useState(0);
+  const [snapshotWorkSeconds, setSnapshotWorkSeconds] = useState(0);
+  const [snapshotBreakSeconds, setSnapshotBreakSeconds] = useState(0);
+  const [snapshotTimestamp, setSnapshotTimestamp] = useState(0);
+  const todayWorkRequestIdRef = useRef(0);
+
+  const [rawStats, setRawStats] = useState({
+    todaySeconds: 0,
+    weekSeconds: 0,
+    monthSeconds: 0,
+    avgDaySeconds: 0,
+  });
+  const [statsSnapshotTimestamp, setStatsSnapshotTimestamp] = useState(0);
+  const statsRequestIdRef = useRef(0);
+  const durationRef = useRef(0);
   const [lastStoppedAt, setLastStoppedAt] = useState(0);
   const [lastStartedAt, setLastStartedAt] = useState(0);
   const [finishedToday, setFinishedToday] = useState(false);
@@ -72,32 +97,94 @@ export const TimerProvider = ({ children }: Props) => {
   const autoStarted = useRef(false);
 
   const isTrackingRef = useRef(false);
+  const isOnBreakRef = useRef(false);
+  const snapshotWorkSecondsRef = useRef(0);
+  const snapshotBreakSecondsRef = useRef(0);
+  const lastTaskContextRef = useRef<{
+    projectId: string | null;
+    taskId: string | null;
+  }>({ projectId: null, taskId: null });
 
   const handlingSleep = useRef(false);
 
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
 
   const { user } = useDashboard();
+  const currentUserId = user?._id || user?.id;
 
   const {
     settings: effectiveSettings,
   } = useEffectiveTrackingSettings();
 
+  const refreshStats = useCallback(async () => {
+    const reqId = ++statsRequestIdRef.current;
+    try {
+      const { data } = await API.get("/sessions/stats");
+      if (reqId !== statsRequestIdRef.current) return;
+      setStatsSnapshotTimestamp(Date.now());
+      setRawStats(data);
+    } catch (err) {
+      console.error("Failed to fetch session stats:", err);
+    }
+  }, []);
 
-  const refreshTodayWork = async () => {
+  const stats = useMemo(() => {
+    const additional =
+      isTracking && statsSnapshotTimestamp
+        ? Math.max(0, Math.floor((Date.now() - statsSnapshotTimestamp) / 1000))
+        : 0;
+    return {
+      todaySeconds: (rawStats.todaySeconds || 0) + additional,
+      weekSeconds: (rawStats.weekSeconds || 0) + additional,
+      monthSeconds: (rawStats.monthSeconds || 0) + additional,
+      avgDaySeconds: rawStats.avgDaySeconds || 0,
+    };
+  }, [rawStats, isTracking, statsSnapshotTimestamp, duration]);
+
+  const refreshTodayWork = useCallback(async () => {
+    const reqId = ++todayWorkRequestIdRef.current;
     try {
       const { data } = await API.get("/sessions/today");
+      if (reqId !== todayWorkRequestIdRef.current) return;
 
-      setTodayWorkSeconds(data.workSeconds);
-      setTodayBreakSeconds(data.breakSeconds);
+      setSnapshotWorkSeconds(data.workSeconds || 0);
+      setSnapshotBreakSeconds(data.breakSeconds || 0);
+      setSnapshotTimestamp(Date.now());
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch today summary:", err);
     }
-  };
+  }, []);
+
+  const [breakDuration, setBreakDuration] = useState<number>(0);
+
+  const displayedWorkSeconds = useMemo(() => {
+    if (!isTracking || !snapshotTimestamp) {
+      return snapshotWorkSeconds;
+    }
+    const elapsedSinceSnapshot = Math.max(
+      0,
+      Math.floor((Date.now() - snapshotTimestamp) / 1000)
+    );
+    return snapshotWorkSeconds + elapsedSinceSnapshot;
+  }, [isTracking, snapshotWorkSeconds, snapshotTimestamp, duration]);
+
+  const displayedBreakSeconds = useMemo(() => {
+    if (!isOnBreak || !breakStartedAt) {
+      return snapshotBreakSeconds;
+    }
+    const elapsedBreak = Math.max(
+      0,
+      Math.floor((Date.now() - breakStartedAt) / 1000)
+    );
+    return snapshotBreakSeconds + elapsedBreak;
+  }, [isOnBreak, snapshotBreakSeconds, breakStartedAt, breakDuration]);
 
 
   // START
   const start = useCallback((
-    userId: string,
+    userId?: string,
     projectId: string | null = null,
     taskId: string | null = null
   ) => {
@@ -117,12 +204,29 @@ export const TimerProvider = ({ children }: Props) => {
       return;
     }
 
-    socket.emit("startTimer", {
-      userId,
-      project: projectId,
-      task: taskId,
-    });
-  }, [isTracking, attendanceChecked, finishedToday]);
+    const targetUserId = userId || currentUserId;
+    if (!targetUserId) {
+      return;
+    }
+
+    socket.emit(
+      "startTimer",
+      {
+        userId: targetUserId,
+        project: projectId,
+        task: taskId,
+      },
+      (res: any) => {
+        if (res?.error) {
+          const message =
+            typeof res.error === "string"
+              ? res.error
+              : res.error?.message || "Failed to start timer";
+          toast.error(message);
+        }
+      }
+    );
+  }, [isTracking, attendanceChecked, finishedToday, currentUserId]);
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -154,7 +258,7 @@ export const TimerProvider = ({ children }: Props) => {
 
     autoStarted.current = true;
 
-    start(user._id, null, null);
+    start(currentUserId, null, null);
 
   }, [
     user,
@@ -170,22 +274,49 @@ export const TimerProvider = ({ children }: Props) => {
     isTrackingRef.current = isTracking;
   }, [isTracking]);
 
+  useEffect(() => {
+    isOnBreakRef.current = isOnBreak;
+  }, [isOnBreak]);
+
+  useEffect(() => {
+    snapshotWorkSecondsRef.current = snapshotWorkSeconds;
+  }, [snapshotWorkSeconds]);
+
+  useEffect(() => {
+    snapshotBreakSecondsRef.current = snapshotBreakSeconds;
+  }, [snapshotBreakSeconds]);
 
   useEffect(() => {
     if (!user) return;
 
-    const removeListener =
-      window.electronAPI?.onAutoStartTracking(() => {
+    const onAutoStart = window.electronAPI?.onAutoStartTracking as
+      | ((
+          callback: (data?: {
+            projectId?: string | null;
+            taskId?: string | null;
+          }) => void
+        ) => (() => void) | void)
+      | undefined;
 
-        if (isTrackingRef.current) return;
+    const removeListener = onAutoStart?.((payload) => {
+      if (isTrackingRef.current) return;
 
-        start(user._id, null, null);
-      });
+      const projectId =
+        payload?.projectId !== undefined
+          ? payload.projectId
+          : lastTaskContextRef.current.projectId;
+      const taskId =
+        payload?.taskId !== undefined
+          ? payload.taskId
+          : lastTaskContextRef.current.taskId;
+
+      start(currentUserId, projectId ?? null, taskId ?? null);
+    });
 
     return () => {
       removeListener?.();
     };
-  }, [user]);
+  }, [user, currentUserId, start]);
 
   // SWITCH TASK
   const switchTask = (
@@ -210,10 +341,43 @@ export const TimerProvider = ({ children }: Props) => {
 
 
   // STOP
-  const stop = useCallback(() => {
+  const stop = useCallback((options?: { isBreak?: boolean }) => {
     if (!window.electronAPI) return;
 
-    if (!timer?._id) return;
+    const isBreak = Boolean(options?.isBreak);
+
+    if (!timer?._id) {
+      if (isOnBreakRef.current && !isBreak) {
+        setIsOnBreak(false);
+        setBreakStartedAt(0);
+        setBreakDuration(0);
+
+        const stopTrackingFn = window.electronAPI.stopTracking as
+          | ((opts?: { isBreak?: boolean }) => void)
+          | undefined;
+        stopTrackingFn?.({ isBreak: false });
+
+        window.electronAPI.updateTrackingBar?.({
+          displayedWorkSeconds: snapshotWorkSecondsRef.current,
+          displayedBreakSeconds: snapshotBreakSecondsRef.current,
+          todayWorkSeconds: snapshotWorkSecondsRef.current,
+          todayBreakSeconds: snapshotBreakSecondsRef.current,
+          duration: 0,
+          isTracking: false,
+          isOnBreak: false,
+          status: "stopped",
+        });
+
+        if (socket.connected) {
+          socket.emit("stopTimer", {
+            isBreak: false,
+            clearBreak: true,
+          });
+        }
+        refreshTodayWork();
+      }
+      return;
+    }
 
     if (!socket.connected) {
       toast.error("Connection lost. Reconnecting...");
@@ -223,8 +387,9 @@ export const TimerProvider = ({ children }: Props) => {
 
     socket.emit("stopTimer", {
       timerId: timer._id,
+      isBreak,
     });
-  }, [timer]);
+  }, [timer, refreshTodayWork]);
 
   useEffect(() => {
     if (!user) return;
@@ -232,9 +397,9 @@ export const TimerProvider = ({ children }: Props) => {
     const removeListener =
       window.electronAPI?.onAutoStopTracking(() => {
 
-        if (!isTrackingRef.current) return;
+        if (!isTrackingRef.current && !isOnBreakRef.current) return;
 
-        stop();
+        stop({ isBreak: false });
       });
 
     return () => {
@@ -251,10 +416,10 @@ export const TimerProvider = ({ children }: Props) => {
     }
 
     try {
-      // If currently tracking, stop first so the
-      // current session is saved before finishing.
-      if (isTracking) {
-        stop();
+      // If currently tracking or on break, stop completely first so the
+      // current session is closed and break accumulation stops before finishing.
+      if (isTracking || isOnBreak) {
+        stop({ isBreak: false });
 
         // Give the socket/session save a moment to complete.
         await new Promise((resolve) => setTimeout(resolve, 300));
@@ -281,6 +446,7 @@ export const TimerProvider = ({ children }: Props) => {
   }, [
     finishedToday,
     isTracking,
+    isOnBreak,
     stop,
     refreshTodayWork,
   ]);
@@ -291,8 +457,6 @@ export const TimerProvider = ({ children }: Props) => {
 
     const getActiveTimer = async () => {
       try {
-        await refreshTodayWork();
-
         const res = await API.get(
           `/timers/active/${user._id}`,
         );
@@ -315,6 +479,9 @@ export const TimerProvider = ({ children }: Props) => {
           setIsTracking(false);
           setDuration(0);
         }
+
+        await refreshTodayWork();
+        await refreshStats();
       } catch (err) {
         console.error(err);
       }
@@ -338,34 +505,95 @@ export const TimerProvider = ({ children }: Props) => {
     socket.off("timerStopped");
     socket.off("tracking:started");
     socket.off("tracking:stopped");
+    socket.off("timerError");
+
+    const handleTimerError = (err: any) => {
+      const message =
+        typeof err === "string" ? err : err?.message || "Failed to start timer";
+      toast.error(message);
+    };
 
     const handleTimerStarted = (data: any) => {
+      const projectId =
+        typeof data.project === "string"
+          ? data.project
+          : data.project?._id || null;
+      const taskId =
+        typeof data.task === "string" ? data.task : data.task?._id || null;
+      lastTaskContextRef.current = { projectId, taskId };
+
       setTimer(data);
       setIsTracking(true);
+      setIsOnBreak(false);
+      setBreakStartedAt(0);
+      setBreakDuration(0);
 
-      window.electronAPI?.startTracking(
-        data.project?._id || null,
-        data.task?._id || null
-      );
+      const now = Date.now();
+      setSnapshotTimestamp(now);
+      setStatsSnapshotTimestamp(now);
+      refreshStats();
+      refreshTodayWork();
 
-      setLastStartedAt(Date.now());
+      window.electronAPI?.startTracking(projectId, taskId);
+
+      window.electronAPI?.updateTrackingBar({
+        displayedWorkSeconds: snapshotWorkSecondsRef.current,
+        displayedBreakSeconds: snapshotBreakSecondsRef.current,
+        todayWorkSeconds: snapshotWorkSecondsRef.current,
+        todayBreakSeconds: snapshotBreakSecondsRef.current,
+        startTime: data.startTime,
+        isTracking: true,
+        isOnBreak: false,
+        status: "working",
+      });
+
+      setLastStartedAt(now);
     };
 
     const handleTimerStopped = (data: any) => {
       handlingSleep.current = false;
 
+      const stoppedForBreak = Boolean(data?.isBreak);
+      const now = Date.now();
+
       setTimer(null);
       setIsTracking(false);
+      setIsOnBreak(stoppedForBreak);
+      setBreakStartedAt(stoppedForBreak ? now : 0);
+      setBreakDuration(0);
       setDuration(0);
+      setSnapshotTimestamp(0);
+      setStatsSnapshotTimestamp(0);
+      refreshStats();
+      refreshTodayWork();
 
-      window.electronAPI?.stopTracking();
+      const stopTrackingFn = window.electronAPI?.stopTracking as
+        | ((options?: { isBreak?: boolean }) => void)
+        | undefined;
+      stopTrackingFn?.({ isBreak: stoppedForBreak });
 
       window.electronAPI?.updateTrackingBar({
+        displayedWorkSeconds: snapshotWorkSecondsRef.current,
+        displayedBreakSeconds: snapshotBreakSecondsRef.current,
+        todayWorkSeconds: snapshotWorkSecondsRef.current,
+        todayBreakSeconds: snapshotBreakSecondsRef.current,
         duration: 0,
         isTracking: false,
+        isOnBreak: stoppedForBreak,
+        status: stoppedForBreak ? "break" : "stopped",
       });
 
-      setLastStoppedAt(Date.now());
+      setLastStoppedAt(now);
+    };
+
+    const handleSessionUpdated = () => {
+      refreshStats();
+      refreshTodayWork();
+    };
+
+    const handleSocketReconnect = () => {
+      refreshStats();
+      refreshTodayWork();
     };
 
     socket.on("timerStarted", handleTimerStarted);
@@ -373,14 +601,18 @@ export const TimerProvider = ({ children }: Props) => {
 
     socket.on("tracking:started", handleTimerStarted);
     socket.on("tracking:stopped", handleTimerStopped);
-
-
+    socket.on("timerError", handleTimerError);
+    socket.on("session:updated", handleSessionUpdated);
+    socket.on("connect", handleSocketReconnect);
 
     return () => {
       socket.off("timerStarted", handleTimerStarted);
       socket.off("timerStopped", handleTimerStopped);
       socket.off("tracking:started", handleTimerStarted);
       socket.off("tracking:stopped", handleTimerStopped);
+      socket.off("timerError", handleTimerError);
+      socket.off("session:updated", handleSessionUpdated);
+      socket.off("connect", handleSocketReconnect);
     };
   }, [user]);
 
@@ -408,7 +640,7 @@ export const TimerProvider = ({ children }: Props) => {
       if (sleep.sleptMinutes > allowed) {
         handlingSleep.current = true;
 
-        stop();
+        stop({ isBreak: false });
       }
     }, 1000);
 
@@ -422,7 +654,7 @@ export const TimerProvider = ({ children }: Props) => {
   useEffect(() => {
     const removeTrackingBarListener =
       window.electronAPI?.onTrackingBarStop(() => {
-        stop();
+        stop({ isBreak: false });
       });
 
     return () => {
@@ -431,7 +663,7 @@ export const TimerProvider = ({ children }: Props) => {
   }, [stop]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: NodeJS.Timeout | undefined;
 
     if (isTracking && timer?.startTime) {
       interval = setInterval(() => {
@@ -442,16 +674,51 @@ export const TimerProvider = ({ children }: Props) => {
         setDuration(seconds);
 
         window.electronAPI?.updateTrackingBar({
-          todayWorkSeconds,
+          displayedWorkSeconds,
+          displayedBreakSeconds,
+          todayWorkSeconds: displayedWorkSeconds,
+          todayBreakSeconds: displayedBreakSeconds,
           startTime: timer.startTime,
-          isTracking,
+          isTracking: true,
+          isOnBreak: false,
+          status: "working",
+        });
+      }, 1000);
+    } else if (isOnBreak && breakStartedAt) {
+      interval = setInterval(() => {
+        const seconds = Math.max(
+          0,
+          Math.floor((Date.now() - breakStartedAt) / 1000)
+        );
+
+        setBreakDuration(seconds);
+
+        window.electronAPI?.updateTrackingBar({
+          displayedWorkSeconds,
+          displayedBreakSeconds,
+          todayWorkSeconds: displayedWorkSeconds,
+          todayBreakSeconds: displayedBreakSeconds,
+          startTime: null,
+          isTracking: false,
+          isOnBreak: true,
+          status: "break",
         });
       }, 1000);
     }
 
-    return () =>
-      clearInterval(interval);
-  }, [isTracking, timer, todayWorkSeconds]);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [
+    isTracking,
+    isOnBreak,
+    timer,
+    breakStartedAt,
+    displayedWorkSeconds,
+    displayedBreakSeconds,
+  ]);
 
   useEffect(() => {
     if (!showIdleModal) return;
@@ -463,8 +730,8 @@ export const TimerProvider = ({ children }: Props) => {
 
           setShowIdleModal(false);
 
-          // Automatically stop tracking
-          stop();
+          // Automatically stop tracking into break
+          stop({ isBreak: true });
 
           return 0;
         }
@@ -474,18 +741,18 @@ export const TimerProvider = ({ children }: Props) => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [showIdleModal]);
+  }, [showIdleModal, stop]);
 
   const inactivityMinutes =
     effectiveSettings?.tracking?.inactivityMinutes || 3;
 
   useEffect(() => {
     const checkTodayAttendance = async () => {
-      if (!user?._id) return;
+      if (!currentUserId) return;
 
       try {
         const { data } = await API.get(
-          `/attendance/summary/${user._id}`
+          `/attendance/summary/${currentUserId}`
         );
 
         setFinishedToday(Boolean(data.finishTime));
@@ -501,22 +768,27 @@ export const TimerProvider = ({ children }: Props) => {
     };
 
     checkTodayAttendance();
-  }, [user]);
+  }, [currentUserId]);
 
   return (
     <TimerContext.Provider
       value={{
         timer,
         isTracking,
+        isOnBreak,
         start,
         switchTask,
         stop,
         finishDay,
         duration,
-        todayWorkSeconds,
-        todayBreakSeconds,
+        todayWorkSeconds: displayedWorkSeconds,
+        displayedWorkSeconds,
+        todayBreakSeconds: displayedBreakSeconds,
+        displayedBreakSeconds,
         finishedToday,
         refreshTodayWork,
+        stats,
+        refreshStats,
         lastStartedAt,
         lastStoppedAt,
       }}
@@ -524,20 +796,20 @@ export const TimerProvider = ({ children }: Props) => {
       {children}
 
       {showIdleModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999]">
-          <div className="bg-[#162742] rounded-xl p-6 w-[420px] shadow-2xl border border-[#2A3D5C]">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] px-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-[420px] shadow-2xl border border-gray-200 dark:border-slate-700">
 
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               Are you still working?
             </h2>
 
-            <p className="text-gray-300 mt-3">
+            <p className="text-gray-600 dark:text-slate-300 mt-3">
               No keyboard or mouse activity has been detected for{" "}
               {inactivityMinutes} minute
               {inactivityMinutes === 1 ? "" : "s"}.
             </p>
 
-            <p className="text-yellow-400 text-lg font-bold mt-4">
+            <p className="text-amber-600 dark:text-amber-400 text-lg font-bold mt-4">
               {idleCountdown}s remaining
             </p>
 
@@ -549,7 +821,7 @@ export const TimerProvider = ({ children }: Props) => {
                   setIdleCountdown(20);
                   setShowIdleModal(false);
                 }}
-                className="bg-green-600 hover:bg-green-700 px-5 py-2 rounded-lg text-white"
+                className="bg-emerald-600 hover:bg-emerald-700 px-5 py-2 rounded-lg text-white font-medium shadow-sm transition-colors"
               >
                 Yes, I&apos;m Working
               </button>
@@ -574,4 +846,8 @@ export const useTimer = () => {
 
   return context;
 
+};
+
+export const useOptionalTimer = () => {
+  return useContext(TimerContext);
 };
