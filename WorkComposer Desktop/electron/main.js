@@ -24,6 +24,12 @@ const { uIOhook } = require("uiohook-napi");
 const { execFile } = require("child_process");
 const crypto = require("crypto");
 const os = require("os");
+const offlineQueue = require("./offlineScreenshotQueue");
+const shiftSchedule = require("./shiftSchedule");
+const { getEventGapTracker } = require("./eventGapTracker");
+const eventGapTracker = getEventGapTracker();
+const { getDurableTelemetryQueue } = require("./durableTelemetryQueue");
+const durableTelemetryQueue = getDurableTelemetryQueue();
 
 process.on("uncaughtException", (err) => {
   try {
@@ -65,10 +71,6 @@ if (!singleInstanceLock) {
   }
 }
 
-const API_BASE_URL = "http://localhost:5000/api";
-
-const WEB_APP_URL = "http://localhost:3000";
-
 const devLog = (...args) => {
   if (isDev) {
     console.log(...args);
@@ -90,10 +92,34 @@ const logError = (error, context = "") => {
       `${new Date().toISOString()} ${
         context ? `[${context}] ` : ""
       }${message}\n\n`,
-      
     );
   } catch {}
 };
+
+const endpointConfig = require("./endpointConfig");
+const windowPolicy = require("./windowPolicy");
+
+let resolvedEndpoints;
+try {
+  resolvedEndpoints = endpointConfig.resolveEndpoints({
+    isPackaged: app.isPackaged,
+    env: process.env,
+  });
+} catch (err) {
+  logError(err, "ENDPOINT_CONFIG");
+  if (app.isPackaged) {
+    dialog.showErrorBox(
+      "Configuration Error",
+      `WorkComposer failed to resolve service endpoints:\n\n${err.message}`,
+    );
+    app.quit();
+  }
+  throw err;
+}
+
+const API_BASE_URL = resolvedEndpoints.apiUrl;
+const WEB_APP_URL = resolvedEndpoints.webAppUrl;
+
 
 function saveAuthToken(token) {
   if (!token) return;
@@ -105,6 +131,10 @@ function saveAuthToken(token) {
   const encryptedToken = safeStorage.encryptString(token);
 
   store.set("authToken", encryptedToken.toString("base64"));
+  currentUserId = offlineQueue.getUserIdFromToken(token);
+  if (currentUserId && durableTelemetryQueue.isInitialized()) {
+    durableTelemetryQueue.bindUser(currentUserId);
+  }
 }
 
 function getStoredAuthToken() {
@@ -176,8 +206,52 @@ function deleteAuthToken() {
   devLog("AUTH TOKENS DELETED");
 }
 
+async function clearAuthSessionCookies() {
+  try {
+    if (!session?.defaultSession?.cookies) {
+      return;
+    }
+
+    const apiOrigin = new URL(API_BASE_URL).origin;
+    const apiProtocol = new URL(apiOrigin).protocol.replace(":", "");
+    const apiHostname = resolvedEndpoints.apiHost.toLowerCase();
+    const authCookieNames = new Set(["accessToken", "refreshToken", "csrfToken"]);
+    const existingCookies = await session.defaultSession.cookies.get({});
+
+    await Promise.all(
+      existingCookies
+        .filter((cookie) => {
+          if (!authCookieNames.has(cookie.name)) {
+            return false;
+          }
+          const cookieHost = String(cookie.domain || "")
+            .replace(/^\./, "")
+            .toLowerCase();
+          return (
+            cookieHost === apiHostname ||
+            apiHostname.endsWith(`.${cookieHost}`)
+          );
+        })
+        .map((cookie) => {
+          const scheme = cookie.secure ? "https" : apiProtocol;
+          const cleanDomain = String(cookie.domain || apiHostname).replace(
+            /^\./,
+            "",
+          );
+          const cookieUrl = `${scheme}://${cleanDomain}${cookie.path || "/"}`;
+          return session.defaultSession.cookies
+            .remove(cookieUrl, cookie.name)
+            .catch(() => {});
+        }),
+    );
+  } catch (err) {
+    logError(err, "CLEAR AUTH SESSION COOKIES");
+  }
+}
+
 function clearElectronAuth() {
   authToken = null;
+  clearPendingIntegrationOAuthState();
 
   deleteSecureToken("authToken");
   deleteSecureToken("refreshToken");
@@ -185,15 +259,20 @@ function clearElectronAuth() {
   stopTracking();
 
   currentUserId = null;
+  durableTelemetryQueue.unbindUser();
   currentProjectId = null;
   currentTaskId = null;
   trackingSettings = null;
+  lastCapturePauseReason = null;
+
+  offlineQueue.clearRetryTimer();
 
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send("electron-logged-out");
   }
 
   devLog("ELECTRON AUTH CLEARED");
+  return clearAuthSessionCookies();
 }
 
 function deleteAuthToken() {
@@ -273,7 +352,15 @@ async function refreshAuthToken() {
         data?.refreshToken ? "REFRESH TOKEN RECEIVED" : "NO REFRESH TOKEN",
       );
 
+      if (!data?.accessToken) {
+        return { success: false, invalid: false };
+      }
+
       authToken = data.accessToken;
+      currentUserId = offlineQueue.getUserIdFromToken(data.accessToken);
+      if (currentUserId && durableTelemetryQueue.isInitialized()) {
+        durableTelemetryQueue.bindUser(currentUserId);
+      }
 
       try {
         saveSecureToken("authToken", data.accessToken);
@@ -290,6 +377,7 @@ async function refreshAuthToken() {
       }
 
       return { success: true, accessToken: data.accessToken };
+    } catch (error) {
       devLog(
         "ELECTRON TOKEN REFRESH FAILED:",
         JSON.stringify(
@@ -313,15 +401,7 @@ async function refreshAuthToken() {
       const isInvalidRefreshToken = error.response?.status === 401;
 
       if (isInvalidRefreshToken) {
-        deleteSecureToken("authToken");
-        deleteSecureToken("refreshToken");
-        authToken = null;
-
-        stopTracking();
-
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("electron-logged-out");
-        }
+        await clearElectronAuth();
 
         devLog("INVALID REFRESH TOKEN - ELECTRON SESSION CLEARED");
       } else {
@@ -415,11 +495,23 @@ axios.interceptors.response.use(
 
 function getBrowserInfo() {
   return new Promise((resolve) => {
-    const exePath = app.isPackaged
-      ? path.join(process.resourcesPath, "BrowserUrlReader.exe")
-      : path.join(__dirname, "../resources/BrowserUrlReader.exe");
+    let readerPath;
 
-    execFile(exePath, (error, stdout, stderr) => {
+    if (process.platform === "win32") {
+      readerPath = app.isPackaged
+        ? path.join(process.resourcesPath, "BrowserUrlReader.exe")
+        : path.join(__dirname, "../resources/BrowserUrlReader.exe");
+    } else if (process.platform === "darwin") {
+      const macArch = process.arch === "arm64" ? "arm64" : "x64";
+
+      readerPath = app.isPackaged
+        ? path.join(process.resourcesPath, "MacBrowserReader", macArch, "Mac")
+        : path.join(__dirname, "../resources/MacBrowserReader", macArch, "Mac");
+    } else {
+      return resolve(null);
+    }
+
+    execFile(readerPath, (error, stdout, stderr) => {
       if (error) {
         devLog("BrowserReader Error:", error.message);
         return resolve(null);
@@ -523,6 +615,16 @@ let shiftAutoStartedToday = false;
 let manuallyStoppedDuringShift = false;
 let stoppedForBreak = false;
 let autoStoppedForBreak = false;
+let lastCapturePauseReason = null;
+
+function getEffectiveShiftTimezone() {
+  return (
+    trackingSettings?.shift?.timezone ||
+    trackingSettings?.timezone ||
+    (typeof Intl !== "undefined" && Intl.DateTimeFormat().resolvedOptions().timeZone) ||
+    "UTC"
+  );
+}
 
 function getCurrentShift() {
   const schedule = trackingSettings?.shift?.schedule;
@@ -531,59 +633,30 @@ function getCurrentShift() {
     return null;
   }
 
-  const today = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-  });
-
-  return schedule.find((day) => day.day === today && day.enabled) || null;
+  const timezone = getEffectiveShiftTimezone();
+  return shiftSchedule.getCurrentShift(schedule, new Date(), timezone);
 }
 
 function isWithinCurrentShift() {
-  const shift = getCurrentShift();
+  const schedule = trackingSettings?.shift?.schedule;
 
-  if (!shift) return false;
-
-  const now = new Date();
-
-  const [startHour, startMinute] = shift.startTime.split(":").map(Number);
-
-  const [endHour, endMinute] = shift.endTime.split(":").map(Number);
-
-  const start = new Date(now);
-  start.setHours(startHour, startMinute, 0, 0);
-
-  const end = new Date(now);
-  end.setHours(endHour, endMinute, 0, 0);
-
-  return now >= start && now <= end;
-}
-
-function isWithinScheduledBreak() {
-  const shift = getCurrentShift();
-
-  if (!shift || !shift.breaks?.length) {
+  if (!trackingSettings?.shift?.enabled || !Array.isArray(schedule)) {
     return false;
   }
 
-  const now = new Date();
+  const timezone = getEffectiveShiftTimezone();
+  return shiftSchedule.isWithinCurrentShift(schedule, new Date(), timezone);
+}
 
-  for (const breakTime of shift.breaks) {
-    const [startHour, startMinute] = breakTime.startTime.split(":").map(Number);
+function isWithinScheduledBreak() {
+  const schedule = trackingSettings?.shift?.schedule;
 
-    const [endHour, endMinute] = breakTime.endTime.split(":").map(Number);
-
-    const start = new Date(now);
-    start.setHours(startHour, startMinute, 0, 0);
-
-    const end = new Date(now);
-    end.setHours(endHour, endMinute, 0, 0);
-
-    if (now >= start && now <= end) {
-      return true;
-    }
+  if (!trackingSettings?.shift?.enabled || !Array.isArray(schedule)) {
+    return false;
   }
 
-  return false;
+  const timezone = getEffectiveShiftTimezone();
+  return shiftSchedule.isWithinScheduledBreak(schedule, new Date(), timezone);
 }
 
 uIOhook.on("click", () => {
@@ -591,6 +664,7 @@ uIOhook.on("click", () => {
 
   mouseClicks++;
   screenshotMouseClicks++;
+  eventGapTracker.recordEvent("click");
 
   lastActivityAt = Date.now();
 
@@ -604,6 +678,7 @@ uIOhook.on("click", () => {
 uIOhook.on("keydown", () => {
   keyPresses++;
   screenshotKeyPresses++;
+  eventGapTracker.recordEvent("keydown");
 
   lastActivityAt = Date.now();
 
@@ -626,6 +701,7 @@ uIOhook.on("mousemove", () => {
   lastActivityAt = now;
   mouseMoves++;
   screenshotMouseMoves++;
+  eventGapTracker.recordEvent("mousemove");
 
   if (idleWarningShown) {
     hideIdleWindow();
@@ -823,36 +899,84 @@ async function sendActivity() {
 
     if (!authToken) return;
 
+    if (!currentUserId) {
+      currentUserId = offlineQueue.getUserIdFromToken(authToken);
+    }
+    if (currentUserId && durableTelemetryQueue.isInitialized()) {
+      durableTelemetryQueue.bindUser(currentUserId);
+    }
+
+    const timingSummary = eventGapTracker.flush();
+    const idempotencyKey = timingSummary.summaryId;
+    const eventTimestamp = timingSummary.firstObservedAt || timingSummary.measuredStart || new Date().toISOString();
+
     devLog("SENDING ACTIVITY:", {
       keyPresses,
       mouseClicks,
       mouseMoves,
       project: currentProjectId,
       task: currentTaskId,
+      idempotencyKey,
+      eventTimestamp,
+      telemetry: timingSummary,
     });
 
-    await axios.post(
-      `${API_BASE_URL}/activity`,
-      {
-        keyPresses,
-        mouseClicks,
-        mouseMoves,
+    const activityPayload = {
+      keyPresses,
+      mouseClicks,
+      mouseMoves,
 
-        project: currentProjectId,
-        task: currentTaskId,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      },
-    );
+      project: currentProjectId,
+      task: currentTaskId,
+      idempotencyKey,
+      eventTimestamp,
+      telemetry: timingSummary,
+    };
 
-    devLog("ACTIVITY SENT:", keyPresses, mouseClicks);
-
+    // Reset accumulators immediately upon snapshot creation to prevent double-counting
     keyPresses = 0;
     mouseClicks = 0;
     mouseMoves = 0;
+
+    // Drain legacy tracker offline queue into durable queue if present
+    if (eventGapTracker.offlineQueue.length > 0) {
+      const legacyItems = eventGapTracker.drainOfflineQueue();
+      for (const legacyItem of legacyItems) {
+        try {
+          if (durableTelemetryQueue.isInitialized() && currentUserId) {
+            durableTelemetryQueue.enqueue(legacyItem);
+          }
+        } catch {}
+      }
+    }
+
+    if (durableTelemetryQueue.isInitialized() && currentUserId) {
+      // Persist to durable queue BEFORE network submission
+      durableTelemetryQueue.enqueue(activityPayload);
+      await durableTelemetryQueue.processQueue({
+        apiBaseUrl: API_BASE_URL,
+        authToken,
+        activeUserId: currentUserId,
+      });
+    } else {
+      // Fallback: direct post if queue uninitialized
+      try {
+        await axios.post(
+          `${API_BASE_URL}/activity`,
+          activityPayload,
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          },
+        );
+      } catch (postErr) {
+        eventGapTracker.queueOffline(activityPayload);
+        throw postErr;
+      }
+    }
+
+    devLog("ACTIVITY PROCESSED:", idempotencyKey);
   } catch (err) {
     logError(err, "ACTIVITY TRACKING");
   }
@@ -984,24 +1108,195 @@ async function checkIdle() {
   }
 }
 
+const PENDING_INTEGRATION_OAUTH_TTL_MS = 10 * 60 * 1000;
+const pendingIntegrationOAuth = new Map();
+let unconsumedIntegrationOAuthResult = null;
+
+function clearPendingIntegrationOAuthState() {
+  pendingIntegrationOAuth.clear();
+  unconsumedIntegrationOAuthResult = null;
+}
+
+function prunePendingIntegrationOAuth() {
+  const now = Date.now();
+  for (const [challenge, entry] of pendingIntegrationOAuth.entries()) {
+    if (!entry || entry.expiresAt <= now) {
+      pendingIntegrationOAuth.delete(challenge);
+    }
+  }
+}
+
+async function ensureDesktopAuthToken(forceRefresh = false) {
+  if (forceRefresh || !authToken || isAccessTokenExpired(authToken)) {
+    const refreshed = await refreshAuthToken();
+    if (!refreshed?.success && !authToken) {
+      return null;
+    }
+  }
+  return authToken;
+}
+
+async function authorizedDesktopApiRequest(config) {
+  const token = await ensureDesktopAuthToken(false);
+  if (!token) {
+    throw new Error("Desktop authentication token missing");
+  }
+
+  try {
+    return await axios({
+      ...config,
+      headers: {
+        ...(config.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch (err) {
+    if (err.response?.status === 401) {
+      const refreshed = await refreshAuthToken();
+      if (refreshed?.success && authToken) {
+        return await axios({
+          ...config,
+          headers: {
+            ...(config.headers || {}),
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+      }
+    }
+    throw err;
+  }
+}
+
+function deliverIntegrationOAuthResult(resultPayload) {
+  if (
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    mainWindow.webContents &&
+    !mainWindow.webContents.isLoadingMainFrame()
+  ) {
+    unconsumedIntegrationOAuthResult = null;
+    mainWindow.webContents.send("integration-oauth-result", resultPayload);
+    return;
+  }
+  unconsumedIntegrationOAuthResult = resultPayload;
+}
+
+async function handleIntegrationOAuthDeepLink(deepLinkUrl) {
+  try {
+    const validation = endpointConfig.validateIntegrationCallbackDeepLink(deepLinkUrl);
+    if (!validation.valid) {
+      devLog("IGNORING INVALID INTEGRATION DEEP LINK:", validation.reason);
+      return;
+    }
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+
+    prunePendingIntegrationOAuth();
+    const pending = pendingIntegrationOAuth.get(validation.challenge);
+    pendingIntegrationOAuth.delete(validation.challenge);
+
+    const activeUserId =
+      currentUserId || (authToken ? offlineQueue.getUserIdFromToken(authToken) : null);
+
+    if (
+      !pending ||
+      pending.expiresAt <= Date.now() ||
+      pending.provider !== validation.provider ||
+      !activeUserId ||
+      String(pending.userId) !== String(activeUserId)
+    ) {
+      devLog(
+        "IGNORING UNMATCHED OR STALE INTEGRATION OAUTH CALLBACK:",
+        validation.provider,
+      );
+      deliverIntegrationOAuthResult({
+        provider: validation.provider,
+        status: "error",
+        connected: false,
+        workspaceName: "",
+        error: "invalid_state",
+        message: "Authorization session expired or does not match the active desktop session.",
+      });
+      return;
+    }
+
+    const { data } = await authorizedDesktopApiRequest({
+      method: "POST",
+      url: `${API_BASE_URL}/integrations/${validation.provider}/desktop/complete`,
+      data: {
+        completionCode: validation.code,
+        desktopVerifier: pending.desktopVerifier,
+      },
+      timeout: 15000,
+    });
+
+    const sanitizedResult = {
+      provider: validation.provider,
+      status: ["connected", "cancelled", "error"].includes(data?.status)
+        ? data.status
+        : validation.status,
+      connected: Boolean(data?.connected),
+      workspaceName: typeof data?.workspaceName === "string" ? data.workspaceName : "",
+      error: typeof data?.error === "string" ? data.error : null,
+      message: typeof data?.message === "string" ? data.message : null,
+    };
+
+    devLog(
+      "INTEGRATION OAUTH COMPLETED:",
+      sanitizedResult.provider,
+      sanitizedResult.status,
+    );
+    deliverIntegrationOAuthResult(sanitizedResult);
+  } catch (err) {
+    const fallbackProvider = endpointConfig.validateIntegrationCallbackDeepLink(
+      deepLinkUrl,
+    ).provider;
+    devLog(
+      "INTEGRATION OAUTH CALLBACK COMPLETION FAILED:",
+      err.response?.status || err.message || "Unknown error",
+    );
+    if (fallbackProvider) {
+      deliverIntegrationOAuthResult({
+        provider: fallbackProvider,
+        status: "error",
+        connected: false,
+        workspaceName: "",
+        error: "completion_failed",
+        message:
+          err.response?.data?.message ||
+          `Failed to complete ${fallbackProvider} authorization.`,
+      });
+    }
+  }
+}
+
+async function handleDeepLink(deepLinkUrl) {
+  if (endpointConfig.isIntegrationCallbackDeepLink(deepLinkUrl)) {
+    return handleIntegrationOAuthDeepLink(deepLinkUrl);
+  }
+  return handleAuthDeepLink(deepLinkUrl);
+}
+
 async function handleAuthDeepLink(deepLinkUrl) {
   try {
-    const parsed = new URL(deepLinkUrl);
+    const validation = endpointConfig.validateDeepLink(deepLinkUrl);
 
-    if (parsed.hostname !== "auth") {
-      devLog("IGNORING NON-AUTH DEEP LINK:", deepLinkUrl);
+    if (!validation.valid) {
+      devLog("IGNORING INVALID DEEP LINK:", validation.reason);
       return;
     }
 
-    const accessToken = parsed.searchParams.get("accessToken");
-    const refreshToken = parsed.searchParams.get("refreshToken");
-
-    if (!accessToken || !refreshToken) {
-      logError(new Error("Deep link missing tokens"), "OAUTH DEEP LINK");
-      return;
-    }
+    const { accessToken, refreshToken } = validation;
 
     authToken = accessToken;
+    currentUserId = offlineQueue.getUserIdFromToken(accessToken);
+    if (currentUserId && durableTelemetryQueue.isInitialized()) {
+      durableTelemetryQueue.bindUser(currentUserId);
+    }
 
     saveSecureToken("authToken", accessToken);
     saveSecureToken("refreshToken", refreshToken);
@@ -1015,6 +1310,7 @@ async function handleAuthDeepLink(deepLinkUrl) {
     });
 
     await loadTrackingSettings();
+    triggerOfflineQueueProcessing();
 
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.loadURL(`${WEB_APP_URL}/desktop`);
@@ -1030,7 +1326,7 @@ async function handleAuthDeepLink(deepLinkUrl) {
 // launched fresh via the link (Electron queues it until 'ready')
 app.on("open-url", (event, url) => {
   event.preventDefault();
-  handleAuthDeepLink(url);
+  handleDeepLink(url);
 });
 
 // Windows/Linux: a second launch attempt (e.g. via deep link) is
@@ -1042,10 +1338,10 @@ app.on("second-instance", (event, argv) => {
     mainWindow.focus();
   }
 
-  const deepLinkArg = argv.find((arg) => arg.startsWith("workcomposer://"));
+  const deepLinkArg = argv.find((arg) => typeof arg === "string" && arg.startsWith("workcomposer://"));
 
   if (deepLinkArg) {
-    handleAuthDeepLink(deepLinkArg);
+    handleDeepLink(deepLinkArg);
   }
 });
 
@@ -1058,6 +1354,11 @@ ipcMain.on("save-token", async (_, tokens) => {
     }
 
     authToken = accessToken;
+    currentUserId = offlineQueue.getUserIdFromToken(accessToken);
+    if (currentUserId && durableTelemetryQueue.isInitialized()) {
+      durableTelemetryQueue.bindUser(currentUserId);
+    }
+    lastCapturePauseReason = null;
 
     saveSecureToken("authToken", accessToken);
     saveSecureToken("refreshToken", refreshToken);
@@ -1073,6 +1374,7 @@ ipcMain.on("save-token", async (_, tokens) => {
     });
 
     await loadTrackingSettings();
+    triggerOfflineQueueProcessing();
   } catch (err) {
     logError(err, "DEVICE REGISTRATION");
   }
@@ -1101,7 +1403,10 @@ const checkDeviceStatus = async () => {
       devLog("DEVICE REMOTELY SIGNED OUT");
 
       authToken = null;
-      store.delete("authToken");
+      deleteSecureToken("authToken");
+      deleteSecureToken("refreshToken");
+      stopTracking();
+      void clearAuthSessionCookies();
 
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("device-signed-out");
@@ -1230,7 +1535,6 @@ ipcMain.on("open-main-window", () => {
 });
 
 ipcMain.on("show-system-notification", (_, data) => {
-
   if (!Notification.isSupported()) {
     devWarn("SYSTEM NOTIFICATIONS ARE NOT SUPPORTED");
     return;
@@ -1242,7 +1546,6 @@ ipcMain.on("show-system-notification", (_, data) => {
   });
 
   notification.show();
-
 });
 
 ipcMain.on("switch-task", (_, data) => {
@@ -1265,6 +1568,13 @@ async function startTracking(projectId = null, taskId = null) {
   devLog("WITHIN BREAK:", isWithinScheduledBreak());
 
   isTracking = true;
+
+  try {
+    const devInfo = typeof getDeviceInfo === "function" ? getDeviceInfo() : null;
+    eventGapTracker.onStartTracking({
+      deviceId: devInfo?.deviceId || null,
+    });
+  } catch {}
 
   updateTrackingStatus(true);
 
@@ -1302,6 +1612,11 @@ async function startTracking(projectId = null, taskId = null) {
 function stopTracking() {
   devLog("STOP TRACKING RECEIVED");
   isTracking = false;
+  lastCapturePauseReason = null;
+
+  try {
+    eventGapTracker.onStopTracking();
+  } catch {}
 
   updateTrackingStatus(false);
 
@@ -1392,48 +1707,137 @@ ipcMain.on("show-main-window", () => {
   mainWindow.focus();
 });
 
-async function uploadScreenshot(filePath) {
+async function uploadScreenshot(filePath, metadata = null) {
   try {
     if (!authToken) {
-      return;
+      return false;
     }
 
-    const activeApp = await getActiveApp();
+    if (isAccessTokenExpired(authToken)) {
+      const refreshed = await refreshAuthToken();
+      if (!refreshed || !authToken) {
+        return false;
+      }
+    }
+
+    const payload = metadata || {};
+    const activeApp = metadata
+      ? { appName: metadata.appName, windowTitle: metadata.windowTitle }
+      : await getActiveApp();
 
     const formData = new FormData();
-
     formData.append("screenshot", fs.createReadStream(filePath));
+    formData.append("appName", activeApp.appName || "");
+    formData.append("windowTitle", activeApp.windowTitle || "");
 
-    formData.append("appName", activeApp.appName);
-    formData.append("windowTitle", activeApp.windowTitle);
+    const keyPresses =
+      payload.keyPresses !== undefined
+        ? payload.keyPresses
+        : screenshotKeyPresses;
+    const mouseClicks =
+      payload.mouseClicks !== undefined
+        ? payload.mouseClicks
+        : screenshotMouseClicks;
+    const mouseMoves =
+      payload.mouseMoves !== undefined
+        ? payload.mouseMoves
+        : screenshotMouseMoves;
+    const totalActions = keyPresses + mouseClicks + mouseMoves;
+    const activityScore =
+      payload.activityScore !== undefined
+        ? payload.activityScore
+        : Math.min(Math.round((totalActions / 50) * 100), 100);
 
-    formData.append("keyPresses", screenshotKeyPresses);
-    formData.append("mouseClicks", screenshotMouseClicks);
-    formData.append("mouseMoves", screenshotMouseMoves);
-
-    const totalActions =
-      screenshotKeyPresses + screenshotMouseClicks + screenshotMouseMoves;
-
-    const activityScore = Math.min(Math.round((totalActions / 50) * 100), 100);
-
+    formData.append("keyPresses", keyPresses);
+    formData.append("mouseClicks", mouseClicks);
+    formData.append("mouseMoves", mouseMoves);
     formData.append("activityScore", activityScore);
 
-    formData.append("project", currentProjectId || "");
-    formData.append("task", currentTaskId || "");
+    formData.append("project", payload.project || currentProjectId || "");
+    formData.append("task", payload.task || currentTaskId || "");
+    if (payload.capturedAt) {
+      formData.append("capturedAt", payload.capturedAt);
+    }
 
-    await axios.post(`${API_BASE_URL}/screenshots/upload`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-        Authorization: `Bearer ${authToken}`,
+    const response = await axios.post(
+      `${API_BASE_URL}/screenshots/upload`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          Authorization: `Bearer ${authToken}`,
+        },
+        timeout: 30000,
       },
-    });
+    );
 
-    screenshotKeyPresses = 0;
-    screenshotMouseClicks = 0;
-    screenshotMouseMoves = 0;
+    if (response.status === 200 || response.status === 201) {
+      if (!metadata) {
+        screenshotKeyPresses = 0;
+        screenshotMouseClicks = 0;
+        screenshotMouseMoves = 0;
+      }
+      return true;
+    }
+    return false;
   } catch (err) {
     logError(err, "SCREENSHOT UPLOAD");
+    return false;
   }
+}
+
+async function triggerOfflineQueueProcessing() {
+  if (!authToken) return;
+  if (!currentUserId) {
+    currentUserId = offlineQueue.getUserIdFromToken(authToken);
+  }
+  if (!currentUserId) return;
+
+  try {
+    await offlineQueue.recoverRescuedScreenshots({ currentUserId });
+  } catch (recoverErr) {
+    logError(recoverErr, "OFFLINE_QUEUE_RECOVER");
+  }
+
+  offlineQueue
+    .processQueue(
+      async ({ imagePath, meta }) => {
+        return await uploadScreenshot(imagePath, meta);
+      },
+      { token: authToken, currentUserId },
+    )
+    .then((result) => {
+      if (lastCapturePauseReason && offlineQueue.isInitialized()) {
+        const checkReadiness = offlineQueue.evaluateCaptureReadiness(currentUserId);
+        if (checkReadiness.ok) {
+          const previousReason = lastCapturePauseReason;
+          lastCapturePauseReason = null;
+          devLog(
+            `[SAFE-RETAIN] Screenshot capture resumed after queue processing (recovered from ${previousReason})`,
+          );
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("screenshot-capture-resumed", {
+              ok: true,
+              status: "NORMAL",
+              previousReason,
+            });
+          }
+        }
+      }
+
+      if (result && result.hasFailures && result.nextDelayMs) {
+        scheduleOfflineQueueRetry(result.nextDelayMs);
+      }
+    })
+    .catch((err) => {
+      logError(err, "OFFLINE QUEUE PROCESS");
+    });
+}
+
+function scheduleOfflineQueueRetry(delayMs) {
+  offlineQueue.scheduleRetry(() => {
+    triggerOfflineQueueProcessing();
+  }, delayMs);
 }
 
 async function blurScreenshot(filePath) {
@@ -1474,6 +1878,40 @@ async function captureScreenshot() {
       return;
     }
 
+    const activeUserId = currentUserId || (authToken ? offlineQueue.getUserIdFromToken(authToken) : null);
+
+    if (offlineQueue.isInitialized()) {
+      const readiness = offlineQueue.evaluateCaptureReadiness(activeUserId);
+      if (!readiness.ok) {
+        lastCapturePauseReason = readiness.reason;
+        devLog(`[SAFE-RETAIN] Screenshot capture paused (${readiness.reason}):`, readiness.warning || readiness.reason);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("screenshot-capture-paused", readiness);
+        }
+        return;
+      }
+
+      if (lastCapturePauseReason) {
+        const previousReason = lastCapturePauseReason;
+        lastCapturePauseReason = null;
+        devLog(`[SAFE-RETAIN] Screenshot capture resumed (recovered from ${previousReason})`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("screenshot-capture-resumed", {
+            ok: true,
+            status: "NORMAL",
+            previousReason,
+          });
+        }
+      }
+
+      if (readiness.status === "THROTTLE") {
+        devLog(`[SAFE-RETAIN] Screenshot capture throttled:`, readiness.warning);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("screenshot-capture-throttled", readiness);
+        }
+      }
+    }
+
     const screenshotsDir = path.join(app.getPath("userData"), "screenshots");
     fs.mkdirSync(screenshotsDir, { recursive: true });
 
@@ -1490,11 +1928,60 @@ async function captureScreenshot() {
     // Blur if enabled
     await blurScreenshot(filePath);
 
-    await uploadScreenshot(filePath);
+    const activeApp = await getActiveApp();
+    const totalActions =
+      screenshotKeyPresses + screenshotMouseClicks + screenshotMouseMoves;
+    const activityScore = Math.min(Math.round((totalActions / 50) * 100), 100);
 
-    try {
-      fs.unlinkSync(filePath);
-    } catch {}
+    const metadata = {
+      userId: activeUserId,
+      capturedAt: new Date().toISOString(),
+      appName: activeApp.appName || "",
+      windowTitle: activeApp.windowTitle || "",
+      keyPresses: screenshotKeyPresses,
+      mouseClicks: screenshotMouseClicks,
+      mouseMoves: screenshotMouseMoves,
+      activityScore,
+      project: currentProjectId || "",
+      task: currentTaskId || "",
+    };
+
+    const uploaded = await uploadScreenshot(filePath, null);
+
+    if (uploaded) {
+      try {
+        fs.unlinkSync(filePath);
+      } catch {}
+      triggerOfflineQueueProcessing();
+    } else {
+      devLog("SCREENSHOT UPLOAD FAILED — ENQUEUEING IN OFFLINE QUEUE");
+      try {
+        offlineQueue.enqueueScreenshot(filePath, metadata);
+        screenshotKeyPresses = 0;
+        screenshotMouseClicks = 0;
+        screenshotMouseMoves = 0;
+        try {
+          fs.unlinkSync(filePath);
+        } catch {}
+      } catch (queueErr) {
+        logError(queueErr, "OFFLINE QUEUE ENQUEUE");
+        // Rescue screenshot to durable storage before any cleanup only if not storage exhaustion or backpressure
+        if (queueErr.code !== "OFFLINE_QUEUE_FULL" && queueErr.code !== "INSUFFICIENT_HOST_STORAGE") {
+          try {
+            offlineQueue.rescueScreenshot(
+              filePath,
+              metadata,
+              queueErr.message,
+              app.getPath("userData"),
+            );
+          } catch {}
+        }
+        try {
+          fs.unlinkSync(filePath);
+        } catch {}
+      }
+      scheduleOfflineQueueRetry();
+    }
   } catch (err) {
     logError(err, "SCREENSHOT CAPTURE");
   }
@@ -1552,6 +2039,12 @@ function createTrackingBar() {
 
   trackingBar.loadURL(`${WEB_APP_URL}/tracking-bar`);
 
+  windowPolicy.applyWindowSecurityPolicy(trackingBar, {
+    webAppUrl: WEB_APP_URL,
+    openExternalFn: (url) => require("electron").shell.openExternal(url),
+    isDev,
+  });
+
   trackingBar.webContents.on("did-finish-load", () => {
     devLog("TRACKING BAR LOADED");
   });
@@ -1602,6 +2095,12 @@ function createIdleWindow() {
 
   idleWindow.loadURL(`${WEB_APP_URL}/idle`);
 
+  windowPolicy.applyWindowSecurityPolicy(idleWindow, {
+    webAppUrl: WEB_APP_URL,
+    openExternalFn: (url) => require("electron").shell.openExternal(url),
+    isDev,
+  });
+
   idleWindow.webContents.on("did-finish-load", () => {
     devLog("IDLE WINDOW LOADED");
   });
@@ -1615,7 +2114,6 @@ function createIdleWindow() {
 }
 
 function createWindow() {
-
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -1631,29 +2129,10 @@ function createWindow() {
     },
   });
 
-  const isOAuthStartUrl = (url) =>
-    /\/api\/auth\/(google|microsoft|apple)$/.test(new URL(url).pathname);
-
-  const openInSystemBrowser = (url) => {
-    const target = new URL(url);
-    target.searchParams.set("client", "desktop");
-
-    require("electron").shell.openExternal(target.toString());
-  };
-
-  mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (isOAuthStartUrl(url)) {
-      event.preventDefault();
-      openInSystemBrowser(url);
-    }
-  });
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isOAuthStartUrl(url)) {
-      openInSystemBrowser(url);
-      return { action: "deny" };
-    }
-    return { action: "allow" };
+  windowPolicy.applyWindowSecurityPolicy(mainWindow, {
+    webAppUrl: WEB_APP_URL,
+    openExternalFn: (url) => require("electron").shell.openExternal(url),
+    isDev,
   });
 
   if (authToken) {
@@ -1663,6 +2142,14 @@ function createWindow() {
     devLog("OPENING LOGIN");
     mainWindow.loadURL(`${WEB_APP_URL}/authenticate/login`);
   }
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    if (unconsumedIntegrationOAuthResult && mainWindow && !mainWindow.isDestroyed()) {
+      const queuedResult = unconsumedIntegrationOAuthResult;
+      unconsumedIntegrationOAuthResult = null;
+      mainWindow.webContents.send("integration-oauth-result", queuedResult);
+    }
+  });
 
   mainWindow.on("close", (event) => {
     event.preventDefault();
@@ -1674,8 +2161,8 @@ async function getConnectionDiagnostics() {
   const apiReachable = await new Promise((resolve) => {
     const socket = net.createConnection(
       {
-        host: "localhost",
-        port: 5000,
+        host: resolvedEndpoints.apiHost,
+        port: resolvedEndpoints.apiPort,
         timeout: 2000,
       },
       () => {
@@ -1784,16 +2271,20 @@ function createAppMenu() {
             }
           },
         },
-        { type: "separator" },
-        {
-          label: "Developer Tools",
-          accelerator: "Ctrl+Shift+I",
-          click() {
-            if (mainWindow) {
-              mainWindow.webContents.toggleDevTools();
-            }
-          },
-        },
+        ...(isDev
+          ? [
+              { type: "separator" },
+              {
+                label: "Developer Tools",
+                accelerator: "Ctrl+Shift+I",
+                click() {
+                  if (mainWindow) {
+                    mainWindow.webContents.toggleDevTools();
+                  }
+                },
+              },
+            ]
+          : []),
       ],
     },
 
@@ -1977,6 +2468,20 @@ app.whenReady().then(async () => {
   devLog("APP READY FIRED");
 
   try {
+    offlineQueue.initOfflineQueue(app.getPath("userData"));
+    devLog("OFFLINE SCREENSHOT QUEUE INITIALIZED");
+  } catch (queueInitErr) {
+    logError(queueInitErr, "OFFLINE_QUEUE_INIT");
+  }
+
+  try {
+    durableTelemetryQueue.init(app.getPath("userData"));
+    devLog("DURABLE TELEMETRY QUEUE INITIALIZED");
+  } catch (tQueueErr) {
+    logError(tQueueErr, "DURABLE_TELEMETRY_QUEUE_INIT");
+  }
+
+  try {
     authToken = getStoredAuthToken();
 
     const hasRefreshToken = !!getSecureToken("refreshToken");
@@ -2026,8 +2531,18 @@ app.whenReady().then(async () => {
     }
 
     if (authToken) {
+      currentUserId = offlineQueue.getUserIdFromToken(authToken);
+      if (currentUserId && durableTelemetryQueue.isInitialized()) {
+        durableTelemetryQueue.bindUser(currentUserId);
+        void durableTelemetryQueue.processQueue({
+          apiBaseUrl: API_BASE_URL,
+          authToken,
+          activeUserId: currentUserId,
+        });
+      }
       devLog("LOADING TRACKING SETTINGS ON STARTUP");
       await loadTrackingSettings();
+      triggerOfflineQueueProcessing();
     }
   } catch (error) {
     logError(error, "TOKEN LOAD/REFRESH");
@@ -2037,12 +2552,12 @@ app.whenReady().then(async () => {
   createWindow();
   devLog("WINDOW CREATED");
 
-  const coldStartDeepLink = process.argv.find((arg) =>
-    arg.startsWith("workcomposer://"),
+  const coldStartDeepLink = process.argv.find(
+    (arg) => typeof arg === "string" && arg.startsWith("workcomposer://"),
   );
 
   if (coldStartDeepLink) {
-    handleAuthDeepLink(coldStartDeepLink);
+    handleDeepLink(coldStartDeepLink);
   }
 
   try {
@@ -2172,10 +2687,17 @@ app.whenReady().then(async () => {
     devLog("SYSTEM SLEEP");
 
     sleepStartedAt = Date.now();
+    try {
+      eventGapTracker.onSuspend();
+    } catch {}
   });
 
   powerMonitor.on("resume", () => {
     devLog("SYSTEM RESUMED");
+
+    try {
+      eventGapTracker.onResume();
+    } catch {}
 
     if (!sleepStartedAt) return;
 
@@ -2240,8 +2762,117 @@ app.on("window-all-closed", () => {
   }
 });
 
+app.on("before-quit", () => {
+  offlineQueue.clearRetryTimer();
+  durableTelemetryQueue.clearRetryTimer();
+});
+
 ipcMain.handle("get-token", async () => {
   return authToken;
+});
+
+ipcMain.handle("consume-pending-integration-oauth-result", async () => {
+  const result = unconsumedIntegrationOAuthResult;
+  unconsumedIntegrationOAuthResult = null;
+  return result || null;
+});
+
+ipcMain.handle("start-integration-oauth", async (_, provider) => {
+  try {
+    const normalizedProvider = String(provider || "").trim().toLowerCase();
+    if (!endpointConfig.SUPPORTED_INTEGRATION_PROVIDERS.has(normalizedProvider)) {
+      return {
+        started: false,
+        error: "UNSUPPORTED_PROVIDER",
+        message: "Unsupported integration provider.",
+      };
+    }
+
+    const token = await ensureDesktopAuthToken(false);
+    if (!token) {
+      return {
+        started: false,
+        error: "NOT_AUTHENTICATED",
+        message: "Session expired. Please log in again.",
+      };
+    }
+
+    const initiatorUserId = currentUserId || offlineQueue.getUserIdFromToken(token);
+    if (!initiatorUserId) {
+      return {
+        started: false,
+        error: "INVALID_SESSION",
+        message: "Unable to verify active desktop user session.",
+      };
+    }
+
+    prunePendingIntegrationOAuth();
+    // Replace any existing pending OAuth challenge for this provider cleanly.
+    for (const [challenge, entry] of pendingIntegrationOAuth.entries()) {
+      if (entry?.provider === normalizedProvider) {
+        pendingIntegrationOAuth.delete(challenge);
+      }
+    }
+
+    const desktopVerifier = crypto.randomBytes(32).toString("base64url");
+    const desktopChallenge = crypto
+      .createHash("sha256")
+      .update(desktopVerifier)
+      .digest("base64url");
+
+    const { data } = await authorizedDesktopApiRequest({
+      method: "GET",
+      url: `${API_BASE_URL}/integrations/${normalizedProvider}/connect`,
+      params: {
+        client: "desktop",
+        mode: "json",
+        desktopChallenge,
+      },
+      timeout: 15000,
+    });
+
+    const urlValidation = endpointConfig.validateIntegrationAuthorizeUrl(
+      data?.url,
+      normalizedProvider,
+    );
+    if (!urlValidation.valid) {
+      return {
+        started: false,
+        error: urlValidation.reason,
+        message: "Received invalid authorization URL from server.",
+      };
+    }
+
+    unconsumedIntegrationOAuthResult = null;
+    pendingIntegrationOAuth.set(desktopChallenge, {
+      provider: normalizedProvider,
+      userId: String(initiatorUserId),
+      desktopVerifier,
+      desktopChallenge,
+      expiresAt: Date.now() + PENDING_INTEGRATION_OAUTH_TTL_MS,
+    });
+
+    await require("electron").shell.openExternal(urlValidation.url);
+
+    return {
+      started: true,
+      provider: normalizedProvider,
+    };
+  } catch (err) {
+    const status = err.response?.status;
+    devLog(
+      "START INTEGRATION OAUTH FAILED:",
+      provider,
+      status || err.message || "Unknown error",
+    );
+    return {
+      started: false,
+      error: status === 401 ? "UNAUTHORIZED" : "START_OAUTH_FAILED",
+      message:
+        err.response?.data?.message ||
+        `Failed to start ${String(provider || "integration")} authorization.`,
+    };
+  }
 });
 
 ipcMain.handle("refresh-token", async () => {
@@ -2316,13 +2947,42 @@ ipcMain.handle("logout-electron", async () => {
   try {
     devLog("ELECTRON LOGOUT REQUESTED");
 
-    clearElectronAuth();
+    const refreshToken = getSecureToken("refreshToken");
+    let serverRevocationSuccess = false;
+
+    if (refreshToken) {
+      try {
+        await axios.post(
+          `${API_BASE_URL}/auth/logout`,
+          {
+            client: "desktop",
+            refreshToken,
+          },
+          {
+            headers: authToken
+              ? { Authorization: `Bearer ${authToken}` }
+              : {},
+          },
+        );
+        serverRevocationSuccess = true;
+        devLog("DESKTOP REFRESH TOKEN REVOKED ON SERVER");
+      } catch (logoutApiError) {
+        logError(logoutApiError, "SERVER LOGOUT FAILED");
+      }
+    }
+
+    await clearElectronAuth();
 
     return {
       success: true,
+      serverRevocation: serverRevocationSuccess,
     };
   } catch (error) {
     logError(error, "ELECTRON LOGOUT");
+
+    try {
+      await clearElectronAuth();
+    } catch {}
 
     return {
       success: false,
@@ -2330,3 +2990,86 @@ ipcMain.handle("logout-electron", async () => {
     };
   }
 });
+
+ipcMain.handle("get-offline-queue-status", async () => {
+  if (!offlineQueue.isInitialized()) {
+    return { initialized: false };
+  }
+  const activeUser = currentUserId || (authToken ? offlineQueue.getUserIdFromToken(authToken) : null);
+  const readiness = offlineQueue.evaluateCaptureReadiness(activeUser);
+  const items = activeUser ? offlineQueue.listQueueItems(activeUser) : [];
+  const policy = offlineQueue.getRetentionPolicy();
+  return {
+    initialized: true,
+    userId: activeUser,
+    readiness,
+    activeCount: items.length,
+    maxCount: policy?.activeQueueMaxCount || 50,
+    policy: {
+      enableAdaptiveBackpressure: Boolean(policy?.enableAdaptiveBackpressure),
+      diskReserveBytes: policy?.diskReserveBytes || 524288000,
+    },
+  };
+});
+
+ipcMain.handle("get-durable-telemetry-queue-status", async () => {
+  if (!durableTelemetryQueue.isInitialized()) {
+    return { initialized: false };
+  }
+  const activeUser = currentUserId || (authToken ? offlineQueue.getUserIdFromToken(authToken) : null);
+  const items = activeUser ? durableTelemetryQueue.listQueueItems(activeUser) : [];
+  return {
+    initialized: true,
+    userId: activeUser,
+    activeCount: items.length,
+    maxCount: durableTelemetryQueue.maxQueueSize,
+    overflowDroppedCount: durableTelemetryQueue.overflowDroppedCount,
+  };
+});
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    durableTelemetryQueue,
+    sendActivity,
+    getEffectiveShiftTimezone,
+    getCurrentShift,
+    isWithinCurrentShift,
+    isWithinScheduledBreak,
+    getLastCapturePauseReason: () => lastCapturePauseReason,
+    setLastCapturePauseReason: (r) => {
+      lastCapturePauseReason = r;
+    },
+    evaluateAndDispatchCaptureReadiness: (activeUserId = null) => {
+      if (!offlineQueue.isInitialized()) return { ok: true, status: "UNINITIALIZED" };
+      const readiness = offlineQueue.evaluateCaptureReadiness(activeUserId);
+      if (!readiness.ok) {
+        lastCapturePauseReason = readiness.reason;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("screenshot-capture-paused", readiness);
+        }
+        return readiness;
+      }
+      if (lastCapturePauseReason) {
+        const previousReason = lastCapturePauseReason;
+        lastCapturePauseReason = null;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("screenshot-capture-resumed", {
+            ok: true,
+            status: "NORMAL",
+            previousReason,
+          });
+        }
+      }
+      if (readiness.status === "THROTTLE") {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("screenshot-capture-throttled", readiness);
+        }
+      }
+      return readiness;
+    },
+    resetCapturePauseState: () => {
+      lastCapturePauseReason = null;
+    },
+  };
+}
+
