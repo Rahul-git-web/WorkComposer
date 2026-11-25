@@ -162,13 +162,13 @@ export default function LiveMap({
     }, []);
 
     return (
-        <section className="bg-gray-100 px-4 pt-7 pb-6 sm:px-6 lg:px-8">
-            <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-                <div className="border-b border-gray-200 px-5 py-4">
+        <section className="bg-gray-100 dark:bg-slate-900 pt-4 pb-6">
+            <div className="overflow-hidden rounded-3xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
+                <div className="border-b border-gray-200 dark:border-[#22324D] px-5 py-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <p className="text-sm font-medium text-gray-500">Location Tracking</p>
-                            <h1 className="mt-1 text-lg font-semibold text-gray-900">
+                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Location Tracking</p>
+                            <h1 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
                                 {locations.length > 0
                                     ? `${locations[0]?.user?.firstName} ${locations[0]?.user?.lastName}`
                                     : "No Active Users"}
@@ -176,39 +176,39 @@ export default function LiveMap({
                         </div>
 
                         <span
-                            className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700"
+                            className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-900/60 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
                         >
                             Live
                         </span>
                     </div>
                 </div>
 
-                <div className="border-b border-gray-200 px-5 py-4">
+                <div className="border-b border-gray-200 dark:border-[#22324D] px-5 py-4">
                     <div className="grid gap-3 lg:grid-cols-3">
-                        <div className="rounded-2xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
+                        <div className="rounded-2xl bg-blue-50 dark:bg-blue-950/40 px-4 py-3 text-sm font-medium text-blue-700 dark:text-blue-300">
                             Each marker represents a user&apos;s location
                         </div>
 
-                        <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                        <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                             Click on a marker to see detailed information
                         </div>
 
-                        <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                        <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm font-medium text-amber-700 dark:text-amber-300">
                             Full details are visible inside the marker popup
                         </div>
                     </div>
                 </div>
 
                 <div className="px-2 py-2">
-                    <div className="relative h-[calc(100vh-20rem)] min-h-[30rem] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                    <div className="relative h-[calc(100vh-20rem)] min-h-[30rem] overflow-hidden rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
 
                         <div className="absolute top-4 right-4 z-[1000]">
-                            <div className="inline-flex rounded-lg border border-gray-200 bg-white overflow-hidden shadow-md">
+                            <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E293B] overflow-hidden shadow-md">
                                 <button
                                     onClick={() => setMapType("street")}
                                     className={`px-4 py-2 text-sm font-medium ${mapType === "street"
                                         ? "bg-blue-600 text-white"
-                                        : "bg-white hover:bg-gray-50"
+                                        : "bg-white dark:bg-[#1E293B] text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#273549]"
                                         }`}
                                 >
                                     Street
@@ -218,7 +218,7 @@ export default function LiveMap({
                                     onClick={() => setMapType("satellite")}
                                     className={`px-4 py-2 text-sm font-medium ${mapType === "satellite"
                                         ? "bg-blue-600 text-white"
-                                        : "bg-white hover:bg-gray-50"
+                                        : "bg-white dark:bg-[#1E293B] text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#273549]"
                                         }`}
                                 >
                                     Satellite

@@ -12,6 +12,7 @@ import ProductivityContent from "./content/ProductivityContent";
 import ScreenshotsContent from "@/app/modules/reports/content/ScreenshotsContent";
 import UsageContent from "./content/UsageContent";
 import OverviewContentModule from "./content/OverviewContentModule";
+import HomeContentModule from "./content/HomeContentModule";
 import ProjectTrackingContent from "./content/ProjectTrackingContent";
 import LocationContent from "./content/LocationContent";
 import { useDesktop } from "@/context/DesktopContext";
@@ -70,24 +71,35 @@ export default function ReportsModule() {
             try {
                 const { data } = await API.get("/users");
 
-                setUsers(data);
-            } catch (err) {
-                console.error(err);
+                setUsers(Array.isArray(data) ? data : []);
+            } catch (err: any) {
+                if (err?.response?.status === 403 && user) {
+                    // For employees (role: "user"), /api/users is restricted by RBAC.
+                    // Authorized scope for employee is self.
+                    setUsers([user]);
+                } else {
+                    console.error("Failed to fetch users in ReportsModule:", err);
+                    setUsers([]);
+                }
             }
         };
 
         fetchUsers();
-    }, []);
+    }, [user]);
 
     const teams = Array.from(
         new Map(
             users
                 .filter((user: any) => user.team)
-                .map((user: any) => [user.team._id, user.team])
+                .map((user: any) => [user.team._id || user.team.id, user.team])
         ).values()
     );
 
     const reportComponents = {
+        home: (
+            <HomeContentModule />
+        ),
+
         overview: (
             <OverviewContentModule
                 reportRange={reportRange}
@@ -107,6 +119,9 @@ export default function ReportsModule() {
                 selectedUsers={selectedUsers}
                 sortBy={sortBy}
                 order={order}
+                refreshKey={refreshKey}
+                isRefreshing={isRefreshing}
+                timezone={timezone}
             />
         ),
 
@@ -120,6 +135,7 @@ export default function ReportsModule() {
                 refreshKey={refreshKey}
                 isRefreshing={isRefreshing}
                 timezone={timezone}
+                users={users}
             />
         ),
 
@@ -202,34 +218,49 @@ export default function ReportsModule() {
                 handleRefresh,
             }}
         >
-            <div className="flex h-full">
+            <div className="flex-1 flex flex-col min-h-0 h-full pt-4 xl:pt-3">
 
-                <div className="flex-1 flex flex-col">
-                    <OverviewHeader
-                        date={date}
-                        setDate={setDate}
-                        selectedTeams={selectedTeams}
-                        setSelectedTeams={setSelectedTeams}
-                        selectedUsers={selectedUsers}
-                        setSelectedUsers={setSelectedUsers}
-                        users={users}
-                        teams={teams}
-                        reportRange={reportRange}
-                        setReportRange={setReportRange}
-                        sortBy={sortBy}
-                        setSortBy={setSortBy}
-                        order={order}
-                        setOrder={setOrder}
-                        onRefresh={handleRefresh}
-                        isRefreshing={isRefreshing}
-                    />
+                <div className="flex-1 flex flex-col min-h-0">
+                    {activeReport !== "home" && (
+                        <div className="shrink-0">
+                            <div className="px-4 sm:px-6 lg:px-8">
+                                <OverviewHeader
+                                    date={date}
+                                    setDate={setDate}
+                                    selectedTeams={selectedTeams}
+                                    setSelectedTeams={setSelectedTeams}
+                                    selectedUsers={selectedUsers}
+                                    setSelectedUsers={setSelectedUsers}
+                                    users={users}
+                                    teams={teams}
+                                    reportRange={reportRange}
+                                    setReportRange={setReportRange}
+                                    sortBy={sortBy}
+                                    setSortBy={setSortBy}
+                                    order={order}
+                                    setOrder={setOrder}
+                                    onRefresh={handleRefresh}
+                                    isRefreshing={isRefreshing}
+                                />
+                            </div>
+                        </div>
+                    )}
 
-                    <div className="flex-1 overflow-auto">
-
-                        {reportComponents[
-                            activeReport as keyof typeof reportComponents
-                        ]}
-
+                    <div
+                        className="flex-1 overflow-y-auto min-h-0"
+                        style={{ "--overview-header-height": "0px" } as React.CSSProperties}
+                    >
+                        {activeReport === "home" ? (
+                            reportComponents[
+                                activeReport as keyof typeof reportComponents
+                            ]
+                        ) : (
+                            <div className="px-4 sm:px-6 lg:px-8 pb-6">
+                                {reportComponents[
+                                    activeReport as keyof typeof reportComponents
+                                ]}
+                            </div>
+                        )}
                     </div>
 
                 </div>
