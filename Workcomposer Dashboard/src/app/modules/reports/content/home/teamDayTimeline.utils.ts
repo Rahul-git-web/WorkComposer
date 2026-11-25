@@ -57,6 +57,8 @@ export interface EmployeeTimelineData {
   unusualActivityMinutes?: number | null | undefined; // real unusual input minutes if present (null when unavailable)
   unusualActivityMeasured?: boolean | undefined; // true if anomaly data was confirmed measured (even if 0m)
   unusualActivityCount?: number | undefined; // real anomaly count if present
+  activityDelta?: number | null | undefined; // delta vs historical baseline if available
+  isPinnedException?: boolean | undefined; // true when employee has pinned anomaly or large drop
   cells: EmployeeTimelineCell[];
   hasStarted: boolean;
   isUnavailable?: boolean | undefined;
@@ -186,10 +188,42 @@ export function getActivityIntensityState(score: number): BucketActivityState {
   return "active-zero";
 }
 
+export type IntervalActivityItem = {
+  time?: string;
+  startMinutes?: number;
+  bucketIndex?: number;
+  value: number | null;
+  unusualInput?: boolean;
+  unusual?: boolean;
+  hasUnusualInput?: boolean;
+};
+
 export type IntervalActivitySource =
-  | Array<{ time?: string; startMinutes?: number; bucketIndex?: number; value: number | null }>
+  | Array<IntervalActivityItem>
   | Record<string | number, number | null>
   | null;
+
+function findIntervalActivityMatch(
+  bucket: TimelineBucket,
+  intervalActivity?: IntervalActivitySource
+): IntervalActivityItem | undefined {
+  if (!Array.isArray(intervalActivity)) return undefined;
+  const bucketHour = Math.floor(bucket.startMinutes / 60);
+  const bucketMin = bucket.startMinutes % 60;
+  const timeKey1 = `${bucketHour}:${bucketMin === 0 ? "00" : bucketMin}`;
+  const timeKey2 = `${String(bucketHour).padStart(2, "0")}:${bucketMin === 0 ? "00" : bucketMin}`;
+
+  return intervalActivity.find((item) => {
+    if (!item) return false;
+    if (typeof item.bucketIndex === "number" && item.bucketIndex === bucket.index) return true;
+    if (typeof item.startMinutes === "number" && item.startMinutes === bucket.startMinutes) return true;
+    if (typeof item.time === "string") {
+      const cleanTime = item.time.trim();
+      return cleanTime === timeKey1 || cleanTime === timeKey2;
+    }
+    return false;
+  });
+}
 
 /**
  * Resolves the interval-level activity score for a 30-minute bucket.
@@ -202,21 +236,7 @@ export function resolveBucketActivityScore(
 ): { score: number | null; hasMeasurement: boolean } {
   // 1. Array format: [{ time: "9:00", value: 92 }, { startMinutes: 540, value: 92 }, ...]
   if (Array.isArray(intervalActivity)) {
-    const bucketHour = Math.floor(bucket.startMinutes / 60);
-    const bucketMin = bucket.startMinutes % 60;
-    const timeKey1 = `${bucketHour}:${bucketMin === 0 ? "00" : bucketMin}`;
-    const timeKey2 = `${String(bucketHour).padStart(2, "0")}:${bucketMin === 0 ? "00" : bucketMin}`;
-
-    const match = intervalActivity.find((item) => {
-      if (!item) return false;
-      if (typeof item.bucketIndex === "number" && item.bucketIndex === bucket.index) return true;
-      if (typeof item.startMinutes === "number" && item.startMinutes === bucket.startMinutes) return true;
-      if (typeof item.time === "string") {
-        const cleanTime = item.time.trim();
-        return cleanTime === timeKey1 || cleanTime === timeKey2;
-      }
-      return false;
-    });
+    const match = findIntervalActivityMatch(bucket, intervalActivity);
 
     if (match) {
       if (typeof match.value === "number" && !isNaN(match.value)) {
@@ -376,14 +396,25 @@ export function buildEmployeeTimelineCells(
       }
     }
 
+    const intervalMatch =
+      bucketWorkSecs > 0 && state !== "break"
+        ? findIntervalActivityMatch(bucket, intervalActivity)
+        : undefined;
+    const hasBucketUnusualInput = Boolean(
+      intervalMatch &&
+        (intervalMatch.unusualInput ||
+          intervalMatch.unusual ||
+          intervalMatch.hasUnusualInput)
+    );
+
     return {
       bucketIndex: bucket.index,
       state,
       workSeconds: bucketWorkSecs,
       breakSeconds: bucketBreakSecs,
       activityScore: cellActivityScore,
-      unusualInput: false, // Backend limitation: real anomaly models not present
-      pinnedException: false, // Backend limitation: pinned exceptions not present
+      unusualInput: hasBucketUnusualInput,
+      pinnedException: hasBucketUnusualInput,
       timeRangeLabel: `${bucket.label} – ${formatMinutesToClock(bucket.endMinutes)}`,
       activityUnavailable: state === "unavailable",
     };

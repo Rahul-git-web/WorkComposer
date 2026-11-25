@@ -16,6 +16,7 @@ import {
   buildEmployeeTimelineCells,
   calculateCurrentTimeMarkerPosition,
   calculateTeamDaySummaryMetrics,
+  getActivityIntensityState,
   formatTimelineDuration,
   formatMinutesToClock,
   type EmployeeTimelineData,
@@ -311,10 +312,20 @@ export default function TeamDayLive({
       // Check if tracking status is genuinely unknown due to missing/incomplete data
       const isStatusUnknown = Boolean(raw.isUnavailable || raw.trackingStatusUnknown || uOverview?.status === "unknown");
 
-      // Check for unusual activity data if present on employee/overview/productivity record
+      // Check for unusual activity data and historical delta if present
       const rawUnusualMins = raw.unusualActivityMinutes ?? uOverview?.unusualActivityMinutes ?? uProd?.unusualActivityMinutes;
       const rawUnusualCount = raw.unusualActivityCount ?? uOverview?.unusualActivityCount ?? uProd?.unusualActivityCount;
-      const histAvg = raw.historicalAvgActivity ?? uOverview?.historicalAvgActivity ?? uProd?.historicalAvgActivity;
+      const rawActivityDelta =
+        typeof raw.activityDelta === "number" && !isNaN(raw.activityDelta)
+          ? raw.activityDelta
+          : typeof uOverview?.activityDelta === "number" && !isNaN(uOverview.activityDelta)
+          ? uOverview.activityDelta
+          : null;
+
+      let histAvg = raw.historicalAvgActivity ?? uOverview?.historicalAvgActivity ?? uProd?.historicalAvgActivity;
+      if (typeof histAvg !== "number" && typeof activityScore === "number" && rawActivityDelta !== null) {
+        histAvg = Math.max(0, Math.min(100, activityScore - rawActivityDelta));
+      }
 
       // Anomaly measurement distinction:
       // - Confirmed measurement exists if explicitly flagged or rawUnusualMins is a valid number
@@ -345,6 +356,14 @@ export default function TeamDayLive({
         intervalActivity
       );
 
+      const hasCellUnusual = cells.some((c) => c.unusualInput);
+      const hasPositiveUnusualMins = Boolean(unusualActivityMinutes && unusualActivityMinutes > 0);
+      const baselineDrop =
+        hasStarted && workSecs > 0 && typeof activityScore === "number" && typeof histAvg === "number"
+          ? histAvg - activityScore
+          : 0;
+      const isPinnedException = hasPositiveUnusualMins || hasCellUnusual || baselineDrop >= 20;
+
       employees.push({
         id,
         name,
@@ -362,6 +381,8 @@ export default function TeamDayLive({
         unusualActivityMinutes,
         unusualActivityMeasured: unusualMeasured,
         unusualActivityCount: typeof rawUnusualCount === "number" ? rawUnusualCount : undefined,
+        activityDelta: rawActivityDelta,
+        isPinnedException,
         cells,
         hasStarted,
         isUnavailable: isStatusUnknown || undefined,
@@ -374,16 +395,33 @@ export default function TeamDayLive({
     };
   }, [attendanceData, overviewData, usageData, productivityData, buckets, currentMinutesNow, selectedMetric, isToday, timezone]);
 
-  // 3. Filter employees by selected team
+  // 3. Filter and sort employees: pinned exceptions -> started (worked desc) -> not started at bottom
   const filteredEmployees = useMemo(() => {
     let list = allEmployees;
     if (selectedTeam !== "all") {
       list = list.filter((emp) => emp.team.toLowerCase() === selectedTeam.toLowerCase());
     }
 
-    // Preserve stable sort by worked time descending
-    return [...list].sort((a, b) => b.workSeconds - a.workSeconds);
+    return [...list].sort((a, b) => {
+      const aPinned = Boolean(a.isPinnedException);
+      const bPinned = Boolean(b.isPinnedException);
+      if (aPinned !== bPinned) return aPinned ? -1 : 1;
+
+      if (a.hasStarted !== b.hasStarted) return a.hasStarted ? -1 : 1;
+
+      return b.workSeconds - a.workSeconds;
+    });
   }, [allEmployees, selectedTeam]);
+
+  const pinnedEmployees = useMemo(
+    () => filteredEmployees.filter((emp) => emp.isPinnedException),
+    [filteredEmployees]
+  );
+
+  const regularEmployees = useMemo(
+    () => filteredEmployees.filter((emp) => !emp.isPinnedException),
+    [filteredEmployees]
+  );
 
   // 4. Calculate summary metrics
   const summaryMetrics = useMemo(() => {
@@ -410,13 +448,13 @@ export default function TeamDayLive({
     return name.slice(0, 2).toUpperCase();
   };
 
-  // Cell color helper
+  // Cell color helper (light mint -> medium emerald -> dark forest green in light mode; crisp graduated contrast in dark mode)
   const getCellBgClass = (state: string) => {
     switch (state) {
       case "active-work":
         return "bg-emerald-500 hover:brightness-110";
       case "active-high":
-        return "bg-emerald-700 dark:bg-emerald-500 hover:brightness-110";
+        return "bg-emerald-800 dark:bg-emerald-500 hover:brightness-110";
       case "active-medium-high":
         return "bg-emerald-600 dark:bg-emerald-600/90 hover:brightness-110";
       case "active-medium":
@@ -668,7 +706,11 @@ export default function TeamDayLive({
             className="flex flex-wrap items-center gap-3.5 text-[11px] text-gray-500 dark:text-slate-400"
           >
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500" />
+              <div className="flex items-center gap-0.5">
+                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-200 dark:bg-emerald-900/60" />
+                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 dark:bg-emerald-700/80" />
+                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-800 dark:bg-emerald-500" />
+              </div>
               <span>active (darker = more input)</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -746,9 +788,9 @@ export default function TeamDayLive({
 
       {/* 4. TIMELINE TABLE HEADER */}
       <div className="overflow-x-auto">
-        <div className="min-w-[760px]">
+        <div className="min-w-[824px]">
           {/* Table Column Headers */}
-          <div className="grid grid-cols-[200px_1fr_110px_90px] items-center pt-3 pb-2 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider border-b border-gray-100 dark:border-[#22324D]/40">
+          <div className="grid grid-cols-[200px_1fr_168px_90px] items-center pt-3 pb-2 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider border-b border-gray-100 dark:border-[#22324D]/40">
             <div>PERSON</div>
             <div className="relative pl-1">
               <div className="flex items-center justify-between pr-2">
@@ -764,19 +806,31 @@ export default function TeamDayLive({
           </div>
 
           {/* 5. TIMELINE EMPLOYEE ROWS (Internally Scrollable) */}
-          <div className="max-h-[480px] overflow-y-auto divide-y divide-gray-100 dark:divide-[#22324D]/40 relative">
-            {/* Current Time Vertical Line Marker across all rows */}
+          <div className="max-h-[480px] overflow-y-auto pt-4 divide-y divide-gray-100 dark:divide-[#22324D]/40 relative">
+            {/* Current Time Vertical Line Marker bounded strictly inside Col 2 (Timeline Track) */}
             {timeMarker.isVisible && (
-              <div
-                className="absolute top-0 bottom-0 pointer-events-none z-20 flex flex-col items-center"
-                style={{
-                  left: `calc(200px + (100% - 400px) * ${timeMarker.positionPercent / 100})`,
-                }}
-              >
-                <span className="text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-blue-500 text-white shadow-xs -translate-y-1">
-                  {timeMarker.formattedTime}
-                </span>
-                <div className="w-[1.5px] flex-1 bg-blue-500" />
+              <div className="pointer-events-none absolute inset-0 z-20 grid grid-cols-[200px_1fr_168px_90px]">
+                <div />
+                <div className="relative mr-2 h-full">
+                  <span
+                    className="absolute top-0.5 text-[9px] font-bold font-mono px-1.5 py-0.5 rounded bg-blue-500 text-white shadow-xs whitespace-nowrap"
+                    style={
+                      timeMarker.positionPercent > 86
+                        ? { right: 0 }
+                        : timeMarker.positionPercent < 14
+                        ? { left: 0 }
+                        : { left: `${timeMarker.positionPercent}%`, transform: "translateX(-50%)" }
+                    }
+                  >
+                    {timeMarker.formattedTime}
+                  </span>
+                  <div
+                    className="absolute top-4 bottom-0 w-[1.5px] -translate-x-1/2 bg-blue-500"
+                    style={{ left: `${timeMarker.positionPercent}%` }}
+                  />
+                </div>
+                <div />
+                <div />
               </div>
             )}
 
@@ -785,12 +839,23 @@ export default function TeamDayLive({
                 No employees found for the selected team scope.
               </div>
             ) : (
-              filteredEmployees.map((emp) => {
-                return (
+              <>
+                {pinnedEmployees.length > 0 && (
+                  <div
+                    data-testid="exceptions-pinned-header"
+                    className="px-0 py-1.5 bg-purple-50/40 dark:bg-purple-950/20 flex items-center gap-2"
+                  >
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
+                      exceptions pinned
+                    </span>
+                  </div>
+                )}
+
+                {[...pinnedEmployees, ...regularEmployees].map((emp) => (
                   <div
                     key={emp.id}
                     data-testid={`team-day-row-${emp.id}`}
-                    className="grid grid-cols-[200px_1fr_110px_90px] items-center py-2.5 hover:bg-gray-50/70 dark:hover:bg-white/2 transition-colors relative"
+                    className="grid grid-cols-[200px_1fr_168px_90px] items-center py-2.5 hover:bg-gray-50/70 dark:hover:bg-white/2 transition-colors relative"
                   >
                     {/* Column 1: PERSON */}
                     <div className="flex items-center gap-2.5 pr-2 truncate">
@@ -831,8 +896,18 @@ export default function TeamDayLive({
                     </div>
 
                     {/* Column 2: TIME TIMELINE */}
-                    <div className="flex items-center gap-[2px] pr-2 overflow-hidden h-5 relative">
+                    <div className="flex items-center gap-[2px] pr-2 overflow-visible h-6 relative">
                       {emp.cells.map((cell) => {
+                        const visualState =
+                          selectedMetric === "worked" &&
+                          cell.workSeconds > 0 &&
+                          cell.state !== "break" &&
+                          cell.state !== "future" &&
+                          typeof cell.activityScore === "number"
+                            ? getActivityIntensityState(cell.activityScore)
+                            : cell.state;
+                        const hasPurpleBorder = Boolean(cell.unusualInput || cell.pinnedException);
+
                         return (
                           <div
                             key={cell.bucketIndex}
@@ -841,7 +916,7 @@ export default function TeamDayLive({
                               setHoveredCell({
                                 employeeName: emp.name,
                                 timeRange: cell.timeRangeLabel,
-                                state: cell.state,
+                                state: visualState,
                                 durationFormatted: formatTimelineDuration(cell.workSeconds || cell.breakSeconds),
                                 activityScore: cell.activityScore,
                                 appName: emp.statusText !== "off" && emp.statusText !== "not started" ? emp.statusText : undefined,
@@ -852,16 +927,12 @@ export default function TeamDayLive({
                             }}
                             onMouseLeave={() => setHoveredCell(null)}
                             className={`flex-1 h-3 rounded-[2px] transition-colors relative cursor-pointer ${getCellBgClass(
-                              cell.state
-                            )}`}
+                              visualState
+                            )} ${hasPurpleBorder ? "border-t-2 border-purple-500" : ""}`}
                           >
-                            {/* Pinned Exception purple marker on top edge */}
-                            {cell.pinnedException && (
-                              <div className="absolute -top-[2px] left-0 right-0 h-[2px] bg-purple-500 rounded-full" />
-                            )}
-                            {/* Unusual input orange lightning marker */}
+                            {/* Unusual input purple top marker + bolt */}
                             {cell.unusualInput && (
-                              <HiOutlineBolt className="w-2.5 h-2.5 text-amber-500 absolute -top-1 left-0" />
+                              <HiOutlineBolt className="w-2.5 h-2.5 text-amber-500 absolute -top-2.5 left-0 pointer-events-none" />
                             )}
                           </div>
                         );
@@ -870,9 +941,9 @@ export default function TeamDayLive({
                       {/* Not Started Status Pill in Timeline Area at Current Time Boundary */}
                       {!emp.hasStarted && isToday && (
                         <div
-                          className="absolute top-1/2 -translate-y-1/2 z-10 pointer-events-none"
+                          className="absolute top-1/2 z-10 pointer-events-none"
                           style={{
-                            left: `${Math.min(92, Math.max(12, timeMarker.positionPercent))}%`,
+                            left: `${Math.min(86, Math.max(14, timeMarker.positionPercent))}%`,
                             transform: "translate(-50%, -50%)",
                           }}
                         >
@@ -900,7 +971,7 @@ export default function TeamDayLive({
                         </span>
                       ) : null}
 
-                      <div className="w-14 h-1.5 rounded-full bg-gray-100 dark:bg-slate-800 overflow-hidden">
+                      <div className="w-14 h-1.5 rounded-full bg-gray-100 dark:bg-slate-800 overflow-hidden shrink-0">
                         <div
                           className={`h-full rounded-full ${
                             typeof emp.activityScore === "number" && emp.activityScore >= 50
@@ -914,7 +985,7 @@ export default function TeamDayLive({
                           }}
                         />
                       </div>
-                      <span className="text-xs font-mono font-medium text-gray-700 dark:text-slate-300 w-8 text-right">
+                      <span className="text-xs font-mono font-medium text-gray-700 dark:text-slate-300 w-8 text-right shrink-0">
                         {emp.activityMeasured && typeof emp.activityScore === "number"
                           ? `${emp.activityScore}%`
                           : "—"}
@@ -922,20 +993,30 @@ export default function TeamDayLive({
                     </div>
 
                     {/* Column 4: TOTAL */}
-                    <div className="text-right">
+                    <div className="flex items-center justify-end gap-1 text-right">
                       {!emp.hasStarted || emp.workSeconds === 0 ? (
                         <span className="text-xs font-mono font-medium text-gray-400 dark:text-slate-500">
                           0h 00m
                         </span>
                       ) : (
-                        <span className="text-xs font-mono font-semibold text-gray-900 dark:text-white">
-                          {formatTimelineDuration(emp.workSeconds)}
-                        </span>
+                        <>
+                          <span className="text-xs font-mono font-semibold text-gray-900 dark:text-white">
+                            {formatTimelineDuration(emp.workSeconds)}
+                          </span>
+                          {typeof emp.activityDelta === "number" && emp.activityDelta > 0 && (
+                            <span
+                              className="text-[10px] font-bold text-emerald-500 dark:text-emerald-400 leading-none"
+                              title={`+${emp.activityDelta} pts vs baseline`}
+                            >
+                              ▲
+                            </span>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
-                );
-              })
+                ))}
+              </>
             )}
           </div>
         </div>
@@ -962,7 +1043,7 @@ export default function TeamDayLive({
             )}
             {hoveredCell.appName && <span>· {hoveredCell.appName}</span>}
             {hoveredCell.unusualInput && (
-              <span className="text-amber-400">· Repeated pattern observed</span>
+              <span className="text-amber-400">· Unusual input (repeated pattern)</span>
             )}
           </div>
         </div>
