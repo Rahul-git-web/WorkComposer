@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import API from "@/api";
 import socket from "@/socket/socket";
 import toast from "react-hot-toast";
@@ -38,27 +38,50 @@ export default function useNotifications() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+    const activeControllerRef = useRef<AbortController | null>(null);
 
     const fetchNotifications = useCallback(async (requestedPage = 1) => {
+        activeControllerRef.current?.abort();
+        const controller = new AbortController();
+        activeControllerRef.current = controller;
+
         try {
             setLoading(true);
 
             const { data } =
                 await API.get<NotificationResponse>(
                     `/notifications?page=${requestedPage}&limit=20`,
+                    { signal: controller.signal },
                 );
+
+            if (controller.signal.aborted) {
+                return;
+            }
 
             setNotifications(data.notifications);
             setUnreadCount(data.unreadCount);
             setPage(data.pagination.page);
             setTotalPages(data.pagination.totalPages);
         } catch (error: any) {
+            if (error?.code === "ERR_CANCELED" || error?.name === "CanceledError") {
+                return;
+            }
+            if (
+                error?.code === "ECONNABORTED" ||
+                error?.code === "ETIMEDOUT" ||
+                error?.message?.toLowerCase().includes("timeout")
+            ) {
+                console.warn("Notifications fetch timed out:", error?.message);
+                return;
+            }
             console.error(
                 "FETCH NOTIFICATIONS ERROR:",
                 error,
             );
         } finally {
-            setLoading(false);
+            if (activeControllerRef.current === controller) {
+                setLoading(false);
+            }
         }
     }, []);
 
@@ -127,8 +150,32 @@ export default function useNotifications() {
         }
     }, []);
 
+    const deleteNotification = useCallback(
+        async (id: string) => {
+            try {
+                await API.delete(`/notifications/${id}`);
+
+                setNotifications((current) => {
+                    const target = current.find((item) => item._id === id);
+                    if (target && !target.read) {
+                        setUnreadCount((count) => Math.max(count - 1, 0));
+                    }
+                    return current.filter((item) => item._id !== id);
+                });
+            } catch (error: any) {
+                console.error("DELETE NOTIFICATION ERROR:", error);
+
+                toast.error("Failed to delete notification.");
+            }
+        },
+        [],
+    );
+
     useEffect(() => {
         fetchNotifications();
+        return () => {
+            activeControllerRef.current?.abort();
+        };
     }, [fetchNotifications]);
 
     useEffect(() => {
@@ -178,5 +225,6 @@ export default function useNotifications() {
         fetchNotifications,
         markAsRead,
         markAllAsRead,
+        deleteNotification,
     };
 }

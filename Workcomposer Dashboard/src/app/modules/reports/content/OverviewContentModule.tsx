@@ -38,6 +38,8 @@ export default function OverviewContentModule({
     const [allUsers, setAllUsers] = useState<any[]>([]);
     const [productivityMap, setProductivityMap] = useState<Record<string, number>>({});
     const [activityMap, setActivityMap] = useState<Record<string, number>>({});
+    const [activityDeltaMap, setActivityDeltaMap] = useState<Record<string, number | null>>({});
+    const [activityTrendMap, setActivityTrendMap] = useState<Record<string, any[]>>({});
 
     const [showModal, setShowModal] = useState(false);
 
@@ -63,13 +65,14 @@ export default function OverviewContentModule({
         timezone
     );
 
-    const fetchAllUsers = async () => {
+    const fetchAllUsers = async (signal?: AbortSignal) => {
         try {
             const { data } = await API.get("/users/all-users", {
                 params: {
                     page: 1,
                     limit: 1000,
                 },
+                ...(signal ? { signal } : {}),
             });
 
             const users = Array.isArray(data?.users)
@@ -83,8 +86,18 @@ export default function OverviewContentModule({
             setAllUsers(users);
 
         } catch (err: any) {
+            if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") {
+                return;
+            }
             if (err?.response?.status === 403) {
                 // Expected for managers/roles without manage_users permission
+                setAllUsers([]);
+            } else if (
+                err?.code === "ECONNABORTED" ||
+                err?.code === "ETIMEDOUT" ||
+                err?.message?.toLowerCase().includes("timeout")
+            ) {
+                console.warn("Overview users request timed out:", err?.message);
                 setAllUsers([]);
             } else {
                 console.error("FAILED TO FETCH USERS:", err);
@@ -94,7 +107,9 @@ export default function OverviewContentModule({
     };
 
     useEffect(() => {
-        fetchAllUsers();
+        const controller = new AbortController();
+        fetchAllUsers(controller.signal);
+        return () => controller.abort();
     }, []);
 
     const fetchOverview = useCallback(
@@ -111,7 +126,9 @@ export default function OverviewContentModule({
 
             try {
                 const [overviewResult, prodResult] = await Promise.allSettled([
-                    API.get(`/sessions/overview?startDate=${startDate}&endDate=${endDate}`),
+                    API.get("/sessions/overview", {
+                        params: { startDate, endDate, timezone },
+                    }),
                     API.get(`/reports/productivity?startDate=${startDate}&endDate=${endDate}`)
                 ]);
 
@@ -208,35 +225,47 @@ export default function OverviewContentModule({
                         : comparison;
                 });
 
+                const newActivityMap: Record<string, number> = {};
+                const newActivityDeltaMap: Record<string, number | null> = {};
+                const newActivityTrendMap: Record<string, any[]> = {};
+
                 const formattedData = overviewData.map(
-                    (item: any) => ({
-                        id: item.id,
-                        name: item.name,
-                        avatar: item.avatar,
-                        team: item.team,
-                        date: formattedDate,
-                        workTime: item.workTime,
-                        breakTime: item.breakTime,
-                        status: item.status,
-                        lastSync: item.lastSync,
-                        externalId: item.externalId,
-                    })
+                    (item: any) => {
+                        const uid = String(item.id);
+                        if (typeof item.activityScore === "number") {
+                            newActivityMap[uid] = item.activityScore;
+                        }
+                        if (typeof item.activityDelta === "number" || item.activityDelta === null) {
+                            newActivityDeltaMap[uid] = item.activityDelta;
+                        }
+                        if (Array.isArray(item.activityBuckets)) {
+                            newActivityTrendMap[uid] = item.activityBuckets;
+                        }
+
+                        return {
+                            id: item.id,
+                            name: item.name,
+                            avatar: item.avatar,
+                            team: item.team,
+                            date: formattedDate,
+                            workTime: item.workTime,
+                            breakTime: item.breakTime,
+                            status: item.status,
+                            lastSync: item.lastSync,
+                            lastSyncAt: item.lastSyncAt ?? null,
+                            isOnline: Boolean(item.isOnline),
+                            activityScore: typeof item.activityScore === "number" ? item.activityScore : null,
+                            activityDelta: typeof item.activityDelta === "number" ? item.activityDelta : null,
+                            activityBuckets: Array.isArray(item.activityBuckets) ? item.activityBuckets : [],
+                            externalId: item.externalId,
+                        };
+                    }
                 );
 
                 setData(formattedData);
-
-                // In Employee View (1 row), single O(1) fetch for activityScore
-                const singleUser = formattedData[0];
-                if (!isTeamReport && singleUser?.id) {
-                    try {
-                        const actRes = await API.get(`/activity/${singleUser.id}?date=${startDate}`);
-                        if (typeof actRes.data?.activityScore === "number") {
-                            setActivityMap({ [String(singleUser.id)]: actRes.data.activityScore });
-                        }
-                    } catch {
-                        // Non-critical, ignore
-                    }
-                }
+                setActivityMap(newActivityMap);
+                setActivityDeltaMap(newActivityDeltaMap);
+                setActivityTrendMap(newActivityTrendMap);
 
             } catch (err) {
                 if (requestId === fetchRequestIdRef.current) {
@@ -254,7 +283,7 @@ export default function OverviewContentModule({
                 }
             }
         },
-        [startDate, endDate, selectedTeams, selectedUsers, sortBy, order, formattedDate, isTeamReport]
+        [startDate, endDate, timezone, selectedTeams, selectedUsers, sortBy, order, formattedDate, isTeamReport]
     );
 
     useEffect(() => {
@@ -339,6 +368,8 @@ export default function OverviewContentModule({
                     allUsers={allUsers}
                     productivityMap={productivityMap}
                     activityMap={activityMap}
+                    activityDeltaMap={activityDeltaMap}
+                    activityTrendMap={activityTrendMap}
                     reportRange={reportRange}
                     onAddManualTime={() => setShowModal(true)}
                     onRemoveTime={() => setShowRemoveModal(true)}

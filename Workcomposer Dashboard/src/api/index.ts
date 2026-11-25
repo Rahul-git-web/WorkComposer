@@ -340,6 +340,14 @@ API.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        if (
+            axios.isCancel(error) ||
+            error.code === "ERR_CANCELED" ||
+            error.name === "CanceledError"
+        ) {
+            return Promise.reject(error);
+        }
+
         /*
          * Safe recovery for stale or rotated CSRF state:
          * Refresh the CSRF token once and retry without allowing infinite loops.
@@ -387,9 +395,13 @@ API.interceptors.response.use(
         if (!error.response) {
             const method = (originalRequest.method || "get").toLowerCase();
             const isIdempotent = method === "get" || method === "head";
+            const isTimeout =
+                error.code === "ECONNABORTED" ||
+                error.code === "ETIMEDOUT" ||
+                Boolean(error.message?.toLowerCase().includes("timeout"));
             const extendedRequest = originalRequest as typeof originalRequest & { _networkRetry?: boolean };
 
-            if (isIdempotent && !extendedRequest._networkRetry) {
+            if (!isTimeout && isIdempotent && !extendedRequest._networkRetry) {
                 extendedRequest._networkRetry = true;
                 await new Promise((resolve) => setTimeout(resolve, 800));
                 return API(originalRequest);
@@ -493,7 +505,12 @@ API.interceptors.response.use(
             const isConfirmedInvalidSession =
                 refreshStatus === 401 || refreshStatus === 403;
 
-            if (!isConfirmedInvalidSession) {
+            const isCanceled =
+                axios.isCancel(refreshError) ||
+                refreshError?.code === "ERR_CANCELED" ||
+                refreshError?.name === "CanceledError";
+
+            if (!isConfirmedInvalidSession && !isCanceled) {
                 console.error(
                     "REFRESH TOKEN FAILED:",
                     refreshError

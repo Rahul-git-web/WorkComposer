@@ -9,9 +9,23 @@ import {
   generateRefreshToken,
 } from "../utils/generateTokens.js";
 import sendEmail from "../utils/sendEmail.js";
+
+let sendEmailTransport = sendEmail;
+export const setSendEmailTransportForTesting = (fn) => {
+  sendEmailTransport = fn;
+};
+export const resetSendEmailTransportForTesting = () => {
+  sendEmailTransport = sendEmail;
+};
 import verifyEmailTemplate from "../templates/veifyEmailTemplate.js";
 import Organization from "../models/organization.model.js";
-import { auditLogin } from "../utils/auditService.js";
+import {
+  auditLogin,
+  auditLogout,
+  auditPasswordChanged,
+  audit2FAVerified,
+  auditFailedLogin,
+} from "../utils/auditService.js";
 import { createDefaultRoles } from "../utils/createDefaultRoles.js";
 import Role from "../models/role.model.js";
 import { getUserPermissions } from "../utils/getUserPermissions.js";
@@ -21,6 +35,14 @@ import {
   getMicrosoftUser,
 } from "../utils/microsoftOAuth.js";
 import { getAppleAuthUrl, getAppleUser } from "../utils/appleOAuth.js";
+import { userRepository } from "../db/repositories/user.repository.js";
+import { isPostgres } from "../db/index.js";
+import {
+  recordOtpFailure,
+  clearOtpFailures,
+} from "../middleware/authRateLimit.middleware.js";
+import { runTransaction } from "../db/transaction.js";
+import { initializeDefaultProject } from "./project.controller.js";
 
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -35,6 +57,48 @@ const cookieOptions = {
   secure: isProduction,
   sameSite: isProduction ? "none" : "lax",
   path: "/",
+};
+
+const csrfCookieOptions = {
+  httpOnly: false,
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  path: "/",
+};
+
+function issueSessionCookies(res, { accessToken, refreshToken }) {
+  const csrfToken = crypto.randomBytes(32).toString("hex");
+
+  res.cookie("csrfToken", csrfToken, {
+    ...csrfCookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.cookie("refreshToken", refreshToken, {
+    ...cookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.cookie("accessToken", accessToken, {
+    ...cookieOptions,
+    maxAge: 15 * 60 * 1000,
+  });
+
+  return csrfToken;
+}
+
+export const getCsrfToken = async (req, res) => {
+  let token = req.cookies?.csrfToken;
+  if (!token || typeof token !== "string" || !/^[a-f0-9]{64}$/i.test(token)) {
+    token = crypto.randomBytes(32).toString("hex");
+  }
+
+  res.cookie("csrfToken", token, {
+    ...csrfCookieOptions,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return res.status(200).json({ csrfToken: token });
 };
 
 // Register Controller
@@ -66,8 +130,10 @@ export const registerUser = async (req, res) => {
       });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     const existingUser = await User.findOne({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
     });
 
     if (existingUser) {
@@ -77,72 +143,127 @@ export const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const organizationDoc = await Organization.create({
-      name: organization,
-    });
-
-    await createDefaultRoles(organizationDoc._id);
-
-    const ownerRole = await Role.findOne({
-      organization: organizationDoc._id,
-      name: "Owner",
-    });
-
     const verificationToken = crypto.randomBytes(32).toString("hex");
 
-    const user = await User.create({
-      firstName,
-      lastName,
-      email: email.toLowerCase().trim(),
-      organization: organizationDoc._id,
-      password: hashedPassword,
-      ...(googleId ? { googleId } : {}),
-      ...(microsoftId ? { microsoftId } : {}),
-      ...(appleId ? { appleId } : {}),
-      avatar: avatar || "",
-      avatar: avatar || "",
-      role: "owner",
-      roleRef: ownerRole?._id,
-      isVerified: !!(googleId || microsoftId || appleId),
-      ...(googleId || microsoftId || appleId
-        ? {}
-        : {
+    const { user } = await runTransaction(async (tx) => {
+      // Re-verify uniqueness inside ambient transaction
+      const existingUserInTx = await User.findOne({
+        email: normalizedEmail,
+      });
+
+      if (existingUserInTx) {
+        const err = new Error("User already exists");
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const organizationDoc = await Organization.create({
+        name: organization,
+      });
+
+      await createDefaultRoles(organizationDoc._id);
+
+      const ownerRole = await Role.findOne({
+        organization: organizationDoc._id,
+        name: "Owner",
+      });
+
+      const user = await User.create({
+        firstName,
+        lastName,
+        email: normalizedEmail,
+        organization: organizationDoc._id,
+        password: hashedPassword,
+        ...(googleId ? { googleId } : {}),
+        ...(microsoftId ? { microsoftId } : {}),
+        ...(appleId ? { appleId } : {}),
+        avatar: avatar || "",
+        role: "owner",
+        roleRef: ownerRole?._id,
+        isVerified: !!(googleId || microsoftId || appleId),
+        ...(googleId || microsoftId || appleId
+          ? {}
+          : {
             verificationToken,
             verificationTokenExpire: Date.now() + 24 * 60 * 60 * 1000,
           }),
-    });
-
-    const defaultTeam = await Team.create({
-      name: "Default team",
-      description: "System default team",
-      organization: organizationDoc._id,
-      createdBy: user._id,
-    });
-
-    user.team = defaultTeam._id;
-    await user.save();
-
-    // Verification Link
-    if (!googleId && !microsoftId && !appleId) {
-      const verifyUrl = `${process.env.BACKEND_URL}/api/auth/verify/${verificationToken}`;
-
-      const html = verifyEmailTemplate({
-        verifyUrl,
-        firstName: user.firstName,
       });
 
-      await sendEmail(user.email, "Verify your email", html);
+      const defaultTeam = await Team.create({
+        name: "Default team",
+        description: "System default team",
+        organization: organizationDoc._id,
+        createdBy: user._id,
+      });
+
+      user.team = defaultTeam._id;
+      await user.save();
+
+      const { defaultProject } = await initializeDefaultProject({
+        organizationId: organizationDoc._id,
+        userId: user._id,
+      });
+
+      return { user, organizationDoc, defaultTeam, defaultProject };
+    });
+
+    // Verification Link (External side effect - strictly POST-COMMIT)
+    if (!googleId && !microsoftId && !appleId) {
+      try {
+        const verifyUrl = `${process.env.BACKEND_URL}/api/auth/verify/${verificationToken}`;
+
+        const html = verifyEmailTemplate({
+          verifyUrl,
+          firstName: user.firstName,
+        });
+
+        await sendEmailTransport(user.email, "Verify your email", html);
+      } catch (emailErr) {
+        console.error("EMAIL DELIVERY ERROR POST-COMMIT (registerUser):", emailErr);
+      }
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       message:
         googleId || microsoftId || appleId
           ? "Registration successful."
           : "Registration successful. Please verify your email.",
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({
+    if (
+      err.code === "P2002" ||
+      err.code === 11000 ||
+      err.name === "MongoServerError" ||
+      err.name === "DuplicateKeyError" ||
+      err.message?.includes("Unique constraint") ||
+      err.message?.includes("duplicate key")
+    ) {
+      const target = err.meta?.target || (err.keyValue ? Object.keys(err.keyValue) : []) || [];
+      const isTargetName =
+        (Array.isArray(target) && target.includes("name")) ||
+        (typeof target === "string" && target.includes("name")) ||
+        err.message?.includes("organizations_name_key") ||
+        err.message?.includes("name");
+
+      if (isTargetName) {
+        return res.status(400).json({
+          message: "Organization name already taken",
+        });
+      }
+
+      return res.status(400).json({
+        message: "User already exists",
+      });
+    }
+
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({
+        message: err.message,
+      });
+    }
+
+    console.error("REGISTER USER ERROR:", err);
+    return res.status(500).json({
       message: "Server error",
     });
   }
@@ -184,6 +305,12 @@ export const loginUser = async (req, res) => {
       });
     }
 
+    if (user.isArchived) {
+      return res.status(403).json({
+        message: "Account is archived. Please contact your organization administrator.",
+      });
+    }
+
     const organization = await Organization.findById(user.organization);
 
     const twoFactorEnabled = organization?.twoFactor?.[user.role] || false;
@@ -195,6 +322,7 @@ export const loginUser = async (req, res) => {
       user.twoFactorExpires = new Date(Date.now() + 10 * 60 * 1000);
 
       await user.save();
+      clearOtpFailures(user._id?.toString() || user.id?.toString());
 
       const html = twoFactorTemplate({
         firstName: user.firstName,
@@ -268,15 +396,7 @@ export const loginUser = async (req, res) => {
       appVersion: deviceInfo.appVersion,
     });
 
-    res.cookie("refreshToken", refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie("accessToken", accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
-    });
+    const csrfToken = issueSessionCookies(res, { accessToken, refreshToken });
 
     const permissions = await getUserPermissions(user);
 
@@ -288,7 +408,9 @@ export const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
         permissions,
+        manageUsers: user.role === 'owner' || permissions.includes('manage_users'),
       },
+      csrfToken,
     };
 
     if (isDesktop) {
@@ -325,6 +447,26 @@ export const refreshAccessToken = async (req, res) => {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
+    if (user.isArchived) {
+      if (userRepository && typeof userRepository.removeRefreshToken === "function") {
+        await userRepository.removeRefreshToken(oldRefreshToken);
+      }
+      if (!isPostgres()) {
+        user.refreshTokens = (user.refreshTokens || []).filter(
+          (rt) => rt.token !== oldRefreshToken,
+        );
+        await user.save();
+      }
+
+      res.clearCookie("accessToken", cookieOptions);
+      res.clearCookie("refreshToken", cookieOptions);
+      res.clearCookie("csrfToken", csrfCookieOptions);
+
+      return res.status(401).json({
+        message: "Account is archived. Please contact your organization administrator.",
+      });
+    }
+
     const tokenEntry = user.refreshTokens.find(
       (rt) => rt.token === oldRefreshToken,
     );
@@ -332,20 +474,26 @@ export const refreshAccessToken = async (req, res) => {
     const newAccessToken = generateAccessToken(user._id);
     const newRefreshToken = generateRefreshToken(user._id);
 
-    tokenEntry.token = newRefreshToken;
+    if (
+      userRepository &&
+      typeof userRepository.rotateRefreshToken === "function"
+    ) {
+      await userRepository.rotateRefreshToken(
+        user._id,
+        oldRefreshToken,
+        newRefreshToken,
+      );
+    } else {
+      tokenEntry.token = newRefreshToken;
+      await user.save();
+    }
 
-    await user.save();
-
-    res.cookie("accessToken", newAccessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
+    const csrfToken = issueSessionCookies(res, {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
     });
-    res.cookie("refreshToken", newRefreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
 
-    const response = { message: "Token refreshed" };
+    const response = { message: "Token refreshed", csrfToken };
 
     if (isDesktop) {
       response.accessToken = newAccessToken;
@@ -365,23 +513,46 @@ export const refreshAccessToken = async (req, res) => {
 
 export const logoutUser = async (req, res) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const cookieToken =
+      typeof req.cookies?.refreshToken === "string" &&
+        req.cookies.refreshToken.trim().length > 0
+        ? req.cookies.refreshToken.trim()
+        : null;
+
+    const bodyToken =
+      typeof req.body?.refreshToken === "string" &&
+        req.body.refreshToken.trim().length > 0
+        ? req.body.refreshToken.trim()
+        : null;
+
+    const refreshToken = cookieToken || bodyToken;
 
     if (refreshToken) {
-      await User.updateOne(
-        { "refreshTokens.token": refreshToken },
-        { $pull: { refreshTokens: { token: refreshToken } } },
-      );
+      if (
+        userRepository &&
+        typeof userRepository.removeRefreshToken === "function"
+      ) {
+        await userRepository.removeRefreshToken(refreshToken);
+      }
+      if (!isPostgres()) {
+        try {
+          await User.updateOne(
+            { "refreshTokens.token": refreshToken },
+            { $pull: { refreshTokens: { token: refreshToken } } },
+          );
+        } catch { }
+      }
     }
 
     res.clearCookie("refreshToken", cookieOptions);
     res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("csrfToken", csrfCookieOptions);
 
     res.json({
       message: "Logged out successfully",
     });
   } catch (err) {
-    console.error(err.message);
+    console.error("Logout error occurred");
     res.status(500).json({
       message: "Server error",
     });
@@ -398,7 +569,10 @@ export const verifyEmail = async (req, res) => {
     });
 
     if (!user) {
-      return res.send("Invalid or expired token");
+      return res.status(400).json({
+        message: "Invalid or expired token",
+        error: "Invalid or expired token",
+      });
     }
 
     user.isVerified = true;
@@ -411,9 +585,12 @@ export const verifyEmail = async (req, res) => {
       `${process.env.FRONTEND_URL}/authenticate/login?verified=true`,
     );
   } catch (err) {
-    console.error(err);
+    console.error("VERIFY EMAIL ERROR:", err);
 
-    return res.status(500).send(err.message);
+    return res.status(500).json({
+      message: "Verification failed. Please try again or request a new link.",
+      error: "Verification failed",
+    });
   }
 };
 
@@ -544,17 +721,36 @@ export const verifyTwoFactor = async (req, res) => {
       });
     }
 
-    if (!user.twoFactorExpires || user.twoFactorExpires < new Date()) {
+    if (user.isArchived) {
+      return res.status(403).json({
+        message: "Account is archived. Please contact your organization administrator.",
+      });
+    }
+
+    if (!user.twoFactorExpires || user.twoFactorExpires < new Date() || !user.twoFactorCode) {
       return res.status(400).json({
         message: "Verification code has expired",
       });
     }
 
     if (user.twoFactorCode !== otp) {
+      const failures = recordOtpFailure(user._id?.toString() || user.id?.toString());
+      if (failures >= 5) {
+        user.twoFactorCode = undefined;
+        user.twoFactorExpires = undefined;
+        await user.save();
+        clearOtpFailures(user._id?.toString() || user.id?.toString());
+        return res.status(400).json({
+          message: "Too many failed attempts. Verification code has been invalidated.",
+        });
+      }
       return res.status(400).json({
         message: "Invalid verification code",
       });
     }
+
+    // Clear OTP failure state on success
+    clearOtpFailures(user._id?.toString() || user.id?.toString());
 
     // Clear OTP after successful verification
     user.twoFactorCode = undefined;
@@ -618,15 +814,7 @@ export const verifyTwoFactor = async (req, res) => {
       appVersion: deviceInfo.appVersion,
     });
 
-    res.cookie("refreshToken", refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie("accessToken", accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
-    });
+    const csrfToken = issueSessionCookies(res, { accessToken, refreshToken });
 
     const permissions = await getUserPermissions(user);
 
@@ -638,7 +826,9 @@ export const verifyTwoFactor = async (req, res) => {
         email: user.email,
         role: user.role,
         permissions,
+        manageUsers: user.role === 'owner' || permissions.includes('manage_users'),
       },
+      csrfToken,
     };
 
     if (isDesktop) {
@@ -744,6 +934,13 @@ export const googleCallback = async (req, res) => {
       user.googleId = googleId;
     }
 
+    if (user.isArchived) {
+      const errorTarget = isDesktop
+        ? `workcomposer://login?error=account_archived`
+        : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
+      return res.redirect(errorTarget);
+    }
+
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
@@ -764,18 +961,10 @@ export const googleCallback = async (req, res) => {
       );
     }
 
-    res.cookie("refreshToken", refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie("accessToken", accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
-    });
+    issueSessionCookies(res, { accessToken, refreshToken });
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/dashboard/time-tracking/overview`,
+      `${process.env.FRONTEND_URL}/dashboard/time-tracking/home`,
     );
   } catch (err) {
     console.error("GOOGLE AUTH ERROR:", err);
@@ -885,6 +1074,13 @@ export const microsoftCallback = async (req, res) => {
       user.microsoftId = microsoftId;
     }
 
+    if (user.isArchived) {
+      const errorTarget = isDesktop
+        ? `workcomposer://login?error=account_archived`
+        : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
+      return res.redirect(errorTarget);
+    }
+
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
@@ -904,18 +1100,10 @@ export const microsoftCallback = async (req, res) => {
       );
     }
 
-    res.cookie("refreshToken", refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie("accessToken", accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
-    });
+    issueSessionCookies(res, { accessToken, refreshToken });
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/dashboard/time-tracking/overview`,
+      `${process.env.FRONTEND_URL}/dashboard/time-tracking/home`,
     );
   } catch (err) {
     console.error("MICROSOFT AUTH ERROR:", err);
@@ -1043,6 +1231,13 @@ export const appleCallback = async (req, res) => {
       existingUser.appleId = appleId;
     }
 
+    if (existingUser.isArchived) {
+      const errorTarget = isDesktop
+        ? `workcomposer://login?error=account_archived`
+        : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
+      return res.redirect(errorTarget);
+    }
+
     const accessToken = generateAccessToken(existingUser._id);
     const refreshToken = generateRefreshToken(existingUser._id);
 
@@ -1062,18 +1257,10 @@ export const appleCallback = async (req, res) => {
       );
     }
 
-    res.cookie("refreshToken", refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie("accessToken", accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
-    });
+    issueSessionCookies(res, { accessToken, refreshToken });
 
     return res.redirect(
-      "`${process.env.FRONTEND_URL}/dashboard/time-tracking/overview`",
+      `${process.env.FRONTEND_URL}/dashboard/time-tracking/home`,
     );
   } catch (err) {
     console.error("APPLE AUTH ERROR:", err);

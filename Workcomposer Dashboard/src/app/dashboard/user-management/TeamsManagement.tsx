@@ -1,7 +1,7 @@
 "use client";
 
 import Papa from "papaparse";
-import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from "react-dom";
 
 const emptySubscribe = () => () => {};
@@ -46,6 +46,7 @@ export default function TeamsManagement({
         bottom?: number;
     }>({ left: 0, top: 0 });
     const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+    const fetchUsersControllerRef = useRef<AbortController | null>(null);
     const [filterOpen, setFilterOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -160,6 +161,9 @@ export default function TeamsManagement({
 
 
     const fetchUsers = useCallback(async () => {
+        fetchUsersControllerRef.current?.abort();
+        const controller = new AbortController();
+        fetchUsersControllerRef.current = controller;
 
         try {
 
@@ -175,8 +179,13 @@ export default function TeamsManagement({
                         role: selectedRole,
                         team: currentTeam !== "All Teams" ? currentTeam : undefined,
                     },
+                    signal: controller.signal,
                 }
             );
+
+            if (controller.signal.aborted) {
+                return;
+            }
 
             setCurrentUser(res.data.currentUser);
 
@@ -192,10 +201,23 @@ export default function TeamsManagement({
                 res.data.totalUsers
             );
 
-        } catch (err) {
+        } catch (err: any) {
+            if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") {
+                return;
+            }
+            if (
+                err?.code === "ECONNABORTED" ||
+                err?.code === "ETIMEDOUT" ||
+                err?.message?.toLowerCase().includes("timeout")
+            ) {
+                console.warn("Users list fetch timed out:", err?.message);
+                return;
+            }
             console.error(err);
         } finally {
-            setLoading(false);
+            if (fetchUsersControllerRef.current === controller) {
+                setLoading(false);
+            }
         }
 
 
@@ -208,6 +230,9 @@ export default function TeamsManagement({
 
     useEffect(() => {
         fetchUsers();
+        return () => {
+            fetchUsersControllerRef.current?.abort();
+        };
     }, [fetchUsers]);
 
     const handleResendInvite = async (id: string) => {

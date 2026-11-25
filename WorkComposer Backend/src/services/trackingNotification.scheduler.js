@@ -1,39 +1,31 @@
 import cron from "node-cron";
 
-import User from "../models/user.model.js";
-import Organization from "../models/organization.model.js";
-import TimeTrackingSettings from "../models/timeTrackingSettings.model.js";
-import Session from "../models/session.model.js";
-import Notification from "../models/notification.model.js";
+import {
+  userRepository,
+  organizationRepository,
+  timeTrackingSettingsRepository,
+  sessionRepository,
+  notificationRepository,
+} from "../db/repositories/index.js";
 import resolveTrackingSettings from "../utils/resolveTrackingSettings.js";
-
 import { createNotification } from "./notification.service.js";
-import { getUserTimezone, getTodayInTimezone } from "../utils/timezone.js";
+import {
+  resolveUserTimezone,
+  getTodayInTimezone,
+  getZonedDayRange,
+  calculateIntervalOverlap,
+} from "../utils/timezone.js";
 
 const SHIFT_ENDING_WARNING_MINUTES = 15;
-
-const getEffectiveShiftSettings = (user, organizationSettings) => {
-  const organizationShift = organizationSettings?.shift || {};
-
-  const userShift = user.shiftSettings || {};
-
-  return {
-    enabled: organizationShift.enabled === true,
-
-    autoStartTracking:
-      userShift.autoStartTracking ??
-      organizationShift.autoStartTracking ??
-      false,
-
-    autoStopTracking:
-      userShift.autoStopTracking ?? organizationShift.autoStopTracking ?? false,
-
-    stopTrackingDuringBreaks:
-      organizationShift.stopTrackingDuringBreaks ?? false,
-
-    schedule: userShift.schedule ?? organizationShift.schedule ?? [],
-  };
-};
+const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 const getTimeParts = (time) => {
   if (!time || typeof time !== "string") {
@@ -107,7 +99,7 @@ const isSameEventAlreadyCreated = async ({
   type,
   eventKey,
 }) => {
-  const existing = await Notification.exists({
+  const existing = await notificationRepository.findOne({
     recipient: userId,
     organization: organizationId,
     type,
@@ -142,8 +134,10 @@ const sendTrackingNotification = async ({
     return;
   }
 
+  const userId = String(user._id || user.id);
+
   const alreadyCreated = await isSameEventAlreadyCreated({
-    userId: user._id,
+    userId,
     organizationId,
     type,
     eventKey,
@@ -154,7 +148,7 @@ const sendTrackingNotification = async ({
   }
 
   await createNotification({
-    recipientId: user._id,
+    recipientId: userId,
     organizationId,
     type,
     title,
@@ -167,18 +161,43 @@ const sendTrackingNotification = async ({
   });
 };
 
-const getTodayShift = (schedule, timezone) => {
+const getEffectiveShift = (schedule, timezone) => {
+  const local = getLocalDateTime(timezone);
+  const localMinutes = local.hour * 60 + local.minute;
   const today = getTodayInTimezone(timezone);
 
-  const local = getLocalDateTime(timezone);
+  // Check yesterday's shift first for overnight continuation
+  const todayIdx = WEEKDAYS.indexOf(local.weekday);
+  const yesterdayWeekday = WEEKDAYS[(todayIdx + 6) % 7];
+  const yesterdayShift = schedule.find(
+    (item) => item.day === yesterdayWeekday && item.enabled !== false,
+  );
 
-  const shift = schedule.find(
+  if (yesterdayShift) {
+    const yStart = getMinutesFromTime(yesterdayShift.startTime);
+    const yEnd = getMinutesFromTime(yesterdayShift.endTime);
+    if (yStart !== null && yEnd !== null && yStart >= yEnd) {
+      if (localMinutes < yEnd) {
+        const [year, month, day] = today.split("-").map(Number);
+        const yDate = new Date(Date.UTC(year, month - 1, day - 1));
+        const yesterdayDateStr = yDate.toISOString().split("T")[0];
+        return {
+          today: yesterdayDateStr,
+          shift: yesterdayShift,
+          isOvernightContinuation: true,
+        };
+      }
+    }
+  }
+
+  const todayShift = schedule.find(
     (item) => item.day === local.weekday && item.enabled !== false,
   );
 
   return {
     today,
-    shift,
+    shift: todayShift,
+    isOvernightContinuation: false,
   };
 };
 
@@ -194,7 +213,6 @@ const calculateDurationMinutes = (startMinutes, endMinutes) => {
 
 const calculateExpectedWorkSeconds = (shift) => {
   const startMinutes = getMinutesFromTime(shift.startTime);
-
   const endMinutes = getMinutesFromTime(shift.endTime);
 
   if (startMinutes === null || endMinutes === null) {
@@ -205,7 +223,6 @@ const calculateExpectedWorkSeconds = (shift) => {
 
   const breakMinutes = (shift.breaks || []).reduce((total, breakItem) => {
     const breakStart = getMinutesFromTime(breakItem.startTime);
-
     const breakEnd = getMinutesFromTime(breakItem.endTime);
 
     if (breakStart === null || breakEnd === null) {
@@ -218,23 +235,27 @@ const calculateExpectedWorkSeconds = (shift) => {
   return Math.max(0, shiftMinutes - breakMinutes) * 60;
 };
 
-const getWorkedSecondsToday = async (userId, timezone) => {
-  const today = getTodayInTimezone(timezone);
+const getWorkedSecondsForDate = async (userId, targetDate, timezone) => {
+  const { start: periodStart, end: periodEnd } = getZonedDayRange(targetDate, timezone);
 
-  const sessions = await Session.find({
+  const sessions = await sessionRepository.findOverlappingSessions({
     userId,
+    periodStart,
+    periodEnd,
     type: "work",
-    date: today,
-  }).lean();
+  });
 
-  return sessions.reduce(
-    (total, session) => total + Number(session.duration || 0),
-    0,
-  );
+  return (sessions || []).reduce((total, session) => {
+    const { overlapSeconds } = calculateIntervalOverlap(session, periodStart, periodEnd);
+    return total + overlapSeconds;
+  }, 0);
 };
 
 const processUserTrackingNotifications = async (user, organizationSettings) => {
-  if (!user.organization) {
+  const orgId = String(
+    user.organization?.id || user.organization?._id || user.organization || user.organizationId || "",
+  );
+  if (!orgId) {
     return;
   }
 
@@ -243,25 +264,21 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
   };
 
   const settings = resolveTrackingSettings(organization, user);
-
   const notifications = settings.notifications || {};
 
   if (!settings.shift?.enabled || !Array.isArray(settings.shift?.schedule)) {
     return;
   }
 
-  const timezone = getUserTimezone(user);
-
-  const { today, shift } = getTodayShift(settings.shift.schedule, timezone);
+  const timezone = resolveUserTimezone(user);
+  const { today, shift } = getEffectiveShift(settings.shift.schedule, timezone);
 
   if (!shift) {
     return;
   }
 
   const localMinutes = getLocalMinutes(timezone);
-
   const shiftStartMinutes = getMinutesFromTime(shift.startTime);
-
   const shiftEndMinutes = getMinutesFromTime(shift.endTime);
 
   if (shiftStartMinutes === null || shiftEndMinutes === null) {
@@ -279,7 +296,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
   if (localMinutes === shiftStartMinutes) {
     await sendTrackingNotification({
       user,
-      organizationId: user.organization,
+      organizationId: orgId,
       notifications,
       type: "SHIFT_STARTED",
       title: "Shift started",
@@ -295,9 +312,6 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
 
   /*
    * SHIFT ENDING SOON
-   *
-   * Only send when the shift has a
-   * meaningful duration.
    */
   if (shiftDurationMinutes >= SHIFT_ENDING_WARNING_MINUTES) {
     const minutesUntilEnd = calculateDurationMinutes(
@@ -305,13 +319,6 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
       shiftEndMinutes,
     );
 
-    /*
-     * For normal shifts, the duration
-     * calculation above is straightforward.
-     *
-     * For overnight shifts, only warn when
-     * we're actually inside the shift window.
-     */
     const isInsideShift =
       shiftStartMinutes < shiftEndMinutes
         ? localMinutes >= shiftStartMinutes && localMinutes < shiftEndMinutes
@@ -320,7 +327,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
     if (isInsideShift && minutesUntilEnd === SHIFT_ENDING_WARNING_MINUTES) {
       await sendTrackingNotification({
         user,
-        organizationId: user.organization,
+        organizationId: orgId,
         type: "SHIFT_ENDING_SOON",
         title: "Shift ending soon",
         message: `Your scheduled shift ends in ${SHIFT_ENDING_WARNING_MINUTES} minutes.`,
@@ -339,7 +346,6 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
    */
   for (const breakItem of shift.breaks || []) {
     const breakStart = getMinutesFromTime(breakItem.startTime);
-
     const breakEnd = getMinutesFromTime(breakItem.endTime);
 
     if (breakStart === null || breakEnd === null) {
@@ -351,7 +357,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
     if (localMinutes === breakStart) {
       await sendTrackingNotification({
         user,
-        organizationId: user.organization,
+        organizationId: orgId,
         type: "BREAK_STARTED",
         title: "Scheduled break started",
         message: `${breakName} has started.`,
@@ -368,7 +374,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
     if (localMinutes === breakEnd) {
       await sendTrackingNotification({
         user,
-        organizationId: user.organization,
+        organizationId: orgId,
         type: "BREAK_ENDED",
         title: "Scheduled break ended",
         message: `${breakName} has ended. Tracking can resume.`,
@@ -388,26 +394,25 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
    */
   const expectedWorkSeconds = calculateExpectedWorkSeconds(shift);
 
-  if (expectedWorkSeconds <= 0) {
-    return;
-  }
+  if (expectedWorkSeconds > 0) {
+    const userId = String(user._id || user.id);
+    const workedSeconds = await getWorkedSecondsForDate(userId, today, timezone);
 
-  const workedSeconds = await getWorkedSecondsToday(user._id, timezone);
-
-  if (workedSeconds >= expectedWorkSeconds) {
-    await sendTrackingNotification({
-      user,
-      organizationId: user.organization,
-      type: "DAILY_TARGET_REACHED",
-      title: "Daily target reached",
-      message: "You've reached your scheduled work target for today.",
-      eventKey: `daily-target-reached:${today}`,
-      metadata: {
-        date: today,
-        workedSeconds,
-        expectedWorkSeconds,
-      },
-    });
+    if (workedSeconds >= expectedWorkSeconds) {
+      await sendTrackingNotification({
+        user,
+        organizationId: orgId,
+        type: "DAILY_TARGET_REACHED",
+        title: "Daily target reached",
+        message: "You've reached your scheduled work target for today.",
+        eventKey: `daily-target-reached:${today}`,
+        metadata: {
+          date: today,
+          workedSeconds,
+          expectedWorkSeconds,
+        },
+      });
+    }
   }
 
   /*
@@ -424,9 +429,12 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
       : localMinutes > shiftEndMinutes && localMinutes < shiftStartMinutes;
 
   if (!isInsideShift && shiftHasEnded) {
+    const userId = String(user._id || user.id);
+    const workedSeconds = await getWorkedSecondsForDate(userId, today, timezone);
+
     await sendTrackingNotification({
       user,
-      organizationId: user.organization,
+      organizationId: orgId,
       type: "OVERTIME_STARTED",
       title: "Overtime started",
       message: "You've exceeded your scheduled working hours.",
@@ -444,69 +452,68 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
 export const startTrackingNotificationScheduler = () => {
   cron.schedule("* * * * *", async () => {
     try {
-      const users = await User.find({
-        organization: {
-          $ne: null,
-        },
-      }).lean();
+      const users = await userRepository.find({
+        isVerified: true,
+      });
 
       if (!users.length) {
         return;
       }
 
+      const orgUsers = users.filter((u) => u.organization || u.organizationId);
       const organizationIds = [
-        ...new Set(users.map((user) => user.organization?.toString())),
+        ...new Set(
+          orgUsers.map((u) =>
+            String(u.organization?.id || u.organization?._id || u.organization || u.organizationId),
+          ),
+        ),
       ];
 
-      const [organizations, timeTrackingSettings] = await Promise.all([
-        Organization.find({
-          _id: {
-            $in: organizationIds,
-          },
-        }).lean(),
+      if (!organizationIds.length) {
+        return;
+      }
 
-        TimeTrackingSettings.find({
-          organization: {
-            $in: organizationIds,
-          },
-        }).lean(),
+      const [organizations, timeTrackingSettings] = await Promise.all([
+        organizationRepository.find({
+          id: { in: organizationIds },
+        }),
+        timeTrackingSettingsRepository.find({
+          organization: { $in: organizationIds },
+        }),
       ]);
 
       const organizationMap = new Map(
-        organizations.map((organization) => [
-          organization._id.toString(),
-          organization,
-        ]),
+        organizations.map((org) => [String(org._id || org.id), org]),
       );
 
       const timeTrackingSettingsMap = new Map(
         timeTrackingSettings.map((settings) => [
-          settings.organization.toString(),
+          String(settings.organization || settings.organizationId),
           settings,
         ]),
       );
 
-      for (const user of users) {
+      for (const user of orgUsers) {
         try {
-          const organizationId = user.organization?.toString();
+          const orgId = String(
+            user.organization?.id || user.organization?._id || user.organization || user.organizationId,
+          );
 
-          const organization = organizationMap.get(organizationId);
+          const organization = organizationMap.get(orgId);
+          const settings = timeTrackingSettingsMap.get(orgId);
 
-          const timeTrackingSettings =
-            timeTrackingSettingsMap.get(organizationId);
-
-          if (!organization || !timeTrackingSettings) {
+          if (!organization || !settings) {
             continue;
           }
 
           await processUserTrackingNotifications(user, {
             ...organization,
-            ...timeTrackingSettings,
+            ...settings,
           });
         } catch (error) {
           console.error(
             "TRACKING NOTIFICATION USER ERROR:",
-            user._id,
+            user._id || user.id,
             error.message,
           );
         }
