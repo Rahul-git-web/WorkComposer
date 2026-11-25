@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import API from "@/api";
+
+const emptySubscribe = () => () => {};
 import toast from "react-hot-toast";
 import { Search } from 'lucide-react';
 
@@ -39,6 +42,7 @@ const UserManager = ({
   const [teamSearch, setTeamSearch] = useState("");
   const [userTeamFilter, setUserTeamFilter] = useState("");
   const [teams, setTeams] = useState<any[]>([]);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
 
   //  FETCH USERS 
@@ -51,8 +55,8 @@ const UserManager = ({
 
       setUsers(Array.isArray(res.data.users) ? res.data.users : []);
 
-    } catch (err) {
-      toast.error("Failed to fetch users");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to fetch users");
     } finally {
       setLoading(false);
     }
@@ -63,8 +67,9 @@ const UserManager = ({
       const res = await API.get("/teams");
 
       setTeams(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to fetch teams");
     }
   }, [])
 
@@ -77,8 +82,8 @@ const UserManager = ({
 
       setSelectedUsers(data.userIds || []);
       setSelectedTeams(data.teams || []);
-    } catch (err) {
-      toast.error("Failed to load manager assignments");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to load manager assignments");
     }
   }, [userId]);
 
@@ -181,8 +186,8 @@ const UserManager = ({
 
       handleCloseModal();
 
-    } catch (err) {
-      toast.error("Failed to assign users");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to assign users");
     } finally {
       setSaving(false);
     }
@@ -221,8 +226,8 @@ const UserManager = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-lg font-medium text-gray-600">
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-slate-900">
+        <div className="text-lg font-medium text-gray-600 dark:text-slate-300">
           Loading users...
         </div>
       </div>
@@ -262,23 +267,26 @@ const UserManager = ({
     u._id === userId);
 
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* MODAL */}
-      <div className="fixed inset-0 z-50">
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          onClick={handleCloseModal}
-        ></div>
+      <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 overscroll-contain">
+        <div className="absolute inset-0 bg-black/50 dark:bg-black/75 backdrop-blur-sm"></div>
 
-        <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div
+          onClick={handleCloseModal}
+          className="absolute inset-0 flex items-center justify-center p-4 overflow-y-auto overscroll-contain"
+        >
           <div onClick={(e) =>
             e.stopPropagation()
           }
-            className="w-full max-w-2xl rounded-xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+            className="w-full max-w-2xl rounded-xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 shadow-xl dark:shadow-2xl max-h-[90vh] overflow-y-auto overscroll-contain">
             {/* HEADER */}
 
             <div className="px-8 pt-8 text-center">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Manager - {manager?.name || manager?.email}
               </h2>
             </div>
@@ -288,13 +296,13 @@ const UserManager = ({
             <div className="p-6">
               {/* TABS */}
 
-              <div className="border-b border-gray-200 mb-3">
+              <div className="border-b border-gray-200 dark:border-slate-700 mb-3">
                 <nav className="flex gap-8">
                   <button
                     onClick={() => setActiveTab("Teams")}
                     className={`pb-2 border-b-2 text-sm font-medium ${activeTab === "Teams"
-                      ? "border-indigo-600 text-indigo-600"
-                      : "border-transparent text-gray-500"
+                      ? "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400"
+                      : "border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                       }`}
                   >
                     Teams
@@ -303,8 +311,8 @@ const UserManager = ({
                   <button
                     onClick={() => setActiveTab("Users")}
                     className={`pb-2 border-b-2 text-sm font-medium ${activeTab === "Users"
-                      ? "border-indigo-600 text-indigo-600"
-                      : "border-transparent text-gray-500"
+                      ? "border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400"
+                      : "border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
                       }`}
                   >
                     Users
@@ -320,10 +328,10 @@ const UserManager = ({
 
                   <div className="grid grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-800 mb-2"> Search Users </label>
+                      <label className="block text-sm font-semibold text-gray-800 dark:text-slate-200 mb-2"> Search Users </label>
 
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400" />
                         <input
                           type="text"
                           placeholder="Search by name or email..."
@@ -331,21 +339,21 @@ const UserManager = ({
                           onChange={(e) =>
                             setSearch(e.target.value)
                           }
-                          className="w-full rounded-md border border-gray-300 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 placeholder-gray-400 dark:placeholder-slate-500 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         ></input>
 
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-800 mb-2">Filter by Team</label>
+                      <label className="block text-sm font-semibold text-gray-800 dark:text-slate-200 mb-2">Filter by Team</label>
 
                       <select
                         value={userTeamFilter}
                         onChange={(e) =>
                           setUserTeamFilter(e.target.value)
                         }
-                        className="w-full rounded-md border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                       >
                         <option value="">All Teams</option>
 
@@ -367,26 +375,26 @@ const UserManager = ({
                   {/* SELECTION */}
 
                   <div className="flex items-center justify-between text-sm">
-                    <p className="text-gray-600">{
+                    <p className="text-gray-600 dark:text-slate-400">{
                       filteredUsers.filter((user) =>
                         selectedUsers.includes(user._id || (user as any).id)
                       ).length
                     } selected
                     </p>
 
-                    <p className="text-gray-600">Total: {filteredUsers.length}{" "}
+                    <p className="text-gray-600 dark:text-slate-400">Total: {filteredUsers.length}{" "}
                       {filteredUsers.length === 1 ? "user" : "users"}
                     </p>
                   </div>
 
                   {/* TABLE */}
 
-                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
                     <table className="min-w-full">
 
                       {/* HEADER */}
 
-                      <thead className="bg-white border-b border-gray-200">
+                      <thead className="bg-gray-50 dark:bg-slate-900/60 border-b border-gray-200 dark:border-slate-700">
                         <tr>
 
                           <th className="px-4 py-4 text-left w-[70%]">
@@ -402,26 +410,26 @@ const UserManager = ({
                                   )
                                 }
                                 onChange={handleSelectAllUsers}
-                                className="h-3.5 w-3.5 rounded border-gray-300"
+                                className="h-3.5 w-3.5 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                               ></input>
 
-                              <span className="text-sm font-medium text-gray-900">Select all {filteredUsers.length} on this page</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-slate-200">Select all {filteredUsers.length} on this page</span>
                             </div>
                           </th>
 
-                          <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">Team</th>
+                          <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900 dark:text-slate-200">Team</th>
                         </tr>
                       </thead>
 
                       {/* BODY  */}
 
-                      <tbody className="bg-white divide-y divide-gray-100">
+                      <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-100 dark:divide-slate-700/60">
                         {filteredUsers.map((user) =>
                         (
                           <tr
                             key={user._id || user.email}
 
-                            className="hover:bg-gray-50"
+                            className="hover:bg-gray-50 dark:hover:bg-slate-700/50"
                           >
                             <td className="px-4 py-5">
                               <div className="flex items-center gap-4">
@@ -431,7 +439,7 @@ const UserManager = ({
                                   onChange={() =>
                                     handleUserSelect(user._id || (user as any).id)
                                   }
-                                  className="h-3.5 w-3.5 rounded border-gray-300"
+                                  className="h-3.5 w-3.5 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                                 ></input>
 
                                 {getAvatar(user.avatar) ? (
@@ -443,15 +451,15 @@ const UserManager = ({
                                     className="h-11 w-11 rounded-full object-cover"
                                   />
                                 ) : (
-                                  <div className="h-11 w-11 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold text-sm">
+                                  <div className="h-11 w-11 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-semibold text-sm">
                                     {getInitials(user)}
                                   </div>
                                 )}
 
                                 <div>
-                                  <p className="text-sm font-semibold text-gray-900 leading-none">{user.name || user.email}</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">{user.name || user.email}</p>
 
-                                  <p className="text-sm text-gray-500 mt-1">{user.email}</p>
+                                  <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{user.email}</p>
                                 </div>
                               </div>
                             </td>
@@ -460,7 +468,7 @@ const UserManager = ({
                             {/* TEAM */}
 
 
-                            <td className="px-4 py-5 text-gray-500 text-sm">{user.team || "Default team"}</td>
+                            <td className="px-4 py-5 text-gray-500 dark:text-slate-400 text-sm">{user.team || "Default team"}</td>
                           </tr>
                         )
                         )}
@@ -474,7 +482,7 @@ const UserManager = ({
 
               {activeTab === "Teams" && (
                 <div className="space-y-5">
-                  <span className="text-gray-700 text-sm font-semibold">Search Teams</span>
+                  <span className="text-gray-700 dark:text-slate-200 text-sm font-semibold">Search Teams</span>
 
                   <div className="relative">
                     <input
@@ -482,27 +490,27 @@ const UserManager = ({
                       placeholder="Search teams..."
                       value={teamSearch}
                       onChange={(e) => setTeamSearch(e.target.value)}
-                      className="w-full rounded-md border border-gray-300 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 placeholder-gray-400 dark:placeholder-slate-500 px-4 py-2 pl-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
 
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400" />
                   </div>
 
                   {/* Selection Row */}
 
                   <div className="flex items-center justify-between mb-3 text-sm">
-                    <p className="text-gray-600 "> {selectedTeams.length} selected</p>
+                    <p className="text-gray-600 dark:text-slate-400"> {selectedTeams.length} selected</p>
 
-                    <p className="text-gray-600">Total: {filteredTeams.length}{" "}
+                    <p className="text-gray-600 dark:text-slate-400">Total: {filteredTeams.length}{" "}
                       {filteredTeams.length === 1 ? "team" : "teams"}
                     </p>
                   </div>
 
-                  <div className="rounded-lg border border-gray-200 overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
+                  <div className="rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
 
-                      <thead className="bg-gray-50">
-                        <tr className="border-b border-gray-200">
+                      <thead className="bg-gray-50 dark:bg-slate-900/60">
+                        <tr className="border-b border-gray-200 dark:border-slate-700">
                           <th className="px-3.5 py-3.5 text-left">
                             <div className="flex items-center gap-3">
                               <input
@@ -515,10 +523,10 @@ const UserManager = ({
                                   )
                                 }
                                 onChange={handleSelectAllTeams}
-                                className="h-3.5 w-3.5 rounded border-gray-300"
+                                className="h-3.5 w-3.5 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                               />
 
-                              <span className="text-sm font-medium text-gray-900">
+                              <span className="text-sm font-medium text-gray-900 dark:text-white">
                                 Select all {filteredTeams.length} on this page
                               </span>
                             </div>
@@ -526,13 +534,13 @@ const UserManager = ({
                         </tr>
                       </thead>
 
-                      <tbody className="bg-white">
+                      <tbody className="bg-white dark:bg-slate-800 divide-y divide-gray-100 dark:divide-slate-700/60">
                         {filteredTeams.map(
                           (team, index) =>
                             team && (
                               <tr
                                 key={team}
-                                className="border-b border-gray-100"
+                                className="hover:bg-gray-50 dark:hover:bg-slate-700/50"
                               >
                                 <td className="px-4 py-4">
                                   <div className="flex items-center gap-3">
@@ -542,10 +550,10 @@ const UserManager = ({
                                       onChange={() =>
                                         handleTeamSelect(team)
                                       }
-                                      className="h-3.5 w-3.5 rounded border-gray-300"
+                                      className="h-3.5 w-3.5 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800"
                                     />
 
-                                    <span className="text-sm text-gray-900">
+                                    <span className="text-sm text-gray-900 dark:text-slate-200">
                                       {team}
                                     </span>
                                   </div>
@@ -565,7 +573,7 @@ const UserManager = ({
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={handleCloseModal}
-                  className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  className="rounded-md bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600"
                 >
                   Close
                 </button>
@@ -585,7 +593,8 @@ const UserManager = ({
         </div>
       </div >
 
-    </>
+    </>,
+    document.body
   );
 };
 

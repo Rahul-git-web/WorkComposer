@@ -1,7 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import API from "@/api";
+
+const emptySubscribe = () => () => {};
 import { AxiosError } from "axios";
 import toast from "react-hot-toast";
 import { X, Check, Plus, Eye, EyeOff } from 'lucide-react';
@@ -48,6 +51,7 @@ const AddUsers = ({
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [teams, setTeams] = useState<any[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const addUserRow = () => {
     setUsersData((prev) => [
@@ -281,25 +285,31 @@ const AddUsers = ({
 
 
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div role="dialog" className="relative z-50" aria-modal='true'>
-        <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity"></div>
-        <div className="fixed inset-0 z-50 w-screen overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-500/75 dark:bg-black/75 backdrop-blur-sm transition-opacity"></div>
+        <div
+          onClick={() => setShowAddModal(false)}
+          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div className="relative transform rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full w-full max-w-5xl p-8">
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative transform rounded-lg bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 px-4 pt-5 pb-4 text-left shadow-xl dark:shadow-2xl transition-all sm:my-8 sm:w-full w-full max-w-5xl p-8">
 
               <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-900"> Add users to track their productivity </h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white"> Add users to track their productivity </h2>
                 <button onClick={() =>
                   setShowAddModal(false)}
-                  type="button" className="text-gray-400 hover:text-gray-500 focus:outline-none" title="Close">
+                  type="button" className="text-gray-400 dark:text-slate-400 hover:text-gray-500 dark:hover:text-slate-200 focus:outline-none" title="Close">
                   <X className='h-6 w-6' />
 
                 </button>
               </div>
 
-              <div className='border-t border-gray-200 my-5'></div>
+              <div className='border-t border-gray-200 dark:border-slate-700 my-5'></div>
               <form onSubmit={handleInviteUser}
                 className='space-y-4'>
 
@@ -307,7 +317,7 @@ const AddUsers = ({
                 {usersData.map((user, index) => (
                   <div
                     key={index}
-                    className='p-4 rounded-lg bg-gray-50 border border-gray-100 mb-4'
+                    className='p-4 rounded-lg bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-700/60 mb-4'
                   >
 
                     <div className='flex justify-end items-center mb-2'>
@@ -315,7 +325,7 @@ const AddUsers = ({
                         <button
                           type='button'
                           onClick={() => removeUserRow(index)}
-                          className='flex items-center gap-1 text-red-500 text-sm font-medium mt-2 hover:text-red-600'
+                          className='flex items-center gap-1 text-red-500 dark:text-red-400 text-sm font-medium mt-2 hover:text-red-600 dark:hover:text-red-300'
 
                         >
                           <HiMiniMinusCircle className='w-5 h-5 mt-0.5' />
@@ -339,7 +349,7 @@ const AddUsers = ({
                           {/* EMAIL */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Email
                             </label>
 
@@ -350,14 +360,14 @@ const AddUsers = ({
                                 updateUserField(index, "email", e.target.value)
                               }
                               placeholder='Email'
-                              className='block w-full h-10 rounded-md border-0 px-3 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                              className='block w-full h-10 rounded-md border-0 px-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                             />
                           </div>
 
                           {/* TEAM */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Team
                             </label>
 
@@ -367,7 +377,7 @@ const AddUsers = ({
                                 onChange={(e) =>
                                   updateUserField(index, "team", e.target.value)
                                 }
-                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                               >
                                 <option value="">Select team</option>
 
@@ -381,14 +391,14 @@ const AddUsers = ({
                                 ))}
                               </select>
 
-                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none' />
+                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400 pointer-events-none' />
                             </div>
                           </div>
 
                           {/* ROLE */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Role
                             </label>
 
@@ -398,14 +408,14 @@ const AddUsers = ({
                                 onChange={(e) =>
                                   updateUserField(index, "role", e.target.value)
                                 }
-                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                               >
                                 <option>User</option>
                                 <option>Manager</option>
                                 <option>Admin</option>
                               </select>
 
-                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none' />
+                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400 pointer-events-none' />
                             </div>
                           </div>
                         </>
@@ -414,7 +424,7 @@ const AddUsers = ({
                           {/* FIRST NAME */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               First Name
                             </label>
 
@@ -425,14 +435,14 @@ const AddUsers = ({
                                 updateUserField(index, "firstName", e.target.value)
                               }
                               placeholder='First Name'
-                              className='block w-full h-10 rounded-md border-0 px-3 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                              className='block w-full h-10 rounded-md border-0 px-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                             />
                           </div>
 
                           {/* LAST NAME */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Last Name
                             </label>
 
@@ -443,14 +453,14 @@ const AddUsers = ({
                                 updateUserField(index, "lastName", e.target.value)
                               }
                               placeholder='Last Name'
-                              className='block w-full h-10 rounded-md border-0 px-3 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                              className='block w-full h-10 rounded-md border-0 px-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                             />
                           </div>
 
                           {/* EMAIL */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Email
                             </label>
 
@@ -461,14 +471,14 @@ const AddUsers = ({
                                 updateUserField(index, "email", e.target.value)
                               }
                               placeholder='Email'
-                              className='block w-full h-10 rounded-md border-0 px-3 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                              className='block w-full h-10 rounded-md border-0 px-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                             />
                           </div>
 
                           {/* PASSWORD */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Password
                             </label>
 
@@ -480,13 +490,13 @@ const AddUsers = ({
                                   updateUserField(index, "password", e.target.value)
                                 }
                                 placeholder='Password'
-                                className='block w-full h-10 rounded-md border-0 px-3 pr-10 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                                className='block w-full h-10 rounded-md border-0 px-3 pr-10 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                               />
 
                               <button
                                 type='button'
                                 onClick={() => setShowPassword(!showPassword)}
-                                className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600'
+                                className='absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200'
                               >
                                 {showPassword ? (
                                   <EyeOff className='h-4 w-4' />
@@ -500,7 +510,7 @@ const AddUsers = ({
                           {/* TEAM */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Team
                             </label>
 
@@ -510,7 +520,7 @@ const AddUsers = ({
                                 onChange={(e) =>
                                   updateUserField(index, "team", e.target.value)
                                 }
-                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                               >
                                 <option value="">Select team</option>
 
@@ -524,14 +534,14 @@ const AddUsers = ({
                                 ))}
                               </select>
 
-                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none' />
+                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400 pointer-events-none' />
                             </div>
                           </div>
 
                           {/* ROLE */}
 
                           <div>
-                            <label className='block text-sm font-medium text-gray-700 mb-1'>
+                            <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
                               Role
                             </label>
 
@@ -541,14 +551,14 @@ const AddUsers = ({
                                 onChange={(e) =>
                                   updateUserField(index, "role", e.target.value)
                                 }
-                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300'
+                                className='w-full h-10 appearance-none rounded-md border-0 px-3 pr-10 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400'
                               >
                                 <option>User</option>
                                 <option>Manager</option>
                                 <option>Admin</option>
                               </select>
 
-                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none' />
+                              <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400 pointer-events-none' />
                             </div>
                           </div>
                         </>
@@ -559,7 +569,7 @@ const AddUsers = ({
                 ))}
 
 
-                <div className='mt-6 p-4 bg-gray-50 rounded-lg border border-gray-100'>
+                <div className='mt-6 p-4 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-100 dark:border-slate-700/60'>
                   <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
                     <div className='flex items-center gap-3'>
                       <div className='relative flex items-start'>
@@ -569,10 +579,10 @@ const AddUsers = ({
                             onChange={(e) =>
                               setSendInvite(e.target.checked)
                             }
-                            className='h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600' />
+                            className='h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-600 bg-white dark:bg-slate-800' />
                         </div>
                         <div className='ml-3 text-sm leading-6'>
-                          <label htmlFor='send-invite-email' className='font-medium text-gray-900'>
+                          <label htmlFor='send-invite-email' className='font-medium text-gray-900 dark:text-slate-200'>
                             Send invite email to users
                           </label>
                         </div>
@@ -582,7 +592,7 @@ const AddUsers = ({
                     <button
                       type='button'
                       onClick={addUserRow}
-                      className='inline-flex items-center justify-center rounded-md bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2'>
+                      className='inline-flex items-center justify-center rounded-md bg-indigo-50 dark:bg-indigo-950/40 px-4 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-transparent dark:border-indigo-800/40 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800'>
                       <Plus className='h-5 w-5 mr-1' />
                       Add Another User
                     </button>
@@ -595,7 +605,7 @@ const AddUsers = ({
                     onClick={() =>
                       setShowBulkInvite(true)
                     }
-                    className='inline-flex items-center justify-center rounded-md bg-white px-4 py-2.5 text-sm font-medium text-indigo-700 shadow-sm ring-1 ring-inset ring-indigo-300 hover:bg-indigo-50'>
+                    className='inline-flex items-center justify-center rounded-md bg-white dark:bg-slate-700 px-4 py-2.5 text-sm font-medium text-indigo-700 dark:text-indigo-300 shadow-sm ring-1 ring-inset ring-indigo-300 dark:ring-indigo-600/50 hover:bg-indigo-50 dark:hover:bg-slate-600'>
                     <HiMiniDocumentDuplicate className='h-5 w-5 mr-2' />
                     Bulk Invite Users
                   </button>
@@ -604,7 +614,7 @@ const AddUsers = ({
                     <button
                       type='button'
                       onClick={() => setShowAddModal(false)}
-                      className='rounded-md bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2'>Cancel</button>
+                      className='rounded-md bg-white dark:bg-slate-700 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-slate-800'>Cancel</button>
                     <button
                       type='submit'
                       disabled={loading}
@@ -625,7 +635,8 @@ const AddUsers = ({
           onUserAdded={onUserAdded}
         />
       )}
-    </>
+    </>,
+    document.body
   )
 }
 

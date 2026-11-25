@@ -1,7 +1,10 @@
 "use client";
 
 import Papa from "papaparse";
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { createPortal } from "react-dom";
+
+const emptySubscribe = () => () => {};
 import API from "@/api";
 import toast from "react-hot-toast";
 import { useSearchParams } from 'next/navigation';
@@ -37,6 +40,12 @@ export default function TeamsManagement({
         type: string;
         id: string;
     } | null>(null);
+    const [menuPosition, setMenuPosition] = useState<{
+        left: number;
+        top?: number;
+        bottom?: number;
+    }>({ left: 0, top: 0 });
+    const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
     const [filterOpen, setFilterOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -90,6 +99,63 @@ export default function TeamsManagement({
         return () =>
             window.removeEventListener("click", handleClick);
     }, []);
+
+    useEffect(() => {
+        if (!openDropDown) return;
+
+        const handleScrollOrResize = (e: Event) => {
+            if (e.target instanceof Element && e.target.closest(".dropdown-portal")) {
+                return;
+            }
+            setOpenDropDown(null);
+        };
+
+        window.addEventListener("scroll", handleScrollOrResize, true);
+        window.addEventListener("resize", handleScrollOrResize);
+        return () => {
+            window.removeEventListener("scroll", handleScrollOrResize, true);
+            window.removeEventListener("resize", handleScrollOrResize);
+        };
+    }, [openDropDown]);
+
+    const toggleRowDropDown = (
+        e: React.MouseEvent<HTMLButtonElement>,
+        type: "role" | "action",
+        id: string
+    ) => {
+        e.stopPropagation();
+
+        if (openDropDown?.type === type && openDropDown?.id === id) {
+            setOpenDropDown(null);
+            return;
+        }
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const menuWidth = type === "action" ? 192 : 160;
+        const estimatedHeight = type === "action" ? 168 : 132;
+        const left = Math.min(
+            Math.max(8, rect.right - menuWidth),
+            Math.max(8, window.innerWidth - menuWidth - 8)
+        );
+        const spaceBelow = window.innerHeight - rect.bottom;
+
+        if (spaceBelow >= estimatedHeight + 12 || rect.top < estimatedHeight + 12) {
+            setMenuPosition({
+                left,
+                top: Math.min(
+                    rect.bottom + 4,
+                    Math.max(8, window.innerHeight - estimatedHeight - 8)
+                ),
+            });
+        } else {
+            setMenuPosition({
+                left,
+                bottom: window.innerHeight - rect.top + 4,
+            });
+        }
+
+        setOpenDropDown({ type, id });
+    };
 
 
 
@@ -402,11 +468,11 @@ export default function TeamsManagement({
             <div className='py-6 flex-1'>
                 <div className='mx-auto w-full max-w-[1700px] px-4 sm:px-6 lg:px-8'>
                     <div className='mb-3'>
-                        <h1 className='text-2xl font-bold text-gray-900'>User Management</h1>
+                        <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>User Management</h1>
                     </div>
 
-                    <div className='bg-white rounded-lg shadow-sm'>
-                        <div className='bg-white border-b border-gray-200 shadow-sm'>
+                    <div className='bg-white dark:bg-[#0F172A] rounded-lg border border-gray-200 dark:border-[#22324D] shadow-sm text-gray-900 dark:text-white transition-colors duration-200'>
+                        <div className='bg-white dark:bg-[#0F172A] border-b border-gray-200 dark:border-[#22324D] shadow-sm'>
                             <div className='px-4 py-4 sm:px-6 lg:px-8'>
                                 <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
                                     <div className='flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto min-w-0'>
@@ -424,21 +490,21 @@ export default function TeamsManagement({
                                                 }
                                                 placeholder='Search users...'
                                                 aria-label='Search users'
-                                                className='block w-full rounded-md border-0 py-2 pl-10 pr-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 sm:text-sm'></input>
+                                                className='block w-full rounded-md border-0 py-2 pl-10 pr-3 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 sm:text-sm'></input>
                                         </div>
                                         <div className='relative w-full sm:w-auto sm:min-w-[140px] dropdown'>
                                             <button onClick={(e) => {
                                                 e.stopPropagation();
                                                 setFilterOpen(!filterOpen)
                                             }}
-                                                type='button' aria-haspopup='listbox' aria-expanded={filterOpen ? 'true' : 'false'} aria-label="Filter users by role" className='relative w-full cursor-default rounded-md bg-white py-2 pl-3 pr-10 text-left text-gray-900 ring-1 ring-inset ring-gray-300 sm:text-sm'>
+                                                type='button' aria-haspopup='listbox' aria-expanded={filterOpen ? 'true' : 'false'} aria-label="Filter users by role" className='relative w-full cursor-default rounded-md bg-white dark:bg-[#1E293B] py-2 pl-3 pr-10 text-left text-gray-900 dark:text-white ring-1 ring-inset ring-gray-300 dark:ring-gray-700 sm:text-sm'>
                                                 <span className='block truncate'>{selectedRole}</span>
                                                 <span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
                                                     <TbSelector className='h-5 w-5 text-gray-400' />
                                                 </span>
                                             </button>
                                             {filterOpen && (
-                                                <ul aria-orientation='vertical' role='listbox' className='absolute z-10 mt-1 max-h-60 w-full min-w-[200px] max-w-[280px] overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm left-0 origin-top-left'>
+                                                <ul aria-orientation='vertical' role='listbox' className='absolute z-10 mt-1 max-h-60 w-full min-w-[200px] max-w-[280px] overflow-auto rounded-md bg-white dark:bg-[#1E293B] py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 sm:text-sm left-0 origin-top-left'>
 
                                                     {[
                                                         "All Roles",
@@ -454,7 +520,7 @@ export default function TeamsManagement({
                                                                 setSelectedRole(role);
                                                                 setFilterOpen(false);
                                                             }}
-                                                            className='text-gray-900 relative cursor-pointer select-none py-2 pl-3 pr-9' role='option' aria-selected={selectedRole === role}>
+                                                            className='text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 relative cursor-pointer select-none py-2 pl-3 pr-9' role='option' aria-selected={selectedRole === role}>
                                                             <span className={`font-medium block truncate ${selectedRole === role ? "font-medium" : "font-normal"}`}>{role}</span>
 
                                                             {selectedRole === role && (
@@ -485,21 +551,21 @@ export default function TeamsManagement({
                                                     e.stopPropagation();
                                                     setUserMenuOpen(!userMenuOpen)
                                                 }}
-                                                    type='button' aria-haspopup='menu' aria-expanded={userMenuOpen ? 'true' : 'false'} className='inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'>
+                                                    type='button' aria-haspopup='menu' aria-expanded={userMenuOpen ? 'true' : 'false'} className='inline-flex items-center gap-1.5 rounded-md bg-white dark:bg-[#1E293B] px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'>
                                                     <span>Users</span>
-                                                    <ChevronDown className='h-4 w-4 text-gray-500' />
+                                                    <ChevronDown className='h-4 w-4 text-gray-500 dark:text-gray-400' />
                                                 </button>
                                                 {userMenuOpen && (
-                                                    <div role='menu' className='absolute right-0 z-10 mt-1 w-40 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 md:left-0 md:origin-top-left'>
+                                                    <div role='menu' className='absolute right-0 z-10 mt-1 w-40 origin-top-right rounded-md bg-white dark:bg-[#1E293B] shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 md:left-0 md:origin-top-left'>
                                                         <button
                                                             onClick={handleExportUsers}
-                                                            className='text-gray-700 flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-gray-100' role='menuitem'>
-                                                            <Download className='w-5 h-5 text-gray-500' />
+                                                            className='text-gray-700 dark:text-gray-300 flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' role='menuitem'>
+                                                            <Download className='w-5 h-5 text-gray-500 dark:text-gray-400' />
                                                             Export
                                                         </button>
 
-                                                        <label className='text-gray-700 flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-gray-100' role='menuitem'>
-                                                            <Upload className='w-5 h-5 text-gray-500' />
+                                                        <label className='text-gray-700 dark:text-gray-300 flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' role='menuitem'>
+                                                            <Upload className='w-5 h-5 text-gray-500 dark:text-gray-400' />
                                                             Import
 
                                                             <input
@@ -519,12 +585,12 @@ export default function TeamsManagement({
                                                     e.stopPropagation();
                                                     setExportOpen(!exportOpen)
                                                 }}
-                                                    type='button' aria-haspopup='menu' aria-expanded={exportOpen} className='inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'>
+                                                    type='button' aria-haspopup='menu' aria-expanded={exportOpen} className='inline-flex items-center gap-1.5 rounded-md bg-white dark:bg-[#1E293B] px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'>
                                                     <span>Export</span>
-                                                    <ChevronDown className='h-4 w-4 text-gray-500' />
+                                                    <ChevronDown className='h-4 w-4 text-gray-500 dark:text-gray-400' />
                                                 </button>
                                                 {exportOpen && (
-                                                    <div role='menu' className='absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 md:left-0 md:origin-top-left'>
+                                                    <div role='menu' className='absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-white dark:bg-[#1E293B] shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 md:left-0 md:origin-top-left'>
                                                         <button
                                                             onClick={async () => {
                                                                 try {
@@ -556,7 +622,7 @@ export default function TeamsManagement({
                                                                     console.error(err);
                                                                 }
                                                             }}
-                                                            className='text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100' role='menuitem'>Users</button>
+                                                            className='text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700' role='menuitem'>Users</button>
                                                         <button
                                                             onClick={async () => {
                                                                 try {
@@ -592,7 +658,7 @@ export default function TeamsManagement({
                                                                     toast.error("Failed to export hierarchy users");
                                                                 }
                                                             }}
-                                                            className='text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100'
+                                                            className='text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700'
                                                             role='menuitem'
                                                         >
                                                             Hierarchy (Users)
@@ -634,7 +700,7 @@ export default function TeamsManagement({
                                                                     toast.error("Failed to export managers hierarchy");
                                                                 }
                                                             }}
-                                                            className='text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100'
+                                                            className='text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700'
                                                             role='menuitem'
                                                         >
                                                             Hierarchy (Managers)
@@ -676,7 +742,7 @@ export default function TeamsManagement({
                                                                     toast.error("Failed to export devices");
                                                                 }
                                                             }}
-                                                            className='text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100'
+                                                            className='text-gray-700 dark:text-gray-300 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700'
                                                             role='menuitem'
                                                         >
                                                             Devices
@@ -690,33 +756,33 @@ export default function TeamsManagement({
                             </div>
                         </div>
 
-                        <div className='divide-y divide-gray-200'>
+                        <div className='divide-y divide-gray-200 dark:divide-gray-800'>
                             <div>
                                 <div>
                                     <div className='overflow-x-auto'>
-                                        <table className='min-w-full table-fixed divide-y divide-gray-200' aria-label='User table'>
+                                        <table className='min-w-full table-fixed divide-y divide-gray-200 dark:divide-gray-800' aria-label='User table'>
                                             <caption className='sr-only'>List of users in the organization</caption>
-                                            <thead className='bg-gray-50 sticky top-0 shadow-sm border-b border-gray-200'>
+                                            <thead className='bg-gray-50 dark:bg-[#162742] sticky top-0 shadow-sm border-b border-gray-200 dark:border-[#22324D]'>
                                                 <tr>
-                                                    <th scope='col' className='w-2/5 sm:w-1/3 py-3 pr-3 pl-6 text-left text-xs font-bold text-gray-700 uppercase tracking-wider'>User</th>
-                                                    <th scope='col' className='w-1/4 px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden sm:table-cell'>Team</th>
-                                                    <th scope='col' className='w-1/4 px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider'>Role</th>
-                                                    <th scope='col' className='w-1/6 px-3 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden md:table-cell'>Status</th>
-                                                    <th scope='col' className='py-3 pr-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider hidden lg:table-cell'>Invite Expiry</th>
-                                                    <th scope='col' className='w-20 py-3 pr-6 text-right text-xs font-bold text-gray-700 uppercase tracking-wider'>Actions</th>
+                                                    <th scope='col' className='w-2/5 sm:w-1/3 py-3 pr-3 pl-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider'>User</th>
+                                                    <th scope='col' className='w-1/4 px-3 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell'>Team</th>
+                                                    <th scope='col' className='w-1/4 px-3 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider'>Role</th>
+                                                    <th scope='col' className='w-1/6 px-3 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell'>Status</th>
+                                                    <th scope='col' className='py-3 pr-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell'>Invite Expiry</th>
+                                                    <th scope='col' className='w-20 py-3 pr-6 text-right text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider'>Actions</th>
                                                 </tr>
                                             </thead>
 
-                                            <tbody className='divide-y divide-gray-200 bg-white'>
+                                            <tbody className='divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-[#0F172A]'>
                                                 {loading ? (
                                                     <tr>
-                                                        <td colSpan={6} className='py-10 text-center text-gray-500'>
+                                                        <td colSpan={6} className='py-10 text-center text-gray-500 dark:text-gray-400'>
                                                             Loading users...
                                                         </td>
                                                     </tr>
                                                 ) : users.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={6} className='py-10 text-center text-gray-500'>
+                                                        <td colSpan={6} className='py-10 text-center text-gray-500 dark:text-gray-400'>
                                                             No users found
                                                         </td>
                                                     </tr>
@@ -729,7 +795,7 @@ export default function TeamsManagement({
                                                             <tr
                                                                 key={userId}
 
-                                                                className='hover:bg-gray-50 transition-colors duration-150'
+                                                                className='hover:bg-gray-50 dark:hover:bg-[#1E293B] transition-colors duration-150'
                                                             >
 
                                                                 {/* USER */}
@@ -759,13 +825,13 @@ export default function TeamsManagement({
                                                                             user={user}
                                                                             className="ml-4 min-w-0 text-left cursor-pointer"
                                                                         >
-                                                                            <div className="text-sm font-medium text-gray-900 truncate hover:text-indigo-600">
+                                                                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate hover:text-indigo-600 dark:hover:text-indigo-400">
                                                                                 {user.firstName
                                                                                     ? `${user.firstName} ${user.lastName}`
                                                                                     : "Pending User"}
                                                                             </div>
 
-                                                                            <div className="text-sm text-gray-500 truncate">
+                                                                            <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                                                                                 {user.email}
                                                                             </div>
                                                                         </UserProfileTrigger>
@@ -774,9 +840,9 @@ export default function TeamsManagement({
                                                                 </td>
 
                                                                 {/* TEAM */}
-                                                                <td className='py-5 px-3 text-sm hidden sm:table-cell'>
+                                                                <td className='py-5 px-3 text-sm hidden sm:table-cell text-gray-700 dark:text-gray-300'>
                                                                     <div className='flex items-center'>
-                                                                        <HiMiniUsers className='h-4 w-4 mr-1.5 text-gray-500' />
+                                                                        <HiMiniUsers className='h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400' />
                                                                         <span>{user.team || "Default team"}</span>
                                                                     </div>
                                                                 </td>
@@ -792,7 +858,7 @@ export default function TeamsManagement({
                                                                                     currentUser?.role?.toLowerCase() !== "owner")
                                                                                 ?
                                                                                 (
-                                                                                    <span className='inline-flex items-center rounded-md bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700'>
+                                                                                    <span className='inline-flex items-center rounded-md bg-gray-100 dark:bg-gray-800 px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300'>
                                                                                         <GoShieldCheck className='h-4 w-4 mr-1' />
                                                                                         {user.role}
                                                                                     </span>
@@ -801,95 +867,19 @@ export default function TeamsManagement({
 
                                                                                     <div className='relative dropdown inline-block text-left'>
                                                                                         <button
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-
-                                                                                                setOpenDropDown(
-                                                                                                    openDropDown?.type === "role" &&
-                                                                                                        openDropDown?.id === userId
-                                                                                                        ? null
-                                                                                                        : {
-                                                                                                            type: "role",
-                                                                                                            id: userId,
-                                                                                                        }
-                                                                                                );
-                                                                                            }}
+                                                                                            onClick={(e) =>
+                                                                                                toggleRowDropDown(e, "role", userId)
+                                                                                            }
                                                                                             type='button'
-                                                                                            className='inline-flex cursor-pointer items-center rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 hover:bg-indigo-100 shadow-sm'
+                                                                                            className='inline-flex cursor-pointer items-center rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-3 py-1 text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 shadow-sm'
                                                                                         >
                                                                                             <CiUser className='h-4 w-4 mr-1' />
                                                                                             {user.role}
                                                                                             <ChevronDown className='h-4 w-4 ml-1 text-indigo-400' />
                                                                                         </button>
-
-                                                                                        {openDropDown?.type === "role" &&
-                                                                                            openDropDown?.id === userId && (
-                                                                                                <div className='absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg ring-1 ring-black/5 z-20'>
-
-                                                                                                    <button
-                                                                                                        onClick={() =>
-                                                                                                            handleUpdateRole(
-                                                                                                                userId,
-                                                                                                                "user",
-                                                                                                                user.status
-                                                                                                            )
-                                                                                                        }
-                                                                                                        className='cursor-pointer flex items-center justify-between w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50'
-                                                                                                    >
-                                                                                                        <div className='flex items-center gap-2'>
-                                                                                                            <CiUser className='h-4 w-4' />
-                                                                                                            User
-                                                                                                        </div>
-
-                                                                                                        {user.role?.toLowerCase() === "user" && (
-                                                                                                            <Check className='h-4 w-4' />
-                                                                                                        )}
-                                                                                                    </button>
-
-                                                                                                    <button
-                                                                                                        onClick={() =>
-                                                                                                            handleUpdateRole(
-                                                                                                                userId,
-                                                                                                                "manager",
-                                                                                                                user.status
-                                                                                                            )
-                                                                                                        }
-                                                                                                        className='cursor-pointer flex items-center justify-between w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50'
-                                                                                                    >
-                                                                                                        <div className='flex items-center gap-2'>
-                                                                                                            <FaUsers className='h-4 w-4' />
-                                                                                                            Manager
-                                                                                                        </div>
-
-                                                                                                        {user.role?.toLowerCase() === "manager" && (
-                                                                                                            <Check className='h-4 w-4' />
-                                                                                                        )}
-                                                                                                    </button>
-
-                                                                                                    <button
-                                                                                                        onClick={() =>
-                                                                                                            handleUpdateRole(
-                                                                                                                userId,
-                                                                                                                "admin",
-                                                                                                                user.status
-                                                                                                            )
-                                                                                                        }
-                                                                                                        className='cursor-pointer flex items-center justify-between w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50'
-                                                                                                    >
-                                                                                                        <div className='flex items-center gap-2'>
-                                                                                                            <GoShieldCheck className='h-4 w-4' />
-                                                                                                            Admin
-                                                                                                        </div>
-
-                                                                                                        {user.role?.toLowerCase() === "admin" && (
-                                                                                                            <Check className='h-4 w-4' />
-                                                                                                        )}
-                                                                                                    </button>
-                                                                                                </div>
-                                                                                            )}
                                                                                     </div>
                                                                                 ) : (
-                                                                                    <span className='inline-flex items-center rounded-md bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700'>
+                                                                                    <span className='inline-flex items-center rounded-md bg-gray-100 dark:bg-slate-700 px-3 py-1 text-sm font-medium text-gray-700 dark:text-slate-300'>
                                                                                         <GoShieldCheck className='h-4 w-4 mr-1' />
                                                                                         {user.role}
                                                                                     </span>
@@ -914,7 +904,7 @@ export default function TeamsManagement({
                                                                         {/* MANAGER STATS */}
 
                                                                         {user.role?.toLowerCase() === "manager" && (
-                                                                            <p className='text-xs text-gray-500 ml-1'>
+                                                                            <p className='text-xs text-gray-500 dark:text-slate-400 ml-1'>
                                                                                 managing {user.managedUsersCount || 0} user(s),{" "}
                                                                                 {user.managedTeamsCount || 0} team(s)
                                                                             </p>
@@ -964,100 +954,14 @@ export default function TeamsManagement({
                                                                         )}
                                                                         <div className='relative dropdown'>
                                                                             <button
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-
-
-                                                                                    setOpenDropDown(
-                                                                                        openDropDown?.type === "action" &&
-                                                                                            openDropDown?.id === userId
-                                                                                            ? null
-                                                                                            : {
-                                                                                                type: "action",
-                                                                                                id: userId
-                                                                                            }
-                                                                                    );
-                                                                                }}
+                                                                                onClick={(e) =>
+                                                                                    toggleRowDropDown(e, "action", userId)
+                                                                                }
                                                                                 type='button'
-                                                                                className='inline-flex items-center justify-center bg-white hover:bg-gray-50 text-gray-700 p-2 rounded-md text-sm border border-gray-300 transition shadow-sm'
+                                                                                className='inline-flex items-center justify-center bg-white dark:bg-[#1E293B] hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 p-2 rounded-md text-sm border border-gray-300 dark:border-gray-700 transition shadow-sm'
                                                                             >
                                                                                 <IoIosMenu className='h-5 w-5' />
                                                                             </button>
-
-                                                                            {openDropDown?.type === "action" &&
-                                                                                openDropDown?.id === userId && (
-                                                                                    <div className='absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg ring-1 ring-black/5 z-10'>
-                                                                                        <button
-                                                                                            onClick={() => {
-                                                                                                setSelectedUser(user);
-                                                                                                setShowDeviceModal(true);
-                                                                                                setOpenDropDown(null);
-                                                                                            }}
-                                                                                            className='flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700'>
-                                                                                            <CiDesktop className='h-5 w-5' />
-                                                                                            Device
-                                                                                        </button>
-
-                                                                                        <button
-                                                                                            onClick={() => {
-                                                                                                setSelectedUser(user);
-                                                                                                setShowEditModal(true);
-                                                                                                setOpenDropDown(null);
-
-                                                                                            }}
-                                                                                            className='flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 cursor-pointer'>
-                                                                                            <FaRegEdit className='h-5 w-5' />
-                                                                                            Edit
-                                                                                        </button>
-
-                                                                                        {user.status === "archived" ? (
-                                                                                            <button
-                                                                                                onClick={() => handleUnarchiveUser(userId)}
-                                                                                                className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-green-600 cursor-pointer"
-                                                                                            >
-                                                                                                <HiArrowUturnUp className="h-5 w-5" />
-                                                                                                Unarchive
-                                                                                            </button>
-                                                                                        ) : (
-                                                                                            user.role?.toLowerCase() !== "owner" && (
-                                                                                                <button
-                                                                                                    onClick={() => {
-                                                                                                        setSelectedUser(user);
-                                                                                                        setShowArchiveModal(true);
-                                                                                                        setOpenDropDown(null);
-                                                                                                    }}
-                                                                                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 cursor-pointer"
-                                                                                                >
-                                                                                                    <Archive className="h-5 w-5" />
-                                                                                                    Archive
-                                                                                                </button>
-                                                                                            )
-                                                                                        )}
-
-
-                                                                                        {(user.role?.toLowerCase() !== "owner")
-                                                                                            &&
-                                                                                            (
-                                                                                                currentUser?.role === "owner" ||
-                                                                                                currentUser?.role === "admin"
-                                                                                            ) && (
-
-
-                                                                                                <button
-                                                                                                    onClick={() => {
-                                                                                                        setSelectedUser(user);
-                                                                                                        setDeleteEmail("");
-                                                                                                        setShowDeleteModal(true);
-                                                                                                        setOpenDropDown(null);
-                                                                                                    }}
-                                                                                                    className='flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-red-600 cursor-pointer'
-                                                                                                >
-                                                                                                    <HiOutlineTrash className='h-5 w-5' />
-                                                                                                    Delete
-                                                                                                </button>
-                                                                                            )}
-                                                                                    </div>
-                                                                                )}
                                                                         </div>
                                                                     </div>
                                                                 </td>
@@ -1071,15 +975,15 @@ export default function TeamsManagement({
                                     </div>
                                 </div>
 
-                                <div className='flex items-center justify-between px-6 py-4 border-t border-gray-200'>
+                                <div className='flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-800'>
 
-                                    <p className='text-sm text-gray-600'>
+                                    <p className='text-sm text-gray-600 dark:text-gray-400'>
                                         Showing{" "}
-                                        <span className='font-medium'>{startUser}</span>
+                                        <span className='font-medium text-gray-900 dark:text-white'>{startUser}</span>
                                         {" "}to{" "}
-                                        <span className='font-medium'>{endUser}</span>
+                                        <span className='font-medium text-gray-900 dark:text-white'>{endUser}</span>
                                         {" "}of{" "}
-                                        <span className='font-medium'>{totalUsers}</span>
+                                        <span className='font-medium text-gray-900 dark:text-white'>{totalUsers}</span>
                                         {" "}users
                                     </p>
 
@@ -1092,7 +996,7 @@ export default function TeamsManagement({
                                                 )
                                             }
                                             disabled={currentPage === 1}
-                                            className='px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                                            className='px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed'
                                         >
                                             Previous
                                         </button>
@@ -1107,7 +1011,7 @@ export default function TeamsManagement({
                                                     }
                                                     className={`px-3 py-1.5 text-sm rounded-md border ${currentPage === index + 1
                                                         ? "bg-indigo-600 text-white border-indigo-600"
-                                                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                                                        : "bg-white dark:bg-[#1E293B] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
                                                         }`}
                                                 >
                                                     {index + 1}
@@ -1122,7 +1026,7 @@ export default function TeamsManagement({
                                                 )
                                             }
                                             disabled={currentPage === totalPages}
-                                            className='px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+                                            className='px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed'
                                         >
                                             Next
                                         </button>
@@ -1171,21 +1075,194 @@ export default function TeamsManagement({
                 />
             )}
 
-            {showDeleteModal && selectedUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-                    <div className="w-full max-w-md rounded-xl bg-white shadow-2xl">
+            {mounted && openDropDown && (() => {
+                const activeDropDownUser = users.find(
+                    (u: any) => (u._id || u.id) === openDropDown.id
+                );
+                if (!activeDropDownUser) return null;
+
+                const activeUserId = activeDropDownUser._id || activeDropDownUser.id;
+                const portalStyle: React.CSSProperties = {
+                    left: `${menuPosition.left}px`,
+                    ...(menuPosition.top !== undefined
+                        ? { top: `${menuPosition.top}px` }
+                        : {}),
+                    ...(menuPosition.bottom !== undefined
+                        ? { bottom: `${menuPosition.bottom}px` }
+                        : {}),
+                };
+
+                return createPortal(
+                    openDropDown.type === "role" ? (
+                        <div
+                            style={portalStyle}
+                            className='dropdown dropdown-portal fixed z-[9999] w-40 bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-gray-700 rounded-md shadow-lg ring-1 ring-black/5 dark:ring-white/10'
+                        >
+                            <button
+                                onClick={() =>
+                                    handleUpdateRole(
+                                        activeUserId,
+                                        "user",
+                                        activeDropDownUser.status
+                                    )
+                                }
+                                className='cursor-pointer flex items-center justify-between w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            >
+                                <div className='flex items-center gap-2'>
+                                    <CiUser className='h-4 w-4' />
+                                    User
+                                </div>
+
+                                {activeDropDownUser.role?.toLowerCase() === "user" && (
+                                    <Check className='h-4 w-4' />
+                                )}
+                            </button>
+
+                            <button
+                                onClick={() =>
+                                    handleUpdateRole(
+                                        activeUserId,
+                                        "manager",
+                                        activeDropDownUser.status
+                                    )
+                                }
+                                className='cursor-pointer flex items-center justify-between w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            >
+                                <div className='flex items-center gap-2'>
+                                    <FaUsers className='h-4 w-4' />
+                                    Manager
+                                </div>
+
+                                {activeDropDownUser.role?.toLowerCase() === "manager" && (
+                                    <Check className='h-4 w-4' />
+                                )}
+                            </button>
+
+                            <button
+                                onClick={() =>
+                                    handleUpdateRole(
+                                        activeUserId,
+                                        "admin",
+                                        activeDropDownUser.status
+                                    )
+                                }
+                                className='cursor-pointer flex items-center justify-between w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            >
+                                <div className='flex items-center gap-2'>
+                                    <GoShieldCheck className='h-4 w-4' />
+                                    Admin
+                                </div>
+
+                                {activeDropDownUser.role?.toLowerCase() === "admin" && (
+                                    <Check className='h-4 w-4' />
+                                )}
+                            </button>
+                        </div>
+                    ) : openDropDown.type === "action" ? (
+                        <div
+                            style={portalStyle}
+                            className='dropdown dropdown-portal fixed z-[9999] w-48 bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-gray-700 rounded-md shadow-lg ring-1 ring-black/5 dark:ring-white/10'
+                        >
+                            <button
+                                onClick={() => {
+                                    setSelectedUser(activeDropDownUser);
+                                    setShowDeviceModal(true);
+                                    setOpenDropDown(null);
+                                }}
+                                className='flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'>
+                                <CiDesktop className='h-5 w-5' />
+                                Device
+                            </button>
+
+                            <button
+                                onClick={() => {
+                                    setSelectedUser(activeDropDownUser);
+                                    setShowEditModal(true);
+                                    setOpenDropDown(null);
+                                }}
+                                className='flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'>
+                                <FaRegEdit className='h-5 w-5' />
+                                Edit
+                            </button>
+
+                            {activeDropDownUser.status === "archived" ? (
+                                <button
+                                    onClick={() => {
+                                        handleUnarchiveUser(activeUserId);
+                                        setOpenDropDown(null);
+                                    }}
+                                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                                >
+                                    <HiArrowUturnUp className="h-5 w-5" />
+                                    Unarchive
+                                </button>
+                            ) : (
+                                activeDropDownUser.role?.toLowerCase() !== "owner" && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedUser(activeDropDownUser);
+                                            setShowArchiveModal(true);
+                                            setOpenDropDown(null);
+                                        }}
+                                        className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                                    >
+                                        <Archive className="h-5 w-5" />
+                                        Archive
+                                    </button>
+                                )
+                            )}
+
+                            {(activeDropDownUser.role?.toLowerCase() !== "owner")
+                                &&
+                                (
+                                    currentUser?.role === "owner" ||
+                                    currentUser?.role === "admin"
+                                ) && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedUser(activeDropDownUser);
+                                            setDeleteEmail("");
+                                            setShowDeleteModal(true);
+                                            setOpenDropDown(null);
+                                        }}
+                                        className='flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'
+                                    >
+                                        <HiOutlineTrash className='h-5 w-5' />
+                                        Delete
+                                    </button>
+                                )}
+                        </div>
+                    ) : null,
+                    document.body
+                );
+            })()}
+
+            {mounted && showDeleteModal && selectedUser && createPortal(
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => {
+                        setShowDeleteModal(false);
+                        setDeleteEmail("");
+                    }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 overflow-y-auto overscroll-contain"
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-md rounded-xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 shadow-2xl"
+                    >
                         <div className="p-6">
                             <div className="flex items-start gap-4">
-                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
-                                    <HiOutlineTrash className="h-5 w-5 text-red-600" />
+                                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/40">
+                                    <HiOutlineTrash className="h-5 w-5 text-red-600 dark:text-red-400" />
                                 </div>
 
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-900">
+                                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                         Delete user
                                     </h2>
 
-                                    <p className="mt-1 text-sm text-gray-500">
+                                    <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                                         This action cannot be undone. To confirm that you
                                         want to permanently delete this user, enter their
                                         email address below.
@@ -1194,11 +1271,11 @@ export default function TeamsManagement({
                             </div>
 
                             <div className="mt-5">
-                                <p className="mb-2 text-sm font-medium text-gray-700">
+                                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Enter the user&apos;s email:
                                 </p>
 
-                                <div className="mb-2 rounded-md bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700">
+                                <div className="mb-2 rounded-md bg-gray-50 dark:bg-slate-900 border border-transparent dark:border-slate-700 px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-200">
                                     {selectedUser.email}
                                 </div>
 
@@ -1207,14 +1284,14 @@ export default function TeamsManagement({
                                     value={deleteEmail}
                                     onChange={(e) => setDeleteEmail(e.target.value)}
                                     placeholder="Enter email to confirm"
-                                    className="block w-full rounded-md border-0 py-2.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-red-500 sm:text-sm"
+                                    className="block w-full rounded-md border-0 py-2.5 px-3 text-gray-900 dark:text-slate-100 bg-white dark:bg-slate-900 ring-1 ring-inset ring-gray-300 dark:ring-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-red-500 sm:text-sm"
                                     autoFocus
                                 />
 
                                 {deleteEmail &&
                                     deleteEmail.trim().toLowerCase() !==
                                     selectedUser.email?.trim().toLowerCase() && (
-                                        <p className="mt-2 text-xs text-red-600">
+                                        <p className="mt-2 text-xs text-red-600 dark:text-red-400">
                                             Email does not match.
                                         </p>
                                     )}
@@ -1227,7 +1304,7 @@ export default function TeamsManagement({
                                         setShowDeleteModal(false);
                                         setDeleteEmail("");
                                     }}
-                                    className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                    className="rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-600"
                                 >
                                     Cancel
                                 </button>
@@ -1250,7 +1327,8 @@ export default function TeamsManagement({
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
 
