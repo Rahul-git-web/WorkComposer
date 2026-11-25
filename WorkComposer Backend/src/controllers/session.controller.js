@@ -1,5 +1,11 @@
-import mongoose from "mongoose";
-import Session from "../models/session.model.js";
+import {
+  sessionRepository,
+  taskRepository,
+  projectTrackingRepository,
+  activityRepository,
+  screenshotRepository,
+  timerRepository,
+} from "../db/repositories/index.js";
 import User from "../models/user.model.js";
 import Screenshot from "../models/screenshot.model.js";
 import Task from "../models/task.model.js";
@@ -7,14 +13,22 @@ import ProjectTracking from "../models/projectTracking.model.js";
 import Activity from "../models/activity.model.js";
 import { getAvatarUrl } from "../utils/avatar.js";
 import { checkSessionOverlap } from "../utils/session.js";
+import { auditSessionsPurged } from "../utils/auditService.js";
 import {
   getUserTimezone,
   getDateRangeUTC,
   getTodayInTimezone,
+  resolveUserTimezone,
+  getDateInTimezone,
+  getZonedDayRange,
+  getZonedDateTime,
+  calculateIntervalOverlap,
 } from "../utils/timezone.js";
 import { getReportUserIds } from "../utils/reportAccess.js";
 import Report from "../models/report.model.js";
 import { generateTimeTrackingCSV } from "../services/reportExport.service.js";
+import { runTransaction } from "../db/transaction.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
 
 const updateSessionScreenshotCount = async (session) => {
   const count = await Screenshot.countDocuments({
@@ -73,8 +87,9 @@ export const createSession = async (req, res) => {
       });
     }
 
+    const userId = req.user._id || req.user.id;
     const existingSession = await checkSessionOverlap(
-      req.user._id,
+      userId,
       startTime,
       endTime,
     );
@@ -85,49 +100,64 @@ export const createSession = async (req, res) => {
       });
     }
 
-    const session = await Session.create({
-      userId: req.user._id,
+    const timezone = resolveUserTimezone(req.user, req);
+    const sessionDate = getDateInTimezone(startTime, timezone);
+
+    const session = await sessionRepository.create({
+      userId,
       startTime,
       endTime,
       duration,
       type,
-      date: new Date(startTime).toISOString().split("T")[0],
+      date: sessionDate,
     });
 
     res.status(201).json(session);
   } catch (err) {
     console.error("CREATE ERROR:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Failed to create session", error: "Failed to create session" });
   }
 };
 
 //Get Sessions By Date
 export const getSessions = async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, startDate, endDate } = req.query;
+    const userId = req.user._id || req.user.id;
 
-    let query = {
-      userId: req.user._id,
-    };
-
-    if (date) {
-      query.date = date;
+    let sessions;
+    if (startDate && endDate) {
+      const timezone = resolveUserTimezone(req.user, req);
+      const startRange = getZonedDayRange(startDate, timezone);
+      const endRange = getZonedDayRange(endDate, timezone);
+      sessions = await sessionRepository.findOverlappingSessions({
+        userId,
+        periodStart: startRange.start,
+        periodEnd: endRange.end,
+      });
+    } else if (date) {
+      sessions = await sessionRepository.find({
+        userId,
+        date,
+      });
+    } else {
+      sessions = await sessionRepository.find({
+        userId,
+      });
     }
-
-    const sessions = await Session.find(query);
 
     res.status(200).json(sessions);
   } catch (err) {
+    console.error("GET SESSIONS ERROR:", err);
     res.status(500).json({
-      error: err.message,
+      message: "Failed to fetch sessions",
+      error: "Failed to fetch sessions",
     });
   }
 };
 
 // DELETE SESSIONS IN RANGE
 export const deleteSessionsInRange = async (req, res) => {
-  let mongoSession;
-
   try {
     if (req.user.role !== "owner" && req.user.role !== "admin") {
       return res.status(403).json({
@@ -153,150 +183,151 @@ export const deleteSessionsInRange = async (req, res) => {
       return res.status(400).json({ error: "Invalid time range" });
     }
 
-    mongoSession = await mongoose.startSession();
-    await mongoSession.startTransaction();
+    const txResult = await runTransaction(async (tx) => {
+      // Find ALL overlapping sessions
+      const sessions = await sessionRepository.findOverlappingSessions({
+        userId: req.user._id || req.user.id,
+        periodStart: start,
+        periodEnd: end,
+      });
 
-    //  Find ALL overlapping sessions
-    const sessions = await Session.find({
-      userId: req.user._id,
-      startTime: { $lt: end },
-      endTime: { $gt: start },
-    }).session(mongoSession);
+      const timezone = resolveUserTimezone(req.user, req);
+      const reportRows = sessions.map((session) => ({
+        employee: `${req.user.firstName} ${req.user.lastName}`,
+        date:
+          session.date || (session.startTime ? getDateInTimezone(session.startTime, timezone) : ""),
+        startTime: new Date(session.startTime).toLocaleTimeString("en-US", {
+          timeZone: timezone,
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        endTime: new Date(session.endTime).toLocaleTimeString("en-US", {
+          timeZone: timezone,
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        duration: `${Math.floor((session.duration || 0) / 3600)}h ${Math.floor(
+          ((session.duration || 0) % 3600) / 60,
+        )}m`,
+        type: session.type,
+        project: "",
+        task: "",
+        reason: "Removed tracked time",
+      }));
 
-    const reportRows = sessions.map((session) => ({
-      employee: `${req.user.firstName} ${req.user.lastName}`,
-      date:
-        session.date || new Date(session.startTime).toISOString().split("T")[0],
-      startTime: new Date(session.startTime).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      endTime: new Date(session.endTime).toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      duration: `${Math.floor((session.duration || 0) / 3600)}h ${Math.floor(
-        ((session.duration || 0) % 3600) / 60,
-      )}m`,
-      type: session.type,
-      project: "",
-      task: "",
-      reason: "Removed tracked time",
-    }));
+      let workTime = 0;
+      let breakTime = 0;
+      let deletedCount = 0;
+      let modifiedCount = 0;
+      let screenshots = 0;
 
-    let workTime = 0;
-    let breakTime = 0;
-    let deletedCount = 0;
-    let modifiedCount = 0;
-    let screenshots = 0;
+      for (const s of sessions) {
+        const sStart = new Date(s.startTime);
+        const sEnd = new Date(s.endTime);
 
-    for (const s of sessions) {
-      const sStart = new Date(s.startTime);
-      const sEnd = new Date(s.endTime);
+        // Overlap calculation
+        const overlapStart = new Date(Math.max(sStart, start));
+        const overlapEnd = new Date(Math.min(sEnd, end));
 
-      // Overlap calculation
-      const overlapStart = new Date(Math.max(sStart, start));
-      const overlapEnd = new Date(Math.min(sEnd, end));
+        const overlapSeconds = Math.max(
+          0,
+          Math.floor((overlapEnd - overlapStart) / 1000),
+        );
 
-      const overlapSeconds = Math.max(
-        0,
-        Math.floor((overlapEnd - overlapStart) / 1000),
-      );
+        if (s.type === "work") workTime += overlapSeconds;
+        if (s.type === "break") breakTime += overlapSeconds;
 
-      if (s.type === "work") workTime += overlapSeconds;
-      if (s.type === "break") breakTime += overlapSeconds;
+        screenshots += s.screenshots || 0;
 
-      screenshots += s.screenshots || 0;
+        // -----------------------------
+        // CASE 1: Fully inside → delete
+        // -----------------------------
+        if (sStart >= start && sEnd <= end) {
+          await sessionRepository.deleteOne({ _id: s._id || s.id });
+          deletedCount++;
+        }
 
-      // -----------------------------
-      // CASE 1: Fully inside → delete
-      // -----------------------------
-      if (sStart >= start && sEnd <= end) {
-        await Session.deleteOne({ _id: s._id }).session(mongoSession);
-        deletedCount++;
+        // -----------------------------
+        // CASE 2: Cut right side
+        // -----------------------------
+        else if (sStart < start && sEnd > start && sEnd <= end) {
+          s.endTime = start;
+          s.duration = Math.floor((start - sStart) / 1000);
+
+          await sessionRepository.findByIdAndUpdate(s._id || s.id, {
+            endTime: start,
+            duration: s.duration,
+          });
+
+          await updateSessionScreenshotCount(s);
+
+          modifiedCount++;
+        }
+
+        // -----------------------------
+        // CASE 3: Cut left side
+        // -----------------------------
+        else if (sStart >= start && sStart < end && sEnd > end) {
+          s.startTime = end;
+          s.duration = Math.floor((sEnd - end) / 1000);
+
+          await sessionRepository.findByIdAndUpdate(s._id || s.id, {
+            startTime: end,
+            duration: s.duration,
+          });
+
+          await updateSessionScreenshotCount(s);
+
+          modifiedCount++;
+        }
+
+        // -----------------------------
+        // CASE 4: Split into two
+        // -----------------------------
+        else if (sStart < start && sEnd > end) {
+          const firstPart = {
+            userId: s.userId,
+            startTime: sStart,
+            endTime: start,
+            duration: Math.floor((start - sStart) / 1000),
+            type: s.type,
+            team: s.team,
+            source: s.source,
+            date: getDateInTimezone(sStart, timezone),
+          };
+
+          const secondPart = {
+            userId: s.userId,
+            startTime: end,
+            endTime: sEnd,
+            duration: Math.floor((sEnd - end) / 1000),
+            type: s.type,
+            team: s.team,
+            source: s.source,
+            date: getDateInTimezone(end, timezone),
+          };
+
+          await sessionRepository.deleteOne({ _id: s._id || s.id });
+
+          const newFirstSession = await sessionRepository.create(firstPart);
+          const newSecondSession = await sessionRepository.create(secondPart);
+
+          await updateSessionScreenshotCount(newFirstSession);
+          await updateSessionScreenshotCount(newSecondSession);
+
+          deletedCount++;
+        }
       }
 
-      // -----------------------------
-      // CASE 2: Cut right side
-      // -----------------------------
-      else if (sStart < start && sEnd > start && sEnd <= end) {
-        s.endTime = start;
-        s.duration = Math.floor((start - sStart) / 1000);
+      await Screenshot.deleteMany({
+        user: req.user._id,
+        capturedAt: {
+          $gte: start,
+          $lte: end,
+        },
+      });
 
-        await s.save({ session: mongoSession });
-
-        await updateSessionScreenshotCount(s);
-
-        modifiedCount++;
-      }
-
-      // -----------------------------
-      // CASE 3: Cut left side
-      // -----------------------------
-      else if (sStart >= start && sStart < end && sEnd > end) {
-        s.startTime = end;
-        s.duration = Math.floor((sEnd - end) / 1000);
-
-        await s.save({ session: mongoSession });
-
-        await updateSessionScreenshotCount(s);
-
-        modifiedCount++;
-      }
-
-      // -----------------------------
-      // CASE 4: Split into two
-      // -----------------------------
-      else if (sStart < start && sEnd > end) {
-        const firstPart = {
-          userId: s.userId,
-          startTime: sStart,
-          endTime: start,
-          duration: Math.floor((start - sStart) / 1000),
-          type: s.type,
-          team: s.team,
-          source: s.source,
-          date: new Date(sStart).toISOString().split("T")[0],
-        };
-
-        const secondPart = {
-          userId: s.userId,
-          startTime: end,
-          endTime: sEnd,
-          duration: Math.floor((sEnd - end) / 1000),
-          type: s.type,
-          team: s.team,
-          source: s.source,
-          date: new Date(end).toISOString().split("T")[0],
-        };
-
-        await Session.deleteOne({ _id: s._id }).session(mongoSession);
-
-        const [newFirstSession] = await Session.create([firstPart], {
-          session: mongoSession,
-        });
-
-        const [newSecondSession] = await Session.create([secondPart], {
-          session: mongoSession,
-        });
-
-        await updateSessionScreenshotCount(newFirstSession);
-        await updateSessionScreenshotCount(newSecondSession);
-
-        deletedCount++;
-      }
-    }
-
-    await Screenshot.deleteMany({
-      user: req.user._id,
-      capturedAt: {
-        $gte: start,
-        $lte: end,
-      },
-    }).session(mongoSession);
-
-    const report = await Report.create(
-      [
+      const report = await Report.create([
         {
           user: req.user._id,
           type: "removed-time",
@@ -304,50 +335,64 @@ export const deleteSessionsInRange = async (req, res) => {
           startDate: start.toISOString().split("T")[0],
           endDate: end.toISOString().split("T")[0],
         },
-      ],
-      {
-        session: mongoSession,
-      },
-    );
+      ]);
 
-    const generatedReport = await generateTimeTrackingCSV(
-      report[0]._id,
-      reportRows,
-      "removed-time",
-    );
+      const createdReport = Array.isArray(report) ? report[0] : report;
 
-    report[0].status = "done";
-    report[0].fileUrl = generatedReport.fileUrl;
-    report[0].generatedAt = new Date();
-
-    await report[0].save({
-      session: mongoSession,
+      return {
+        reportId: createdReport?._id || createdReport?.id,
+        reportRows,
+        deletedCount,
+        modifiedCount,
+        workTime,
+        breakTime,
+        screenshots,
+      };
     });
 
-    await mongoSession.commitTransaction();
-    mongoSession.endSession();
+    // POST-COMMIT EXTERNAL SIDE EFFECTS:
+    // Generate CSV export and update report outside and after transaction commit
+    let fileUrl = "";
+    if (txResult.reportId) {
+      try {
+        const generatedReport = await generateTimeTrackingCSV(
+          txResult.reportId,
+          txResult.reportRows,
+          "removed-time",
+        );
+        fileUrl = generatedReport?.fileUrl || "";
+
+        await Report.findByIdAndUpdate(txResult.reportId, {
+          status: "done",
+          fileUrl,
+          generatedAt: new Date(),
+        });
+      } catch (exportErr) {
+        console.error("GENERATE CSV ERROR POST-COMMIT:", exportErr);
+        await Report.findByIdAndUpdate(txResult.reportId, {
+          status: "failed",
+        }).catch(() => {});
+      }
+    }
 
     return res.json({
       message: "Deleted successfully",
-      deletedCount,
-      modifiedCount,
-      workTime,
-      breakTime,
-      screenshots,
+      deletedCount: txResult.deletedCount,
+      modifiedCount: txResult.modifiedCount,
+      workTime: txResult.workTime,
+      breakTime: txResult.breakTime,
+      screenshots: txResult.screenshots,
       report: {
         type: "removed-time",
-        fileUrl: report[0].fileUrl,
-        reportId: report[0]._id,
+        fileUrl,
+        reportId: txResult.reportId,
       },
     });
   } catch (err) {
-    if (mongoSession) {
-      await mongoSession.abortTransaction();
-      mongoSession.endSession();
-    }
-
+    console.error("DELETE SESSIONS IN RANGE ERROR:", err);
     return res.status(500).json({
-      error: err.message,
+      message: "Failed to delete sessions in range",
+      error: "Failed to delete sessions in range",
     });
   }
 };
@@ -380,11 +425,11 @@ export const previewSessionsInRange = async (req, res) => {
     }
 
     // Same logic as delete (IMPORTANT)
-    const sessions = await Session.find({
-      userId: req.user._id,
-      startTime: { $lt: end },
-      endTime: { $gt: start },
-    }).lean();
+    const sessions = await sessionRepository.findOverlappingSessions({
+      userId: req.user._id || req.user.id,
+      periodStart: start,
+      periodEnd: end,
+    });
 
     let workTime = 0;
     let breakTime = 0;
@@ -415,13 +460,16 @@ export const previewSessionsInRange = async (req, res) => {
       sessionsCount: sessions.length,
     });
   } catch (err) {
+    console.error("PREVIEW SESSIONS IN RANGE ERROR:", err);
     return res.status(500).json({
-      error: err.message,
+      message: "Failed to preview sessions in range",
+      error: "Failed to preview sessions in range",
     });
   }
 };
 
 const formatTime = (seconds) => {
+  if (!seconds || isNaN(seconds)) return "00:00";
   const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
 
   const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
@@ -430,14 +478,19 @@ const formatTime = (seconds) => {
 };
 
 const calculateMergedDuration = (sessions) => {
-  if (!sessions.length) return 0;
+  if (!sessions || !sessions.length) return 0;
 
   const intervals = sessions
-    .map((s) => ({
-      start: new Date(s.startTime).getTime(),
-      end: new Date(s.endTime).getTime(),
-    }))
+    .filter((s) => s.startTime)
+    .map((s) => {
+      const start = new Date(s.startTime).getTime();
+      const end = s.endTime ? new Date(s.endTime).getTime() : Date.now();
+      return { start, end: Math.max(start, end) };
+    })
+    .filter((interval) => !isNaN(interval.start) && !isNaN(interval.end))
     .sort((a, b) => a.start - b.start);
+
+  if (!intervals.length) return 0;
 
   const merged = [];
 
@@ -473,8 +526,18 @@ export const getOverviewData = async (req, res) => {
       return res.json([]);
     }
 
+    const orgId = normalizeId(
+      req.user?.organizationId ||
+      req.user?.organization?._id ||
+      req.user?.organization
+    );
+
+    if (!orgId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
     const userQuery = {
-      organization: req.user.organization,
+      organization: orgId,
     };
 
     if (allowedUserIds) {
@@ -483,52 +546,167 @@ export const getOverviewData = async (req, res) => {
       };
     }
 
+    if (req.query.users?.trim()) {
+      const requestedIds = req.query.users.split(",").map((id) => normalizeId(id)).filter(Boolean);
+      if (allowedUserIds) {
+        const allowedSet = new Set(allowedUserIds.map((id) => id.toString()));
+        const permitted = requestedIds.filter((id) => allowedSet.has(id));
+        if (permitted.length === 0) {
+          return res.json([]);
+        }
+        userQuery._id = { $in: permitted };
+      } else {
+        userQuery._id = { $in: requestedIds };
+      }
+    }
+
+    if (req.query.teams?.trim()) {
+      userQuery.team = {
+        $in: req.query.teams.split(",").filter(Boolean),
+      };
+    }
+
     const users = await User.find(userQuery)
       .populate("manager", "firstName lastName email")
       .populate("team", "name")
       .select("-password");
 
-    const overview = await Promise.all(
-      users.map(async (user) => {
-        const query = {
-          userId: user._id,
-        };
+    const userIds = users.map((u) => normalizeId(u._id || u.id)).filter(Boolean);
 
-        if (startDate && endDate) {
-          const timezone = getUserTimezone(user);
+    // Compute timezone bounds per user and overall bounding range for bulk fetching
+    let globalMinStart = null;
+    let globalMaxEnd = null;
+    const userRanges = new Map();
 
-          const { start, end } = getDateRangeUTC(startDate, endDate, timezone);
+    if (startDate && endDate) {
+      for (const user of users) {
+        const uid = normalizeId(user._id || user.id);
+        const tz = getUserTimezone(user, req);
+        const startRange = getZonedDayRange(startDate, tz);
+        const endRange = getZonedDayRange(endDate, tz);
+        userRanges.set(uid, {
+          timezone: tz,
+          periodStart: startRange.start,
+          periodEnd: endRange.end,
+        });
+        if (!globalMinStart || startRange.start < globalMinStart) globalMinStart = startRange.start;
+        if (!globalMaxEnd || endRange.end > globalMaxEnd) globalMaxEnd = endRange.end;
+      }
+    }
 
-          query.startTime = {
-            $gte: start,
-            $lte: end,
-          };
+    // 1. Bulk Sessions Query (replaces N per-user queries with 1 bulk query)
+    let bulkSessions = [];
+    if (userIds.length > 0) {
+      if (globalMinStart && globalMaxEnd) {
+        bulkSessions = await sessionRepository.findOverlappingSessions({
+          userIds,
+          periodStart: globalMinStart,
+          periodEnd: globalMaxEnd,
+        });
+      } else {
+        bulkSessions = await sessionRepository.find({
+          userId: { in: userIds },
+        });
+      }
+    }
+
+    const sessionsByUser = new Map();
+    for (const s of bulkSessions) {
+      const uid = normalizeId(s.userId || s.user);
+      if (!sessionsByUser.has(uid)) sessionsByUser.set(uid, []);
+      sessionsByUser.get(uid).push(s);
+    }
+
+    // 2. Bulk Active Timers Query (replaces N per-user queries with 1 bulk query)
+    let bulkTimers = [];
+    if (userIds.length > 0) {
+      bulkTimers = await timerRepository.find({
+        user: { in: userIds },
+        status: "running",
+      });
+    }
+
+    const activeTimerByUser = new Map();
+    for (const t of bulkTimers) {
+      const uid = normalizeId(t.userId || t.user);
+      if (!activeTimerByUser.has(uid)) activeTimerByUser.set(uid, t);
+    }
+
+    const evalNow = new Date();
+
+    const overview = users.map((user) => {
+      const userId = normalizeId(user._id || user.id);
+      const range = userRanges.get(userId);
+      const periodStart = range?.periodStart || null;
+      const periodEnd = range?.periodEnd || null;
+
+      const userAllSessions = sessionsByUser.get(userId) || [];
+      let sessions;
+      if (periodStart && periodEnd) {
+        sessions = userAllSessions.filter((s) => {
+          const sStart = new Date(s.startTime);
+          const sEnd = s.endTime ? new Date(s.endTime) : null;
+          return sStart < periodEnd && (!sEnd || sEnd > periodStart);
+        });
+      } else {
+        sessions = [...userAllSessions];
+      }
+
+      const activeTimer = activeTimerByUser.get(userId);
+      if (activeTimer?.startTime && !sessions.some((s) => !s.endTime)) {
+        const timerStart = new Date(activeTimer.startTime);
+        if (!periodStart || !periodEnd || timerStart < periodEnd) {
+          sessions.push({
+            userId,
+            startTime: timerStart,
+            endTime: null,
+            type: "work",
+          });
         }
+      }
 
-        const sessions = await Session.find(query);
+        const workSeconds = periodStart && periodEnd
+          ? calculateMergedClippedDuration(
+              sessions,
+              "work",
+              periodStart,
+              periodEnd,
+              evalNow
+            )
+          : calculateMergedDuration(
+              sessions.filter((s) => s.type === "work")
+            );
 
-        const workSeconds = calculateMergedDuration(
-          sessions.filter((s) => s.type === "work"),
-        );
+        const breakSeconds = periodStart && periodEnd
+          ? calculateMergedClippedDuration(
+              sessions,
+              "break",
+              periodStart,
+              periodEnd,
+              evalNow
+            )
+          : calculateMergedDuration(
+              sessions.filter((s) => s.type === "break")
+            );
 
-        const breakSeconds = calculateMergedDuration(
-          sessions.filter((s) => s.type === "break"),
-        );
-
-        const lastSession = sessions.sort(
-          (a, b) => new Date(b.endTime) - new Date(a.endTime),
-        )[0];
+        const lastSession = sessions.length > 0
+          ? [...sessions].sort(
+              (a, b) =>
+                new Date(b.endTime || b.startTime || 0) -
+                new Date(a.endTime || a.startTime || 0)
+            )[0]
+          : null;
 
         return {
-          id: user._id,
+          id: userId,
           date: startDate,
-          name: `${user.firstName} ${user.lastName}`,
+          name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
 
           avatar: getAvatarUrl(user.avatar),
 
           manager: user.manager
             ? {
-                _id: user.manager._id,
+                _id: normalizeId(user.manager._id || user.manager.id),
                 firstName: user.manager.firstName,
                 lastName: user.manager.lastName,
                 email: user.manager.email,
@@ -541,505 +719,792 @@ export const getOverviewData = async (req, res) => {
 
           breakTime: formatTime(breakSeconds),
 
-          status: user.devices?.some(
+          status: (user.devices?.some(
             (device) => device.isOnline === true && device.isTracking === true,
-          )
+          ) || sessions.some((s) => s.type === "work" && !s.endTime) || Boolean(activeTimer?.startTime))
             ? "Tracking running"
             : "Tracking stopped",
 
           lastSync: lastSession
-            ? new Date(lastSession.endTime).toLocaleString()
+            ? new Date(lastSession.endTime || lastSession.startTime).toLocaleString()
             : "--",
         };
-      }),
-    );
+      });
 
     res.json(overview);
   } catch (err) {
-    console.error(err);
+    console.error("GET OVERVIEW ERROR:", err);
 
     res.status(500).json({
-      error: err.message,
+      message: "Failed to fetch overview data",
+      error: "Failed to fetch overview data",
     });
   }
 };
 
+/**
+ * Merges overlapping intervals of the specified session type and computes the
+ * cumulative duration in seconds clipped to [periodStart, periodEnd).
+ *
+ * Active sessions (null/undefined endTime) use evalNow as the upper bound.
+ *
+ * @param {Array} sessions
+ * @param {string} type - 'work' or 'break'
+ * @param {Date} periodStart
+ * @param {Date} periodEnd
+ * @param {Date} evalNow
+ * @returns {number} Non-overlapping clipped duration in integer seconds
+ */
+const calculateMergedClippedDuration = (
+  sessions,
+  type,
+  periodStart,
+  periodEnd,
+  evalNow = new Date()
+) => {
+  if (!Array.isArray(sessions) || sessions.length === 0) {
+    return 0;
+  }
+
+  const matchingSessions = sessions.filter((s) => s && s.type === type);
+  if (matchingSessions.length === 0) {
+    return 0;
+  }
+
+  const intervals = [];
+
+  for (const session of matchingSessions) {
+    const overlap = calculateIntervalOverlap(
+      session,
+      periodStart,
+      periodEnd,
+      evalNow
+    );
+
+    if (
+      overlap &&
+      overlap.overlapSeconds > 0 &&
+      overlap.overlapStart &&
+      overlap.overlapEnd
+    ) {
+      intervals.push({
+        start: overlap.overlapStart.getTime(),
+        end: overlap.overlapEnd.getTime(),
+      });
+    }
+  }
+
+  if (intervals.length === 0) {
+    return 0;
+  }
+
+  intervals.sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const merged = [intervals[0]];
+  for (let i = 1; i < intervals.length; i++) {
+    const current = intervals[i];
+    const last = merged[merged.length - 1];
+
+    if (current.start <= last.end) {
+      if (current.end > last.end) {
+        last.end = current.end;
+      }
+    } else {
+      merged.push(current);
+    }
+  }
+
+  let totalSeconds = 0;
+  for (const interval of merged) {
+    totalSeconds += Math.floor((interval.end - interval.start) / 1000);
+  }
+
+  return totalSeconds;
+};
+
 export const getTodaySummary = async (req, res) => {
   try {
-    const now = new Date();
+    const userId = normalizeId(req.user?._id || req.user?.id);
+    if (!userId) {
+      return res.status(401).json({
+        message: "Not authorized",
+      });
+    }
 
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
+    const evalNow = new Date();
+    const timezone = resolveUserTimezone(req.user, req);
+    const todayDate = getTodayInTimezone(timezone, evalNow);
+    const { start: periodStart, end: periodEnd } = getZonedDayRange(
+      todayDate,
+      timezone
+    );
 
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-    const sessions = await Session.find({
-      userId: req.user._id,
-      startTime: {
-        $gte: todayStart,
-        $lt: tomorrowStart,
-      },
+    const sessions = await sessionRepository.findOverlappingSessions({
+      userId,
+      periodStart,
+      periodEnd,
     });
 
-    const workSeconds = calculateMergedDuration(
-      sessions.filter((s) => s.type === "work"),
+    const activeTimer = await timerRepository.findActiveTimerByUser(userId);
+    if (activeTimer?.startTime && !sessions.some((s) => !s.endTime)) {
+      sessions.push({
+        userId,
+        startTime: new Date(activeTimer.startTime),
+        endTime: null,
+        type: "work",
+      });
+    }
+
+    const workSeconds = calculateMergedClippedDuration(
+      sessions,
+      "work",
+      periodStart,
+      periodEnd,
+      evalNow
     );
 
-    const breakSeconds = calculateMergedDuration(
-      sessions.filter((s) => s.type === "break"),
+    const breakSeconds = calculateMergedClippedDuration(
+      sessions,
+      "break",
+      periodStart,
+      periodEnd,
+      evalNow
     );
 
-    res.json({
+    return res.json({
       workSeconds,
       breakSeconds,
     });
   } catch (err) {
-    console.error(err);
+    console.error("GET TODAY SUMMARY ERROR:", err);
 
-    res.status(500).json({
-      error: err.message,
+    return res.status(500).json({
+      message: "Failed to fetch today summary",
+      error: "Failed to fetch today summary",
     });
   }
 };
 
 export const getWorkTimeStats = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("reportTimezone");
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
+    const userId = normalizeId(req.user?._id || req.user?.id);
+    if (!userId) {
+      return res.status(401).json({
+        message: "Not authorized",
       });
     }
 
-    const userId = user._id;
-    const timezone = getUserTimezone(user);
-    const now = new Date();
+    const evalNow = new Date();
+    const timezone = resolveUserTimezone(req.user, req);
 
     // Today's calendar date in user's timezone
-    const todayDate = getTodayInTimezone(timezone);
-
-    const { start: todayStart } = getDateRangeUTC(
+    const todayDate = getTodayInTimezone(timezone, evalNow);
+    const { start: todayStart, end: todayEnd } = getZonedDayRange(
       todayDate,
-      todayDate,
-      timezone,
+      timezone
     );
 
     // Week starts Sunday
-    const weekDate = new Date(`${todayDate}T00:00:00`);
+    const weekDate = new Date(`${todayDate}T00:00:00Z`);
     weekDate.setUTCDate(weekDate.getUTCDate() - weekDate.getUTCDay());
 
     const weekStartDate = `${weekDate.getUTCFullYear()}-${String(
-      weekDate.getUTCMonth() + 1,
+      weekDate.getUTCMonth() + 1
     ).padStart(2, "0")}-${String(weekDate.getUTCDate()).padStart(2, "0")}`;
 
-    const { start: weekStart } = getDateRangeUTC(
-      weekStartDate,
-      weekStartDate,
-      timezone,
-    );
+    const { start: weekStart } = getZonedDayRange(weekStartDate, timezone);
 
     // First day of current month
     const monthStartDate = `${todayDate.slice(0, 7)}-01`;
+    const { start: monthStart } = getZonedDayRange(monthStartDate, timezone);
 
-    const { start: monthStart } = getDateRangeUTC(
-      monthStartDate,
-      monthStartDate,
-      timezone,
-    );
+    // Overall query range for sessions
+    const periodStart = weekStart < monthStart ? weekStart : monthStart;
+    const periodEnd = todayEnd;
 
-    const sessions = await Session.find({
+    const sessions = await sessionRepository.findOverlappingSessions({
       userId,
+      periodStart,
+      periodEnd,
       type: "work",
-      startTime: {
-        $lt: now,
-      },
-      endTime: {
-        $gt: monthStart,
-      },
     });
 
-    const calculateRangeSeconds = (rangeStart, rangeEnd) => {
-      const rangeSessions = sessions
-        .filter((session) => {
-          const start = new Date(session.startTime);
-          const end = new Date(session.endTime);
+    const activeTimer = await timerRepository.findActiveTimerByUser(userId);
+    if (activeTimer?.startTime && !sessions.some((s) => !s.endTime)) {
+      sessions.push({
+        userId,
+        startTime: new Date(activeTimer.startTime),
+        endTime: null,
+        type: "work",
+      });
+    }
 
-          return start < rangeEnd && end > rangeStart;
-        })
-        .map((session) => {
-          const start = new Date(session.startTime);
-          const end = new Date(session.endTime);
+    const todaySeconds = calculateMergedClippedDuration(
+      sessions,
+      "work",
+      todayStart,
+      todayEnd,
+      evalNow
+    );
 
-          return {
-            startTime: start < rangeStart ? rangeStart : start,
-            endTime: end > rangeEnd ? rangeEnd : end,
-          };
-        });
+    const weekSeconds = calculateMergedClippedDuration(
+      sessions,
+      "work",
+      weekStart,
+      todayEnd,
+      evalNow
+    );
 
-      const merged = mergeSessionIntervals(rangeSessions);
+    const monthSeconds = calculateMergedClippedDuration(
+      sessions,
+      "work",
+      monthStart,
+      todayEnd,
+      evalNow
+    );
 
-      return merged.reduce(
-        (total, interval) => total + (interval.end - interval.start) / 1000,
-        0,
-      );
-    };
-
-    const todaySeconds = calculateRangeSeconds(todayStart, now);
-
-    const weekSeconds = calculateRangeSeconds(weekStart, now);
-
-    const monthSeconds = calculateRangeSeconds(monthStart, now);
-
-    // Calculate average work time per worked day
+    // Calculate average work time per worked day from month start to today
     let workedDays = 0;
     let averageDayTotal = 0;
 
-    const currentDay = new Date(monthStart);
+    const monthStartYear = parseInt(todayDate.slice(0, 4), 10);
+    const monthStartMonth = parseInt(todayDate.slice(5, 7), 10);
+    const todayDayNumber = parseInt(todayDate.slice(8, 10), 10);
 
-    while (currentDay <= now) {
-      const dayStart = new Date(currentDay);
-      dayStart.setHours(0, 0, 0, 0);
+    for (let dayNum = 1; dayNum <= todayDayNumber; dayNum++) {
+      const dayDateStr = `${monthStartYear}-${String(monthStartMonth).padStart(
+        2,
+        "0"
+      )}-${String(dayNum).padStart(2, "0")}`;
 
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
-
-      const effectiveEnd = dayEnd > now ? now : dayEnd;
-
-      const daySeconds = calculateRangeSeconds(dayStart, effectiveEnd);
+      const dayRange = getZonedDayRange(dayDateStr, timezone);
+      const daySeconds = calculateMergedClippedDuration(
+        sessions,
+        "work",
+        dayRange.start,
+        dayRange.end,
+        evalNow
+      );
 
       if (daySeconds > 0) {
         workedDays++;
         averageDayTotal += daySeconds;
       }
-
-      currentDay.setDate(currentDay.getDate() + 1);
     }
 
     const avgDaySeconds =
       workedDays > 0 ? Math.floor(averageDayTotal / workedDays) : 0;
 
-    res.json({
+    return res.json({
       todaySeconds,
       weekSeconds,
       monthSeconds,
       avgDaySeconds,
     });
   } catch (err) {
-    console.error(err);
+    console.error("GET WORK TIME STATS ERROR:", err);
 
-    res.status(500).json({
-      message: err.message,
+    return res.status(500).json({
+      message: "Failed to fetch work time stats",
+      error: "Failed to fetch work time stats",
     });
   }
 };
 
 export const getTodayChartData = async (req, res) => {
   try {
-    const userId = req.user._id;
-
-    const hours = [];
-
-    for (let i = 0; i < 24; i++) {
-      const hour = i % 12 || 12;
-      const period = i < 12 ? "AM" : "PM";
-
-      hours.push({
-        time: `${hour} ${period}`,
-        work: 0,
-        break: 0,
+    const userId = normalizeId(req.user?._id || req.user?.id);
+    if (!userId) {
+      return res.status(401).json({
+        message: "Not authorized",
       });
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const evalNow = new Date();
+    const timezone = resolveUserTimezone(req.user, req);
 
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const todayDate = getTodayInTimezone(timezone, evalNow);
+    const { start: todayStart, end: todayEnd } = getZonedDayRange(
+      todayDate,
+      timezone
+    );
 
-    const sessions = await Session.find({
+    const sessions = await sessionRepository.findOverlappingSessions({
       userId,
-      startTime: {
-        $gte: todayStart,
-        $lt: tomorrowStart,
-      },
+      periodStart: todayStart,
+      periodEnd: todayEnd,
     });
 
-    const sortedSessions = sessions
-      .filter(
-        (session) =>
-          session.startTime &&
-          session.endTime &&
-          new Date(session.endTime) > new Date(session.startTime),
-      )
-      .map((session) => ({
-        start: new Date(session.startTime),
-        end: new Date(session.endTime),
-        type: session.type,
-      }));
-
-    for (let hourIndex = 0; hourIndex < 24; hourIndex++) {
-      const hourStart = new Date(todayStart);
-      hourStart.setHours(hourIndex, 0, 0, 0);
-
-      const hourEnd = new Date(hourStart);
-      hourEnd.setHours(hourIndex + 1, 0, 0, 0);
-
-      const boundaries = new Set([hourStart.getTime(), hourEnd.getTime()]);
-
-      const hourSessions = [];
-
-      for (const session of sortedSessions) {
-        if (session.end <= hourStart || session.start >= hourEnd) {
-          continue;
-        }
-
-        const start = Math.max(session.start.getTime(), hourStart.getTime());
-
-        const end = Math.min(session.end.getTime(), hourEnd.getTime());
-
-        if (end > start) {
-          boundaries.add(start);
-          boundaries.add(end);
-
-          hourSessions.push({
-            start,
-            end,
-            type: session.type,
-          });
-        }
-      }
-
-      const sortedBoundaries = [...boundaries].sort((a, b) => a - b);
-
-      for (let i = 0; i < sortedBoundaries.length - 1; i++) {
-        const segmentStart = sortedBoundaries[i];
-        const segmentEnd = sortedBoundaries[i + 1];
-
-        if (segmentEnd <= segmentStart) continue;
-
-        const activeSessions = hourSessions.filter(
-          (session) => session.start < segmentEnd && session.end > segmentStart,
-        );
-
-        if (!activeSessions.length) continue;
-
-        // Break takes priority if work and break overlap.
-        const hasBreak = activeSessions.some(
-          (session) => session.type === "break",
-        );
-
-        const seconds = (segmentEnd - segmentStart) / 1000;
-
-        if (hasBreak) {
-          hours[hourIndex].break += seconds / 3600;
-        } else {
-          hours[hourIndex].work += seconds / 3600;
-        }
-      }
+    const activeTimer = await timerRepository.findActiveTimerByUser(userId);
+    if (activeTimer?.startTime && !sessions.some((s) => !s.endTime)) {
+      sessions.push({
+        userId,
+        startTime: new Date(activeTimer.startTime),
+        endTime: null,
+        type: "work",
+      });
     }
 
-    hours.forEach((hour) => {
-      hour.work = Number(hour.work.toFixed(2));
-      hour.break = Number(hour.break.toFixed(2));
-    });
+    const hours = [];
+
+    // Calculate tomorrow's date string for the 23:00 -> 24:00 (00:00 next day) boundary
+    const nextDayObj = new Date(`${todayDate}T12:00:00Z`);
+    nextDayObj.setUTCDate(nextDayObj.getUTCDate() + 1);
+    const nextDayDate = `${nextDayObj.getUTCFullYear()}-${String(
+      nextDayObj.getUTCMonth() + 1
+    ).padStart(2, "0")}-${String(nextDayObj.getUTCDate()).padStart(2, "0")}`;
+
+    for (let i = 0; i < 24; i++) {
+      const hourNum = i % 12 || 12;
+      const period = i < 12 ? "AM" : "PM";
+
+      const wallStart = `${todayDate} ${String(i).padStart(2, "0")}:00:00`;
+      const wallEnd =
+        i === 23
+          ? `${nextDayDate} 00:00:00`
+          : `${todayDate} ${String(i + 1).padStart(2, "0")}:00:00`;
+
+      const hourStart = getZonedDateTime(wallStart, timezone);
+      const hourEnd = getZonedDateTime(wallEnd, timezone);
+
+      const workSeconds = calculateMergedClippedDuration(
+        sessions,
+        "work",
+        hourStart,
+        hourEnd,
+        evalNow
+      );
+
+      const breakSeconds = calculateMergedClippedDuration(
+        sessions,
+        "break",
+        hourStart,
+        hourEnd,
+        evalNow
+      );
+
+      hours.push({
+        time: `${hourNum} ${period}`,
+        work: Number((workSeconds / 3600).toFixed(2)),
+        break: Number((breakSeconds / 3600).toFixed(2)),
+      });
+    }
 
     return res.json(hours);
   } catch (err) {
-    console.error(err);
+    console.error("GET TODAY CHART ERROR:", err);
 
-    res.status(500).json({
-      message: err.message,
+    return res.status(500).json({
+      message: "Failed to fetch chart data",
+      error: "Failed to fetch chart data",
     });
   }
 };
 
 export const getLast30DaysChart = async (req, res) => {
   try {
-    const userId = req.user._id;
-
-    const days = [];
-
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date();
-
-      date.setDate(date.getDate() - i);
-
-      days.push({
-        day: date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "2-digit",
-        }),
-        work: 0,
-        break: 0,
-        date: date.toISOString().split("T")[0],
+    const userId = normalizeId(req.user?._id || req.user?.id);
+    if (!userId) {
+      return res.status(401).json({
+        message: "Not authorized",
       });
     }
 
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 29);
-    startDate.setHours(0, 0, 0, 0);
+    const evalNow = new Date();
+    const timezone = resolveUserTimezone(req.user, req);
 
-    const sessions = await Session.find({
-      userId,
-      startTime: {
-        $gte: startDate,
-      },
-    });
+    const todayDate = getTodayInTimezone(timezone, evalNow);
 
-    const validSessions = sessions
-      .filter(
-        (session) =>
-          session.startTime &&
-          session.endTime &&
-          new Date(session.endTime) > new Date(session.startTime),
-      )
-      .map((session) => ({
-        start: new Date(session.startTime),
-        end: new Date(session.endTime),
-        type: session.type,
-      }));
+    // Build the 30 consecutive calendar day strings ending on todayDate
+    const dateStrings = [];
+    const baseDate = new Date(`${todayDate}T12:00:00Z`);
 
-    for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-      const dayDate = new Date(startDate);
-      dayDate.setDate(dayDate.getDate() + dayIndex);
-
-      const dayStart = new Date(dayDate);
-      dayStart.setHours(0, 0, 0, 0);
-
-      const dayEnd = new Date(dayStart);
-      dayEnd.setDate(dayEnd.getDate() + 1);
-
-      const boundaries = new Set([dayStart.getTime(), dayEnd.getTime()]);
-
-      const daySessions = [];
-
-      for (const session of validSessions) {
-        if (session.end <= dayStart || session.start >= dayEnd) {
-          continue;
-        }
-
-        const start = Math.max(session.start.getTime(), dayStart.getTime());
-
-        const end = Math.min(session.end.getTime(), dayEnd.getTime());
-
-        if (end > start) {
-          boundaries.add(start);
-          boundaries.add(end);
-
-          daySessions.push({
-            start,
-            end,
-            type: session.type,
-          });
-        }
-      }
-
-      const sortedBoundaries = [...boundaries].sort((a, b) => a - b);
-
-      for (let i = 0; i < sortedBoundaries.length - 1; i++) {
-        const segmentStart = sortedBoundaries[i];
-        const segmentEnd = sortedBoundaries[i + 1];
-
-        if (segmentEnd <= segmentStart) continue;
-
-        const activeSessions = daySessions.filter(
-          (session) => session.start < segmentEnd && session.end > segmentStart,
-        );
-
-        if (!activeSessions.length) continue;
-
-        // Break takes priority when work and break overlap.
-        const hasBreak = activeSessions.some(
-          (session) => session.type === "break",
-        );
-
-        const seconds = (segmentEnd - segmentStart) / 1000;
-
-        if (hasBreak) {
-          days[dayIndex].break += seconds / 3600;
-        } else {
-          days[dayIndex].work += seconds / 3600;
-        }
-      }
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(baseDate);
+      d.setUTCDate(d.getUTCDate() - i);
+      const dateStr = `${d.getUTCFullYear()}-${String(
+        d.getUTCMonth() + 1
+      ).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      dateStrings.push(dateStr);
     }
 
-    days.forEach((day) => {
-      day.work = Number(day.work.toFixed(2));
-      day.break = Number(day.break.toFixed(2));
+    const { start: periodStart } = getZonedDayRange(dateStrings[0], timezone);
+    const { end: periodEnd } = getZonedDayRange(todayDate, timezone);
 
-      delete day.date;
+    const sessions = await sessionRepository.findOverlappingSessions({
+      userId,
+      periodStart,
+      periodEnd,
+    });
+
+    const activeTimer = await timerRepository.findActiveTimerByUser(userId);
+    if (activeTimer?.startTime && !sessions.some((s) => !s.endTime)) {
+      sessions.push({
+        userId,
+        startTime: new Date(activeTimer.startTime),
+        endTime: null,
+        type: "work",
+      });
+    }
+
+    const days = dateStrings.map((dateStr) => {
+      const { start: dayStart, end: dayEnd } = getZonedDayRange(
+        dateStr,
+        timezone
+      );
+
+      const workSeconds = calculateMergedClippedDuration(
+        sessions,
+        "work",
+        dayStart,
+        dayEnd,
+        evalNow
+      );
+
+      const breakSeconds = calculateMergedClippedDuration(
+        sessions,
+        "break",
+        dayStart,
+        dayEnd,
+        evalNow
+      );
+
+      const dayLabel = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        month: "short",
+        day: "2-digit",
+      }).format(dayStart);
+
+      return {
+        day: dayLabel,
+        work: Number((workSeconds / 3600).toFixed(2)),
+        break: Number((breakSeconds / 3600).toFixed(2)),
+      };
     });
 
     return res.json(days);
   } catch (err) {
-    console.error(err);
+    console.error("GET 30 DAYS CHART ERROR:", err);
 
-    res.status(500).json({
-      message: err.message,
+    return res.status(500).json({
+      message: "Failed to fetch 30 days chart",
+      error: "Failed to fetch 30 days chart",
     });
   }
 };
 
+/**
+ * Resolves a timestamp to a 30-minute bucket key ("H:00" or "H:30") in the target timezone.
+ */
+const getHalfHourBucketKey = (dateValue, timezone) => {
+  const dateObj = new Date(dateValue);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(dateObj);
+
+  const hourPart = parts.find((p) => p.type === "hour")?.value ?? "0";
+  const minutePart = parts.find((p) => p.type === "minute")?.value ?? "0";
+  const hour = parseInt(hourPart, 10);
+  const minute = parseInt(minutePart, 10);
+  return `${hour}:${minute < 30 ? "00" : "30"}`;
+};
+
+/**
+ * Computes the canonical 30-minute bucketed activity percentage matching /api/activity/:userId
+ * and /api/attendance (screenshots take precedence per bucket; fallback uses actions / 30).
+ */
+const computeBucketedActivityPercent = (screenshots, rawActivities, timezone) => {
+  const buckets = {};
+
+  screenshots.forEach((shot) => {
+    const bucketKey = getHalfHourBucketKey(shot.capturedAt, timezone);
+    if (!buckets[bucketKey]) {
+      buckets[bucketKey] = {
+        total: 0,
+        count: 0,
+        hasScreenshot: true,
+      };
+    }
+    buckets[bucketKey].total += shot.activityScore || 0;
+    buckets[bucketKey].count += 1;
+    buckets[bucketKey].hasScreenshot = true;
+  });
+
+  const activityEventsByBucket = {};
+  rawActivities.forEach((act) => {
+    const actTime =
+      act.eventTimestamp ||
+      act.telemetry?.firstObservedAt ||
+      act.telemetry?.measuredStart ||
+      act.createdAt;
+    const bucketKey = getHalfHourBucketKey(actTime, timezone);
+    if (!activityEventsByBucket[bucketKey]) {
+      activityEventsByBucket[bucketKey] = {
+        totalActions: 0,
+        eventCount: 0,
+      };
+    }
+    const actions =
+      (act.keyPresses || 0) + (act.mouseClicks || 0) + (act.mouseMoves || 0);
+    activityEventsByBucket[bucketKey].totalActions += actions;
+    activityEventsByBucket[bucketKey].eventCount += 1;
+  });
+
+  Object.entries(activityEventsByBucket).forEach(([bucketKey, data]) => {
+    if (!buckets[bucketKey]) {
+      buckets[bucketKey] = {
+        total: 0,
+        count: 0,
+      };
+    }
+    if (!buckets[bucketKey].hasScreenshot) {
+      const avgActionsPerEvent = data.totalActions / (data.eventCount || 1);
+      const score = Math.min(Math.round((avgActionsPerEvent / 30) * 100), 100);
+      buckets[bucketKey].total = Math.max(score, data.totalActions > 0 ? 10 : 0);
+      buckets[bucketKey].count = 1;
+    }
+  });
+
+  let activeBucketCount = 0;
+  let activeBucketSum = 0;
+
+  for (let hour = 0; hour < 24; hour++) {
+    for (const minute of [0, 30]) {
+      const bucketKey = `${hour}:${minute === 0 ? "00" : "30"}`;
+      const bucket = buckets[bucketKey];
+      const avgScore =
+        bucket && bucket.count > 0 ? Math.round(bucket.total / bucket.count) : 0;
+      if (avgScore > 0) {
+        activeBucketSum += avgScore;
+        activeBucketCount += 1;
+      }
+    }
+  }
+
+  return activeBucketCount > 0
+    ? Math.round(activeBucketSum / activeBucketCount)
+    : 0;
+};
+
 export const getTodayTaskSummary = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = normalizeId(req.user?._id || req.user?.id);
+    if (!userId) {
+      return res.status(401).json({
+        message: "Not authorized",
+      });
+    }
 
-    const today = new Date().toISOString().split("T")[0];
+    const orgId = normalizeId(
+      req.user?.organizationId ||
+        req.user?.organization?._id ||
+        req.user?.organization
+    );
+
+    const evalNow = new Date();
+    const timezone = resolveUserTimezone(req.user, req);
+
+    const todayDate = getTodayInTimezone(timezone, evalNow);
+    const { start: todayStart, end: todayEnd } = getZonedDayRange(
+      todayDate,
+      timezone
+    );
 
     // 1. Tasks assigned to the user
-    const assignedTasks = await Task.countDocuments({
-      assignedTo: userId,
-      organization: req.user.organization,
-    });
+    let assignedTasks = 0;
+    try {
+      assignedTasks = await taskRepository.countDocuments({
+        assignedTo: userId,
+        organization: orgId,
+      });
+    } catch {
+      assignedTasks = 0;
+    }
 
     // 2. Task tracking for today
-    const taskTracking = await ProjectTracking.find({
-      user: userId,
-      date: today,
-      task: { $ne: null },
-    });
+    let taskTracking = [];
+    try {
+      taskTracking = await projectTrackingRepository.find({
+        user: userId,
+        date: todayDate,
+        task: { $ne: null },
+      });
+    } catch {
+      taskTracking = [];
+    }
 
-    // 3. Distinct tasks actually worked on today
+    // 3. Distinct tasks worked on today
     const workedTaskIds = new Set(
-      taskTracking.map((tracking) => tracking.task.toString()),
+      taskTracking
+        .map(
+          (tracking) =>
+            tracking.task?.toString?.() ||
+            String(tracking.task || tracking.taskId || "")
+        )
+        .filter(Boolean)
     );
 
-    // 4. Total time spent specifically on tasks
-    const taskWorkSeconds = calculateMergedDuration(taskTracking);
+    // Query sessions overlapping today
+    const todaySessions = await sessionRepository.findOverlappingSessions({
+      userId,
+      periodStart: todayStart,
+      periodEnd: todayEnd,
+    });
+
+    const activeTimer = await timerRepository.findActiveTimerByUser(userId);
+    const timerUserId = normalizeId(
+      activeTimer?.user?._id ||
+        activeTimer?.user?.id ||
+        activeTimer?.user ||
+        activeTimer?.userId
+    );
+    const isTimerUserMatch = Boolean(
+      activeTimer && timerUserId && timerUserId === userId
+    );
+    const isTimerRunning =
+      Boolean(activeTimer?.startTime) &&
+      activeTimer?.status === "running" &&
+      isTimerUserMatch;
+
+    const rawActiveTaskId = normalizeId(
+      activeTimer?.task?._id ||
+        activeTimer?.task?.id ||
+        activeTimer?.task ||
+        activeTimer?.taskId
+    );
+
+    let activeTaskId = null;
+    if (rawActiveTaskId && orgId) {
+      const inlineTaskOrgId = normalizeId(
+        activeTimer?.task?.organizationId || activeTimer?.task?.organization
+      );
+      if (inlineTaskOrgId) {
+        if (inlineTaskOrgId === orgId) {
+          activeTaskId = rawActiveTaskId;
+        }
+      } else {
+        try {
+          const verifiedTask = await taskRepository.findOne({
+            _id: rawActiveTaskId,
+            organization: orgId,
+          });
+          if (verifiedTask) {
+            const verifiedOrgId = normalizeId(
+              verifiedTask.organizationId || verifiedTask.organization
+            );
+            if (verifiedOrgId === orgId) {
+              activeTaskId = rawActiveTaskId;
+            }
+          }
+        } catch {
+          activeTaskId = null;
+        }
+      }
+    }
+
+    if (isTimerRunning && !todaySessions.some((s) => !s.endTime)) {
+      if (activeTaskId) {
+        workedTaskIds.add(String(activeTaskId));
+      }
+      todaySessions.push({
+        userId,
+        startTime: new Date(activeTimer.startTime),
+        endTime: null,
+        type: "work",
+        taskId: activeTaskId,
+      });
+    }
+
+    todaySessions.forEach((s) => {
+      if (s.taskId) workedTaskIds.add(String(s.taskId));
+    });
+
+    // 4. Total time spent specifically on tasks (completed + active task timer)
+    const taskIntervals = [...taskTracking];
+    if (isTimerRunning && activeTaskId) {
+      const timerStart = new Date(activeTimer.startTime);
+      if (timerStart < todayEnd && evalNow > todayStart) {
+        const clippedStart = timerStart < todayStart ? todayStart : timerStart;
+        const clippedEnd = evalNow > todayEnd ? todayEnd : evalNow;
+        if (clippedEnd > clippedStart) {
+          taskIntervals.push({
+            startTime: clippedStart,
+            endTime: clippedEnd,
+            taskId: activeTaskId,
+          });
+        }
+      }
+    }
+
+    const taskWorkSeconds = calculateMergedDuration(taskIntervals);
 
     // 5. Break time today
-    const breakSessions = await Session.find({
-      userId,
-      date: today,
-      type: "break",
-    });
-
-    const breakSeconds = calculateMergedDuration(breakSessions);
-
-    // 6. Activity belonging specifically to tasks
-    const taskActivities = await Activity.find({
-      user: userId,
-      date: today,
-      task: { $ne: null },
-    });
-
-    const totalActions = taskActivities.reduce(
-      (total, activity) =>
-        total +
-        (activity.keyPresses || 0) +
-        (activity.mouseClicks || 0) +
-        (activity.mouseMoves || 0),
-      0,
+    const breakSeconds = calculateMergedClippedDuration(
+      todaySessions,
+      "break",
+      todayStart,
+      todayEnd,
+      evalNow
     );
 
-    const averageActions =
-      taskActivities.length > 0 ? totalActions / taskActivities.length : 0;
+    // 6. Overall activity for today (canonical 30-min bucketed score matching /api/activity/:userId)
+    const requestedActivityDate =
+      typeof req.query?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date.trim())
+        ? req.query.date.trim()
+        : todayDate;
+    const { start: activityStart, end: activityEnd } =
+      requestedActivityDate === todayDate
+        ? { start: todayStart, end: todayEnd }
+        : getZonedDayRange(requestedActivityDate, timezone);
 
-    const activityPercent = Math.min(
-      Math.round((averageActions / 50) * 100),
-      100,
+    let screenshots = [];
+    let rawActivities = [];
+    try {
+      [screenshots, rawActivities] = await Promise.all([
+        screenshotRepository.find(
+          {
+            userId,
+            capturedAt: {
+              gte: activityStart,
+              lt: activityEnd,
+            },
+          },
+          { sort: { capturedAt: "asc" } }
+        ),
+        activityRepository.find(
+          {
+            userId,
+            OR: [
+              {
+                eventTimestamp: {
+                  gte: activityStart,
+                  lt: activityEnd,
+                },
+              },
+              {
+                eventTimestamp: null,
+                createdAt: {
+                  gte: activityStart,
+                  lt: activityEnd,
+                },
+              },
+            ],
+          },
+          { sort: [{ eventTimestamp: "asc" }, { createdAt: "asc" }] }
+        ),
+      ]);
+    } catch {
+      screenshots = [];
+      rawActivities = [];
+    }
+
+    const activityPercent = computeBucketedActivityPercent(
+      screenshots,
+      rawActivities,
+      timezone
     );
 
     return res.json({
@@ -1053,7 +1518,8 @@ export const getTodayTaskSummary = async (req, res) => {
     console.error("GET TODAY TASK SUMMARY ERROR:", err);
 
     return res.status(500).json({
-      message: err.message,
+      message: "Failed to fetch today task summary",
+      error: "Failed to fetch today task summary",
     });
   }
 };
