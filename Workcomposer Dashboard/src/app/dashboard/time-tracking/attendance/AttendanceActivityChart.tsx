@@ -14,6 +14,7 @@ import { useTheme } from "@/context/ThemeContext";
 type Props = {
     data: {
         time: string;
+        timestamp?: string;
         value: number;
     }[];
 };
@@ -26,26 +27,39 @@ export default function ActivityChart({
 
     const chartData = [...data];
 
+    const getDynamicBarSize = (count: number) => {
+        if (count <= 20) return 12;
+        if (count <= 45) return 8;
+        if (count <= 90) return 4;
+        if (count <= 160) return 2;
+        return 1;
+    };
+
+    const barSize = getDynamicBarSize(chartData.length);
+    const barCategoryGap =
+        chartData.length > 120 ? 0 : chartData.length > 60 ? "4%" : "15%";
+    const barGap = chartData.length > 120 ? 0 : 1;
+
     const tickInterval =
         chartData.length <= 10
             ? 0
-            : Math.ceil(chartData.length / 8);
+            : Math.max(1, Math.floor(chartData.length / 7));
 
     return (
         <ResponsiveContainer
             width="100%"
-            height={240}
+            height={195}
         >
             <BarChart
                 data={chartData}
                 margin={{
-                    top: 10,
-                    right: 10,
-                    left: 0,
-                    bottom: 10,
+                    top: 8,
+                    right: 8,
+                    left: -10,
+                    bottom: 4,
                 }}
-                barCategoryGap="5%"
-                barGap={0}
+                barCategoryGap={barCategoryGap}
+                barGap={barGap}
             >
 
                 <CartesianGrid
@@ -58,6 +72,7 @@ export default function ActivityChart({
                     dataKey="time"
                     tick={{ fontSize: 12, fill: isDark ? "#94A3B8" : "#64748B" }}
                     interval={tickInterval}
+                    minTickGap={24}
                 />
 
                 <YAxis
@@ -68,8 +83,8 @@ export default function ActivityChart({
                 />
 
                 <Tooltip
-                    formatter={(value) => [`${value}%`, "Activity"]}
-                    labelFormatter={(label) => `${label}`}
+                    formatter={(value) => [`${value ?? 0}%`, "Activity"]}
+                    labelFormatter={(label) => `Time: ${label}`}
                     contentStyle={{
                         backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
                         border: isDark ? "1px solid #22324D" : "1px solid #E5E7EB",
@@ -85,7 +100,8 @@ export default function ActivityChart({
                     dataKey="value"
                     fill="#7C6CF6"
                     radius={[2, 2, 0, 0]}
-                    barSize={8}
+                    barSize={barSize}
+                    maxBarSize={24}
                 />
 
             </BarChart>

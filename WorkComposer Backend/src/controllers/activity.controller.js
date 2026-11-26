@@ -553,6 +553,8 @@ export const getSessionDetails = async (req, res) => {
       });
     }
 
+    const timezone = resolveUserTimezone(targetUser, req);
+
     const durationSeconds = Math.max(0, Math.floor((end - start) / 1000));
     const hours = Math.floor(durationSeconds / 3600);
     const minutes = Math.floor((durationSeconds % 3600) / 60);
@@ -588,7 +590,7 @@ export const getSessionDetails = async (req, res) => {
           lte: end,
         },
       },
-      { sort: { capturedAt: "asc" } }
+      { sort: { capturedAt: "desc" } }
     );
 
     const usageLogs = await UsageLog.find({
@@ -601,127 +603,270 @@ export const getSessionDetails = async (req, res) => {
       },
     });
 
-    const classifications = await AppClassification.find({
-      organization: req.user.organization,
-    });
+    const classifications = callerOrgId
+      ? await AppClassification.find({
+          organization: callerOrgId,
+        })
+      : [];
 
     const classificationMap = {};
 
     classifications.forEach((item) => {
-      classificationMap[item.appName] = item.productivity;
+      const key = item.appName?.trim().toLowerCase();
+      if (key) {
+        classificationMap[key] = item;
+      }
     });
 
-    let productiveSeconds = 0;
-    let neutralSeconds = 0;
-    let unproductiveSeconds = 0;
+    const targetUserTeamId = normalizeId(
+      targetUser.team?._id || targetUser.team?.id || targetUser.team
+    );
+
+    let productiveMs = 0;
+    let neutralMs = 0;
+    let unproductiveMs = 0;
 
     for (const log of usageLogs) {
-      const overlapStart = new Date(Math.max(new Date(log.startTime), start));
+      const appKey = log.appName?.trim().toLowerCase();
+      const classification = appKey ? classificationMap[appKey] : null;
+      const productivity = classification?.productivity || "neutral";
 
-      const overlapEnd = new Date(Math.min(new Date(log.endTime), end));
+      if (productivity === "blacklisted") {
+        continue;
+      }
 
-      const overlapSeconds = Math.max(
-        0,
-        Math.floor((overlapEnd - overlapStart) / 1000),
-      );
+      if (classification) {
+        const excludedUsers = (classification.excludedUsers || [])
+          .map((id) => normalizeId(id))
+          .filter(Boolean);
+        if (excludedUsers.includes(targetUserId)) {
+          continue;
+        }
 
-      const productivity = classificationMap[log.appName] || "neutral";
+        const excludedTeams = (classification.excludedTeams || [])
+          .map((id) => normalizeId(id))
+          .filter(Boolean);
+        if (targetUserTeamId && excludedTeams.includes(targetUserTeamId)) {
+          continue;
+        }
+      }
+
+      const logStartMs = new Date(log.startTime).getTime();
+      const logEndMs = new Date(log.endTime).getTime();
+      if (isNaN(logStartMs) || isNaN(logEndMs)) {
+        continue;
+      }
+
+      const overlapStartMs = Math.max(logStartMs, start.getTime());
+      const overlapEndMs = Math.min(logEndMs, end.getTime());
+      const overlapMs = Math.max(0, overlapEndMs - overlapStartMs);
+
+      if (overlapMs <= 0) {
+        continue;
+      }
 
       if (productivity === "productive") {
-        productiveSeconds += overlapSeconds;
+        productiveMs += overlapMs;
       } else if (productivity === "unproductive") {
-        unproductiveSeconds += overlapSeconds;
+        unproductiveMs += overlapMs;
       } else {
-        neutralSeconds += overlapSeconds;
+        neutralMs += overlapMs;
       }
     }
 
-    const totalTracked =
-      productiveSeconds + neutralSeconds + unproductiveSeconds;
+    const totalTrackedMs = productiveMs + neutralMs + unproductiveMs;
 
-    const productivePercent =
-      totalTracked > 0
-        ? Math.round((productiveSeconds / totalTracked) * 100)
-        : 0;
+    let productivePercent = 0;
+    let neutralPercent = 0;
+    let unproductivePercent = 0;
 
-    const neutralPercent =
-      totalTracked > 0 ? Math.round((neutralSeconds / totalTracked) * 100) : 0;
+    if (totalTrackedMs > 0) {
+      const percentEntries = [
+        { key: "productive", raw: (productiveMs / totalTrackedMs) * 100 },
+        { key: "neutral", raw: (neutralMs / totalTrackedMs) * 100 },
+        { key: "unproductive", raw: (unproductiveMs / totalTrackedMs) * 100 },
+      ].map((entry) => ({
+        ...entry,
+        floor: Math.floor(entry.raw),
+        remainder: entry.raw - Math.floor(entry.raw),
+      }));
 
-    const unproductivePercent =
-      totalTracked > 0
-        ? Math.round((unproductiveSeconds / totalTracked) * 100)
-        : 0;
+      let remainingPercent =
+        100 - percentEntries.reduce((sum, entry) => sum + entry.floor, 0);
+      const sortedByRemainder = [...percentEntries].sort(
+        (a, b) => b.remainder - a.remainder
+      );
 
-    const totalActions = activitiesInRange.reduce(
-      (sum, activity) =>
-        sum +
-        (activity.keyPresses || 0) +
-        (activity.mouseClicks || 0) +
-        (activity.mouseMoves || 0),
-      0,
-    );
+      for (const entry of sortedByRemainder) {
+        if (remainingPercent <= 0) break;
+        entry.floor += 1;
+        remainingPercent -= 1;
+      }
 
-    const averageActions =
-      activitiesInRange.length > 0
-        ? totalActions / activitiesInRange.length
-        : 0;
+      productivePercent = percentEntries[0].floor;
+      neutralPercent = percentEntries[1].floor;
+      unproductivePercent = percentEntries[2].floor;
+    }
 
-    const activityScore = Math.min(
-      Math.round((averageActions / 50) * 100),
-      100,
-    );
+    const startMs = start.getTime();
+    const endMs = end.getTime();
 
-    const idleTime = 100 - activityScore;
+    const bucketMs = 60 * 1000;
+    const anchorMs = Math.floor(startMs / bucketMs) * bucketMs;
+    const maxBuckets = 1440;
+    const rawLastIdx = Math.max(0, Math.floor((endMs - anchorMs) / bucketMs));
+    const numBuckets = Math.max(1, Math.min(rawLastIdx + 1, maxBuckets));
 
-    const grouped = {};
+    const buckets = Array.from({ length: numBuckets }, () => ({
+      shotSum: 0,
+      shotCount: 0,
+      attributedShotSum: 0,
+      attributedShotCount: 0,
+      totalActions: 0,
+      eventCount: 0,
+    }));
+
+    const shotsAsc = [...screenshots]
+      .filter((shot) => shot?.capturedAt && !isNaN(new Date(shot.capturedAt).getTime()))
+      .sort(
+        (a, b) =>
+          new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime()
+      );
+
+    const MAX_SHOT_INTERVAL_MS = 15 * 60 * 1000;
+
+    shotsAsc.forEach((shot, i) => {
+      const shotMs = new Date(shot.capturedAt).getTime();
+      const idx = Math.floor((shotMs - anchorMs) / bucketMs);
+      const score = Math.min(100, Math.max(0, Number(shot.activityScore) || 0));
+
+      if (idx >= 0 && idx < numBuckets) {
+        buckets[idx].shotSum += score;
+        buckets[idx].shotCount += 1;
+      }
+
+      const prevShotMs =
+        i === 0 ? startMs : new Date(shotsAsc[i - 1].capturedAt).getTime();
+      const intervalStartMs = Math.max(
+        startMs,
+        prevShotMs,
+        shotMs - MAX_SHOT_INTERVAL_MS
+      );
+      const intervalEndMs = Math.min(endMs, shotMs);
+
+      if (intervalEndMs >= intervalStartMs) {
+        const startIdx = Math.max(
+          0,
+          Math.floor((intervalStartMs - anchorMs) / bucketMs)
+        );
+        const endIdx = Math.min(
+          numBuckets - 1,
+          Math.floor((intervalEndMs - anchorMs) / bucketMs)
+        );
+        for (let bIdx = startIdx; bIdx <= endIdx; bIdx++) {
+          buckets[bIdx].attributedShotSum += score;
+          buckets[bIdx].attributedShotCount += 1;
+        }
+      }
+    });
 
     activitiesInRange.forEach((activity) => {
-      const actTime = activity.eventTimestamp || activity.telemetry?.firstObservedAt || activity.telemetry?.measuredStart || activity.createdAt;
-      const date = new Date(actTime);
-
-      const time = `${String(date.getHours()).padStart(2, "0")}:${String(
-        date.getMinutes(),
-      ).padStart(2, "0")}`;
-
+      const actTime =
+        activity.eventTimestamp ||
+        activity.telemetry?.firstObservedAt ||
+        activity.telemetry?.measuredStart ||
+        activity.createdAt;
+      if (!actTime) return;
+      const actMs = new Date(actTime).getTime();
+      if (isNaN(actMs)) return;
+      const idx = Math.floor((actMs - anchorMs) / bucketMs);
+      if (idx < 0 || idx >= numBuckets) return;
       const actions =
         (activity.keyPresses || 0) +
         (activity.mouseClicks || 0) +
         (activity.mouseMoves || 0);
-
-      const score = Math.min(Math.round((actions / 50) * 100), 100);
-
-      if (!grouped[time]) {
-        grouped[time] = {
-          total: 0,
-          count: 0,
-        };
-      }
-
-      grouped[time].total += score;
-      grouped[time].count += 1;
+      buckets[idx].totalActions += actions;
+      buckets[idx].eventCount += 1;
     });
 
-    const chartData = [];
+    const formatBucketLabel = (bucketStartMs) => {
+      const dateObj = new Date(bucketStartMs);
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).format(dateObj);
+    };
 
-    const current = new Date(start);
-    const maxBuckets = 1440;
-    let bucketCount = 0;
+    const evaluatedBuckets = buckets.map((bucket, idx) => {
+      const bucketStartMs = anchorMs + idx * bucketMs;
+      let value = 0;
 
-    while (current <= end && bucketCount < maxBuckets) {
-      const key = `${String(current.getHours()).padStart(2, "0")}:${String(
-        current.getMinutes(),
-      ).padStart(2, "0")}`;
+      if (bucket.shotCount > 0) {
+        value = Math.min(
+          100,
+          Math.max(0, Math.round(bucket.shotSum / bucket.shotCount))
+        );
+      } else if (bucket.eventCount > 0) {
+        value =
+          bucket.totalActions > 0
+            ? Math.min(100, Math.round((bucket.totalActions / 50) * 100))
+            : 0;
+      } else if (bucket.attributedShotCount > 0) {
+        value = Math.min(
+          100,
+          Math.max(
+            0,
+            Math.round(bucket.attributedShotSum / bucket.attributedShotCount)
+          )
+        );
+      }
 
-      const bucket = grouped[key];
+      return {
+        time: formatBucketLabel(bucketStartMs),
+        timestamp: new Date(bucketStartMs).toISOString(),
+        value,
+        totalActions: bucket.totalActions,
+      };
+    });
 
-      chartData.push({
-        time: key,
-        value: bucket ? Math.round(bucket.total / bucket.count) : 0,
-      });
-
-      current.setMinutes(current.getMinutes() + 1);
-      bucketCount++;
+    let activityScore = 0;
+    if (screenshots.length > 0) {
+      const totalShotScore = screenshots.reduce(
+        (sum, shot) => sum + Math.min(100, Math.max(0, Number(shot.activityScore) || 0)),
+        0
+      );
+      activityScore = Math.min(
+        100,
+        Math.max(0, Math.round(totalShotScore / screenshots.length))
+      );
+    } else {
+      const activeBuckets = evaluatedBuckets.filter(
+        (b) => b.value > 0 || b.totalActions > 0
+      );
+      activityScore =
+        activeBuckets.length > 0
+          ? Math.min(
+              100,
+              Math.max(
+                0,
+                Math.round(
+                  activeBuckets.reduce((sum, b) => sum + b.value, 0) /
+                    activeBuckets.length
+                )
+              )
+            )
+          : 0;
     }
+
+    const idleTime = Math.max(0, Math.min(100, 100 - activityScore));
+
+    const chartData = evaluatedBuckets.map(({ time, timestamp, value }) => ({
+      time,
+      timestamp,
+      value,
+    }));
 
     return res.json({
       success: true,
@@ -741,6 +886,7 @@ export const getSessionDetails = async (req, res) => {
       startTime,
       endTime,
       workTime,
+      timezone,
     });
   } catch (err) {
     console.error("GET SESSION DETAILS ERROR:", err);

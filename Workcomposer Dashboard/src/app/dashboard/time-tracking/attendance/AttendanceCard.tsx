@@ -79,6 +79,9 @@ export default function AttendanceCard({
     const [detailsData, setDetailsData] =
         useState<any>(null);
 
+    const [detailsTimezone, setDetailsTimezone] =
+        useState<string | undefined>(undefined);
+
     const [showReports, setShowReports] =
         useState(false);
 
@@ -165,7 +168,8 @@ export default function AttendanceCard({
     const openDetailsModal = async (
         userId: string,
         startTime: string,
-        endTime?: string | null
+        endTime?: string | null,
+        modalTimezone?: string
     ) => {
         try {
             const resolvedEndTime = endTime || new Date().toISOString();
@@ -182,6 +186,7 @@ export default function AttendanceCard({
             );
 
             setDetailsData(data);
+            setDetailsTimezone(data?.timezone || modalTimezone || timezone);
 
             setShowDetailsModal(true);
 
@@ -454,7 +459,8 @@ export default function AttendanceCard({
                                                                 openDetailsModal(
                                                                     user._id,
                                                                     segment.startTime,
-                                                                    segment.endTime
+                                                                    segment.segmentEnd || segment.endTime,
+                                                                    userTimezone
                                                                 );
                                                             }}
                                                             style={{
@@ -700,6 +706,7 @@ export default function AttendanceCard({
                 open={showDetailsModal}
                 onClose={() => setShowDetailsModal(false)}
                 detailsData={detailsData}
+                timezone={detailsTimezone}
             />
 
             <ReportsModal
