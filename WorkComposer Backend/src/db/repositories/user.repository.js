@@ -1327,6 +1327,30 @@ export class UserRepository extends BaseRepository {
       const hasNe = val.$ne !== undefined || val.ne !== undefined || val.not !== undefined;
       const hasNin = val.$nin !== undefined || val.nin !== undefined || val.notIn !== undefined;
 
+      if (hasIn && hasNin) {
+        const inRaw = val.$in !== undefined ? val.$in : val.in;
+        const ninRaw = val.$nin !== undefined ? val.$nin : val.nin !== undefined ? val.nin : val.notIn;
+        if (!Array.isArray(inRaw) || !Array.isArray(ninRaw)) {
+          throw new Error(`Invalid array in UserRepository filter: ${fieldName}`);
+        }
+        const inIds = inRaw.map((id) => this.toIdString(id)).filter(Boolean);
+        const ninIds = ninRaw.map((id) => this.toIdString(id)).filter(Boolean);
+        const ninSet = new Set(ninIds);
+        let filteredInIds = inIds.filter((id) => !ninSet.has(id));
+        if (hasNe && allowNegation) {
+          const neRaw = val.$ne !== undefined ? val.$ne : val.ne !== undefined ? val.ne : val.not;
+          if (neRaw !== null) {
+            const excludedId = this.toIdString(neRaw);
+            if (!excludedId) {
+              throw new Error(`Invalid identifier in UserRepository filter for field: ${fieldName}`);
+            }
+            filteredInIds = filteredInIds.filter((id) => id !== excludedId);
+            return { in: filteredInIds, notIn: ninIds, not: excludedId };
+          }
+        }
+        return { in: filteredInIds, notIn: ninIds };
+      }
+
       if (hasIn && hasNe) {
         const inRaw = val.$in !== undefined ? val.$in : val.in;
         if (!Array.isArray(inRaw)) {
@@ -1661,6 +1685,30 @@ export class UserRepository extends BaseRepository {
       const hasIn = val.$in !== undefined || val.in !== undefined;
       const hasNe = val.$ne !== undefined || val.ne !== undefined || val.not !== undefined;
       const hasNin = val.$nin !== undefined || val.nin !== undefined || val.notIn !== undefined;
+
+      if (hasIn && hasNin) {
+        const inRaw = val.$in !== undefined ? val.$in : val.in;
+        const ninRaw = val.$nin !== undefined ? val.$nin : val.nin !== undefined ? val.nin : val.notIn;
+        if (!Array.isArray(inRaw) || !Array.isArray(ninRaw)) {
+          throw new Error(`Invalid array in UserRepository filter: ${fieldName}`);
+        }
+        const inIds = inRaw.map((id) => this.toIdString(id)).filter(Boolean);
+        const ninIds = ninRaw.map((id) => this.toIdString(id)).filter(Boolean);
+        const ninSet = new Set(ninIds);
+        let filteredInIds = inIds.filter((id) => !ninSet.has(id));
+        if (hasNe && allowNegation) {
+          const neRaw = val.$ne !== undefined ? val.$ne : val.ne !== undefined ? val.ne : val.not;
+          if (neRaw !== null) {
+            const excludedId = this.toIdString(neRaw);
+            if (!excludedId) {
+              throw new Error(`Invalid identifier in UserRepository filter for field: ${fieldName}`);
+            }
+            filteredInIds = filteredInIds.filter((id) => id !== excludedId);
+            return { in: filteredInIds, notIn: ninIds, not: excludedId };
+          }
+        }
+        return { in: filteredInIds, notIn: ninIds };
+      }
 
       if (hasIn && hasNe) {
         const inRaw = val.$in !== undefined ? val.$in : val.in;

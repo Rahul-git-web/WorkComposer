@@ -95,7 +95,7 @@ export default function TeamsManagement({
         ) : [];
 
     useEffect(() => {
-        API.get("/users/all-users")
+        API.get("/users/all-users?limit=1000")
             .then((res) => {
                 if (Array.isArray(res.data?.users)) {
                     setAllManagerCandidates(res.data.users);

@@ -18,6 +18,7 @@ interface User {
   avatar?: string;
   role?: string;
   team?: string;
+  status?: string;
   manager?: any;
   managers?: any[];
 
@@ -49,72 +50,95 @@ const UserManager = ({
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
 
-  //  FETCH USERS 
+  const getUserTeamName = useCallback((user: User) => {
+    return (user.team && String(user.team).trim()) || "Default team";
+  }, []);
 
-  const fetchUsers = useCallback(async () => {
+  const syncTeamsFromUsers = useCallback(
+    (nextUserIds: string[], prevTeams: string[], userList: User[]) => {
+      const nextSet = new Set(nextUserIds);
+      const membersByTeam = new Map<string, string[]>();
+
+      for (const u of userList) {
+        const uid = u._id || u.id;
+        if (!uid || uid === userId || u.status === "invited") continue;
+        const teamName = getUserTeamName(u);
+        const list = membersByTeam.get(teamName) || [];
+        list.push(uid);
+        membersByTeam.set(teamName, list);
+      }
+
+      const nextTeams = new Set(prevTeams);
+      for (const [teamName, memberIds] of membersByTeam.entries()) {
+        if (memberIds.length > 0 && memberIds.every((id) => nextSet.has(id))) {
+          nextTeams.add(teamName);
+        } else {
+          nextTeams.delete(teamName);
+        }
+      }
+
+      return Array.from(nextTeams);
+    },
+    [userId, getUserTeamName]
+  );
+
+  // FETCH USERS, TEAMS & ASSIGNMENTS
+
+  const loadModalData = useCallback(async () => {
     try {
       setLoading(true);
 
-      const res = await API.get("/users/all-users");
+      const [usersRes, teamsRes, assignmentsRes] = await Promise.all([
+        API.get("/users/all-users?limit=1000"),
+        API.get("/teams"),
+        API.get(`/users/${userId}/manager-assignments`),
+      ]);
 
-      setUsers(Array.isArray(res.data.users) ? res.data.users : []);
+      const fetchedUsers: User[] = (
+        Array.isArray(usersRes.data?.users) ? usersRes.data.users : []
+      ).filter((u: User) => u.status !== "invited");
 
+      const fetchedTeams = Array.isArray(teamsRes.data) ? teamsRes.data : [];
+
+      const fetchedUserIds: string[] = Array.isArray(assignmentsRes.data?.userIds)
+        ? assignmentsRes.data.userIds.map((id: any) => String(id))
+        : [];
+      const fetchedTeamNames: string[] = Array.isArray(assignmentsRes.data?.teams)
+        ? assignmentsRes.data.teams.filter(Boolean)
+        : [];
+
+      setUsers(fetchedUsers);
+      setTeams(fetchedTeams);
+      setSelectedUsers(fetchedUserIds);
+      setSelectedTeams(
+        syncTeamsFromUsers(fetchedUserIds, fetchedTeamNames, fetchedUsers)
+      );
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to fetch users");
+      toast.error(err?.response?.data?.message || "Failed to load manager data");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  const fetchTeams = useCallback(async () => {
-    try {
-      const res = await API.get("/teams");
-
-      setTeams(Array.isArray(res.data) ? res.data : []);
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err?.response?.data?.message || "Failed to fetch teams");
-    }
-  }, [])
-
-
-  const fetchManagerAssignments = useCallback(async () => {
-    try {
-      const { data } = await API.get(
-        `/users/${userId}/manager-assignments`
-      );
-
-      setSelectedUsers(data.userIds || []);
-      setSelectedTeams(data.teams || []);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to load manager assignments");
-    }
-  }, [userId]);
+  }, [userId, syncTeamsFromUsers]);
 
   useEffect(() => {
-    fetchUsers();
-    fetchTeams();
-    fetchManagerAssignments();
-  }, [fetchUsers, fetchTeams, fetchManagerAssignments]);
+    loadModalData();
+  }, [loadModalData]);
 
-  // FILTER USERS 
+  const assignableUsers = useMemo(() => {
+    return users.filter((user) => {
+      const currentUserId = user._id || user.id;
+      return (
+        Boolean(currentUserId) &&
+        currentUserId !== userId &&
+        user.status !== "invited"
+      );
+    });
+  }, [users, userId]);
 
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
-      // const isManager = user.role?.toLowerCase() === "manager" ||
-      //   user.role?.toLowerCase() === "owner";
-
-      // if (isManager)
-      //   return false;
-
-      const currentUserId = user._id ||
-        (user as any).id;
-
-      if (currentUserId === userId)
-        return false;
-
+    return assignableUsers.filter((user) => {
       const fullName =
-        `${(user as any).firstName || ""} ${(user as any).lastName || ""}`.toLowerCase();
+        `${user.firstName || ""} ${user.lastName || ""}`.toLowerCase();
 
       const matchesSearch =
         fullName.includes(search.toLowerCase()) ||
@@ -123,65 +147,98 @@ const UserManager = ({
       const matchesTeam =
         userTeamFilter === "" ||
         userTeamFilter === "All Teams" ||
-        user.team === userTeamFilter;
+        getUserTeamName(user) === userTeamFilter;
 
       return matchesSearch && matchesTeam;
     });
-  }, [users, search, userTeamFilter, userId]);
+  }, [assignableUsers, search, userTeamFilter, getUserTeamName]);
 
   const handleUserSelect = (id: string) => {
-    setSelectedUsers((prev) =>
-      prev.includes(id) ? prev.filter((userId) =>
-        userId !== id) : [...prev, id]
-    )
-  }
+    const nextUsers = selectedUsers.includes(id)
+      ? selectedUsers.filter((uid) => uid !== id)
+      : [...selectedUsers, id];
+    setSelectedUsers(nextUsers);
+    setSelectedTeams((prevTeams) =>
+      syncTeamsFromUsers(nextUsers, prevTeams, assignableUsers)
+    );
+  };
 
   const handleTeamSelect = (team: string) => {
-    setSelectedTeams((prev) =>
-      prev.includes(team) ? prev.filter((t) => t !== team) : [...prev, team]
-    )
-  }
+    const isCurrentlySelected = selectedTeams.includes(team);
+    const teamMemberIds = assignableUsers
+      .filter((u) => getUserTeamName(u) === team)
+      .map((u) => u._id || u.id || "")
+      .filter(Boolean);
+
+    if (isCurrentlySelected) {
+      const teamMemberSet = new Set(teamMemberIds);
+      setSelectedTeams((prev) => prev.filter((t) => t !== team));
+      setSelectedUsers((prev) => prev.filter((id) => !teamMemberSet.has(id)));
+    } else {
+      setSelectedTeams((prev) => (prev.includes(team) ? prev : [...prev, team]));
+      setSelectedUsers((prev) => [...new Set([...prev, ...teamMemberIds])]);
+    }
+  };
 
   const handleSelectAllUsers = () => {
-    const allIds = filteredUsers.map((u) => u._id || (u as any).id);
+    const filteredIds = filteredUsers
+      .map((u) => u._id || u.id || "")
+      .filter(Boolean);
+    const filteredSet = new Set(filteredIds);
 
-    const allSelected = allIds.every((id) =>
-      selectedUsers.includes(id)
+    const allSelected =
+      filteredIds.length > 0 &&
+      filteredIds.every((id) => selectedUsers.includes(id));
+
+    const nextUsers = allSelected
+      ? selectedUsers.filter((id) => !filteredSet.has(id))
+      : [...new Set([...selectedUsers, ...filteredIds])];
+
+    setSelectedUsers(nextUsers);
+    setSelectedTeams((prevTeams) =>
+      syncTeamsFromUsers(nextUsers, prevTeams, assignableUsers)
     );
-
-    if (allSelected) {
-      setSelectedUsers([]);
-    } else {
-      setSelectedUsers(allIds)
-    }
-  }
+  };
 
   const handleSelectAllTeams = () => {
-    const allTeams = filteredTeams;
+    const visibleTeams = filteredTeams;
+    const allSelected =
+      visibleTeams.length > 0 &&
+      visibleTeams.every((team) => selectedTeams.includes(team));
 
-    const allSelected = allTeams.every((team) =>
-      selectedTeams.includes(team)
-    );
+    const visibleTeamSet = new Set(visibleTeams);
+    const visibleMemberIds = assignableUsers
+      .filter((u) => visibleTeamSet.has(getUserTeamName(u)))
+      .map((u) => u._id || u.id || "")
+      .filter(Boolean);
+    const visibleMemberSet = new Set(visibleMemberIds);
 
     if (allSelected) {
-      setSelectedTeams([]);
+      setSelectedTeams((prev) => prev.filter((t) => !visibleTeamSet.has(t)));
+      setSelectedUsers((prev) => prev.filter((id) => !visibleMemberSet.has(id)));
     } else {
-      setSelectedTeams(allTeams)
+      setSelectedTeams((prev) => [...new Set([...prev, ...visibleTeams])]);
+      setSelectedUsers((prev) => [...new Set([...prev, ...visibleMemberIds])]);
     }
-  }
+  };
 
-  // ASSIGN MANAGER 
+  const handleCloseModal = useCallback(() => {
+    setSearch("");
+    setTeamSearch("");
+    setUserTeamFilter("");
+    onClose();
+  }, [onClose]);
+
+  // ASSIGN MANAGER
 
   const assignUsersToManager = async () => {
     try {
-
       setSaving(true);
 
       await API.put(`/users/${userId}/assign-manager`, {
         userIds: selectedUsers,
         teams: selectedTeams,
-      }
-      );
+      });
 
       toast.success("Users assigned successfully");
 
@@ -189,7 +246,6 @@ const UserManager = ({
       setSelectedTeams([]);
 
       handleCloseModal();
-
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to assign users");
     } finally {
@@ -201,15 +257,14 @@ const UserManager = ({
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         handleCloseModal();
-
       }
-    }
+    };
 
     window.addEventListener("keydown", handleEscape);
     return () => {
       window.removeEventListener("keydown", handleEscape);
-    }
-  }, [])
+    };
+  }, [handleCloseModal]);
 
   const filteredTeams = useMemo(() => {
 
@@ -225,29 +280,6 @@ const UserManager = ({
     );
 
   }, [teams, teamSearch]);
-
-  // LOADING
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-slate-900">
-        <div className="text-lg font-medium text-gray-600 dark:text-slate-300">
-          Loading users...
-        </div>
-      </div>
-    );
-  }
-
-  const handleCloseModal = () => {
-    onClose();
-
-    setSearch("");
-    setTeamSearch("");
-    setUserTeamFilter("");
-
-    fetchUsers();
-  };
-
 
   const getAvatar = (avatar?: string) => {
     return avatar?.trim() ? avatar : "";
@@ -300,6 +332,12 @@ const UserManager = ({
             {/* CONTENT */}
 
             <div className="p-6">
+              {loading ? (
+                <div className="py-12 text-center text-lg font-medium text-gray-600 dark:text-slate-300">
+                  Loading users...
+                </div>
+              ) : (
+                <>
               {/* TABS */}
 
               <div className="border-b border-gray-200 dark:border-slate-700 mb-3">
@@ -623,6 +661,8 @@ const UserManager = ({
                   {saving ? "Saving..." : "Save"}
                 </button>
               </div>
+                </>
+              )}
             </div>
           </div>
         </div>

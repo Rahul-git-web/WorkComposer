@@ -3002,17 +3002,31 @@ export const assignManager = async (req, res) => {
 
       // TEAM USERS
       if (Array.isArray(teams) && teams.length > 0) {
-        const teamDocs = await Team.find({
-          organization: callerOrgId,
-          name: { $in: teams },
-        }).select("_id");
+        const hasDefaultTeam = teams.includes("Default team");
+        const namedTeams = teams.filter((t) => t && t !== "Default team");
+
+        const teamDocs = namedTeams.length > 0
+          ? await Team.find({
+              organization: callerOrgId,
+              name: { $in: namedTeams },
+            }).select("_id")
+          : [];
 
         const teamIds = teamDocs.map((team) => team._id);
+        const teamOrClauses = [];
+        if (teamIds.length > 0) {
+          teamOrClauses.push({ team: { $in: teamIds } });
+        }
+        if (hasDefaultTeam) {
+          teamOrClauses.push({ team: null });
+        }
 
-        const teamUsers = await User.find({
-          organization: callerOrgId,
-          team: { $in: teamIds },
-        }).select("_id");
+        const teamUsers = teamOrClauses.length > 0
+          ? await User.find({
+              organization: callerOrgId,
+              $or: teamOrClauses,
+            }).select("_id")
+          : [];
 
         teamUsers.forEach((u) => {
           const uid = normalizeId(u._id || u.id);
@@ -3098,10 +3112,9 @@ export const assignManager = async (req, res) => {
             {
               manager: managerUser._id,
               organization: callerOrgId,
-              _id: {
-                ...(singleOnlyUnassignIds.length > 0 ? { $in: singleOnlyUnassignIds } : {}),
-                $nin: validUserIds,
-              },
+              _id: singleOnlyUnassignIds.length > 0
+                ? { $in: singleOnlyUnassignIds }
+                : { $nin: validUserIds },
             },
             {
               $unset: {
@@ -3183,7 +3196,7 @@ export const getManagerAssignments = async (req, res) => {
 
     const userIds = users.map((u) => u._id);
 
-    const teams = [...new Set(users.map((u) => u.team?.name).filter(Boolean))];
+    const teams = [...new Set(users.map((u) => u.team?.name || "Default team"))];
 
     res.json({
       userIds,
