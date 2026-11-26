@@ -4,6 +4,8 @@ import Team from "../models/team.model.js";
 import Invite from "../models/invite.model.js";
 import EmailChange from "../models/emailChange.model.js";
 import Organization from "../models/organization.model.js";
+import TimeTrackingSettings from "../models/timeTrackingSettings.model.js";
+import { getIO } from "../socket/socket.js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { Parser } from "json2csv";
@@ -3359,6 +3361,34 @@ const isEqual = (a, b) => {
 
 export const updateUserSetting = async (req, res) => {
   try {
+    const callerUserId = normalizeId(req.user?._id || req.user?.id);
+    const callerOrgId = normalizeId(
+      req.user?.organizationId || req.user?.organization?._id || req.user?.organization?.id || req.user?.organization
+    );
+
+    if (!callerUserId || !callerOrgId) {
+      return res.status(401).json({
+        message: "Not authorized",
+      });
+    }
+
+    const callerRoleDoc = req.user?.roleRef
+      ? await Role.findById(normalizeId(req.user.roleRef))
+      : null;
+    const authContext = resolveEffectiveAuthContext(req.user, callerRoleDoc);
+
+    const canConfigure =
+      authContext.effectiveRoleName === ROLE_NAMES.OWNER ||
+      authContext.effectiveRoleName === ROLE_NAMES.ADMIN ||
+      hasCapability(authContext, "manage_settings") ||
+      hasCapability(authContext, "manage_users");
+
+    if (!canConfigure) {
+      return res.status(403).json({
+        message: "Permission denied",
+      });
+    }
+
     const { id } = req.params;
     const { module, setting, value } = req.body;
 
@@ -3438,7 +3468,7 @@ export const updateUserSetting = async (req, res) => {
 
     const user = await User.findOne({
       _id: id,
-      organization: req.user.organization,
+      organization: callerOrgId,
     });
 
     if (!user) {
@@ -3465,7 +3495,14 @@ export const updateUserSetting = async (req, res) => {
       notifications: "notifications",
     };
 
-    const organization = await Organization.findById(req.user.organization);
+    const timeTrackingModules = new Set([
+      "tracking",
+      "screenCapture",
+      "manualTime",
+      "shift",
+    ]);
+
+    const organization = await Organization.findById(callerOrgId);
 
     if (!organization) {
       return res.status(404).json({
@@ -3481,14 +3518,14 @@ export const updateUserSetting = async (req, res) => {
       });
     }
 
-    let organizationValue = organization[organizationField]?.[setting];
-
-    if (module === "shift" && setting === "schedule") {
+    let organizationValue;
+    if (timeTrackingModules.has(module)) {
       const timeTrackingSettings = await TimeTrackingSettings.findOne({
-        organization: req.user.organization,
+        organization: callerOrgId,
       });
-
-      organizationValue = timeTrackingSettings?.shift?.schedule;
+      organizationValue = timeTrackingSettings?.[organizationField]?.[setting];
+    } else {
+      organizationValue = organization[organizationField]?.[setting];
     }
 
     const previousValue =
@@ -3511,6 +3548,18 @@ export const updateUserSetting = async (req, res) => {
       newValue: value,
       affectedUser: user,
     });
+
+    const targetUserId = normalizeId(user._id || user.id);
+    try {
+      getIO()
+        ?.to(`user:${targetUserId}`)
+        .emit("tracking-settings-updated", {
+          userId: targetUserId,
+          module,
+          setting,
+          settings: user[userField],
+        });
+    } catch {}
 
     res.status(200).json({
       message: "User setting updated successfully",
@@ -3624,6 +3673,17 @@ export const updateUserShiftSettings = async (req, res) => {
     }
 
     await user.save();
+
+    const updatedTargetId = normalizeId(user._id || user.id);
+    try {
+      getIO()
+        ?.to(`user:${updatedTargetId}`)
+        .emit("tracking-settings-updated", {
+          userId: updatedTargetId,
+          module: "shift",
+          shiftSettings: user.shiftSettings,
+        });
+    } catch {}
 
     return res.status(200).json({
       message: "User shift settings updated successfully",

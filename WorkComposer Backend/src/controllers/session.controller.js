@@ -23,6 +23,8 @@ import {
   getZonedDayRange,
   getZonedDateTime,
   calculateIntervalOverlap,
+  isValidTimezone,
+  normalizeTimezone,
 } from "../utils/timezone.js";
 import { getReportUserIds } from "../utils/reportAccess.js";
 import Report from "../models/report.model.js";
@@ -516,6 +518,212 @@ const calculateMergedDuration = (sessions) => {
   );
 };
 
+const shiftCalendarDate = (dateStr, deltaDays) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return dt.toISOString().split("T")[0];
+};
+
+const enumerateCalendarDates = (startDateStr, endDateStr, maxDays = 366) => {
+  const dates = [];
+  let cur = startDateStr;
+  while (cur <= endDateStr && dates.length < maxDays) {
+    dates.push(cur);
+    cur = shiftCalendarDate(cur, 1);
+  }
+  return dates;
+};
+
+const formatShortDayLabel = (dateStr) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+  }).format(dt);
+};
+
+/**
+ * Computes canonical 30-minute bucketed activity telemetry for a user across [rangeStart, rangeEnd),
+ * preserving screenshot precedence per bucket with actions/30 fallback.
+ * Returns null score when no telemetry exists in the window.
+ */
+const computeRangeActivitySummary = ({
+  screenshots,
+  activities,
+  sessions,
+  timezone,
+  startDate,
+  endDate,
+  rangeStart,
+  rangeEnd,
+  evalNow,
+  includeTrend = false,
+}) => {
+  const periodShots = screenshots.filter((shot) => {
+    if (!shot.capturedAt) return false;
+    const d = new Date(shot.capturedAt);
+    return !isNaN(d.getTime()) && d >= rangeStart && d < rangeEnd;
+  });
+
+  const periodActs = activities.filter((act) => {
+    const t =
+      act.eventTimestamp ||
+      act.telemetry?.firstObservedAt ||
+      act.telemetry?.measuredStart ||
+      act.createdAt;
+    if (!t) return false;
+    const d = new Date(t);
+    return !isNaN(d.getTime()) && d >= rangeStart && d < rangeEnd;
+  });
+
+  // Key buckets by `${dateStr}|${halfHourKey}` so multi-day periods never merge distinct days
+  const bucketMap = new Map();
+  const actEventsByBucket = new Map();
+
+  for (const shot of periodShots) {
+    const dateStr = getDateInTimezone(shot.capturedAt, timezone);
+    const halfHour = getHalfHourBucketKey(shot.capturedAt, timezone);
+    const key = `${dateStr}|${halfHour}`;
+    const entry = bucketMap.get(key) || {
+      dateStr,
+      halfHour,
+      total: 0,
+      count: 0,
+      hasScreenshot: true,
+    };
+    entry.total += Number(shot.activityScore) || 0;
+    entry.count += 1;
+    entry.hasScreenshot = true;
+    bucketMap.set(key, entry);
+  }
+
+  for (const act of periodActs) {
+    const actTime =
+      act.eventTimestamp ||
+      act.telemetry?.firstObservedAt ||
+      act.telemetry?.measuredStart ||
+      act.createdAt;
+    const dateStr = getDateInTimezone(actTime, timezone);
+    const halfHour = getHalfHourBucketKey(actTime, timezone);
+    const key = `${dateStr}|${halfHour}`;
+    const entry = actEventsByBucket.get(key) || {
+      dateStr,
+      halfHour,
+      totalActions: 0,
+      eventCount: 0,
+    };
+    entry.totalActions +=
+      (act.keyPresses || 0) + (act.mouseClicks || 0) + (act.mouseMoves || 0);
+    entry.eventCount += 1;
+    actEventsByBucket.set(key, entry);
+  }
+
+  for (const [key, data] of actEventsByBucket.entries()) {
+    const existing = bucketMap.get(key);
+    if (!existing) {
+      const avgActions = data.totalActions / (data.eventCount || 1);
+      const rawScore = Math.min(Math.round((avgActions / 30) * 100), 100);
+      bucketMap.set(key, {
+        dateStr: data.dateStr,
+        halfHour: data.halfHour,
+        total: Math.max(rawScore, data.totalActions > 0 ? 10 : 0),
+        count: 1,
+        hasScreenshot: false,
+      });
+    }
+  }
+
+  let activeCount = 0;
+  let activeSum = 0;
+  const resolvedByKey = new Map();
+  const dailyAccumulator = new Map();
+
+  for (const [key, bucket] of bucketMap.entries()) {
+    const val = bucket.count > 0 ? Math.round(bucket.total / bucket.count) : 0;
+    resolvedByKey.set(key, val);
+    if (val > 0) {
+      activeSum += val;
+      activeCount += 1;
+      const dayStats = dailyAccumulator.get(bucket.dateStr) || { sum: 0, count: 0 };
+      dayStats.sum += val;
+      dayStats.count += 1;
+      dailyAccumulator.set(bucket.dateStr, dayStats);
+    }
+  }
+
+  let activityScore = null;
+  if (bucketMap.size > 0) {
+    activityScore = activeCount > 0 ? Math.round(activeSum / activeCount) : 0;
+  }
+
+  let activityBuckets = [];
+  if (includeTrend && startDate && endDate) {
+    const workSessions = (sessions || []).filter((s) => s.type === "work");
+
+    if (startDate === endDate) {
+      for (let hour = 0; hour < 24; hour++) {
+        for (const minute of [0, 30]) {
+          const hh = String(hour).padStart(2, "0");
+          const mm = minute === 0 ? "00" : "30";
+          const halfHourKey = `${hour}:${mm}`;
+          const label = `${hh}:${mm}`;
+          const fullKey = `${startDate}|${halfHourKey}`;
+          const val = resolvedByKey.get(fullKey) ?? 0;
+
+          const slotStart = getZonedDateTime(`${startDate}T${hh}:${mm}:00.000`, timezone);
+          const slotEnd = new Date(slotStart.getTime() + 30 * 60 * 1000);
+          const hasWorkOverlap = workSessions.some((s) => {
+            const { overlapSeconds } = calculateIntervalOverlap(
+              s,
+              slotStart,
+              slotEnd,
+              evalNow
+            );
+            return overlapSeconds > 0;
+          });
+
+          activityBuckets.push({
+            key: label,
+            label,
+            value: val,
+            tracked: hasWorkOverlap || val > 0 || bucketMap.has(fullKey),
+          });
+        }
+      }
+    } else {
+      const dates = enumerateCalendarDates(startDate, endDate);
+      activityBuckets = dates.map((d) => {
+        const dayRange = getZonedDayRange(d, timezone);
+        const dayStats = dailyAccumulator.get(d);
+        const val =
+          dayStats && dayStats.count > 0
+            ? Math.round(dayStats.sum / dayStats.count)
+            : 0;
+        const hasWorkOverlap = workSessions.some((s) => {
+          const { overlapSeconds } = calculateIntervalOverlap(
+            s,
+            dayRange.start,
+            dayRange.end,
+            evalNow
+          );
+          return overlapSeconds > 0;
+        });
+
+        return {
+          key: d,
+          label: formatShortDayLabel(d),
+          value: val,
+          tracked: hasWorkOverlap || val > 0,
+        };
+      });
+    }
+  }
+
+  return { activityScore, activityBuckets };
+};
+
 export const getOverviewData = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -575,21 +783,44 @@ export const getOverviewData = async (req, res) => {
 
     // Compute timezone bounds per user and overall bounding range for bulk fetching
     let globalMinStart = null;
+    let baselineGlobalMinStart = null;
     let globalMaxEnd = null;
     const userRanges = new Map();
+    const queryTimezone =
+      typeof req.query?.timezone === "string" && isValidTimezone(req.query.timezone)
+        ? normalizeTimezone(req.query.timezone)
+        : null;
 
     if (startDate && endDate) {
+      const rangeDays = Math.max(1, enumerateCalendarDates(startDate, endDate).length);
+      const baselineDays = startDate === endDate ? 7 : rangeDays;
+      const baselineStartDate = shiftCalendarDate(startDate, -baselineDays);
+
       for (const user of users) {
         const uid = normalizeId(user._id || user.id);
-        const tz = getUserTimezone(user, req);
+        let tz = getUserTimezone(user, req);
+        if (
+          queryTimezone &&
+          (!user?.reportTimezone || user.reportTimezone === "Browser timezone") &&
+          !req.headers?.["x-client-timezone"] &&
+          !req.headers?.["X-Client-Timezone"]
+        ) {
+          tz = queryTimezone;
+        }
         const startRange = getZonedDayRange(startDate, tz);
         const endRange = getZonedDayRange(endDate, tz);
+        const baselineStartRange = getZonedDayRange(baselineStartDate, tz);
+
         userRanges.set(uid, {
           timezone: tz,
           periodStart: startRange.start,
           periodEnd: endRange.end,
+          baselineStart: baselineStartRange.start,
         });
         if (!globalMinStart || startRange.start < globalMinStart) globalMinStart = startRange.start;
+        if (!baselineGlobalMinStart || baselineStartRange.start < baselineGlobalMinStart) {
+          baselineGlobalMinStart = baselineStartRange.start;
+        }
         if (!globalMaxEnd || endRange.end > globalMaxEnd) globalMaxEnd = endRange.end;
       }
     }
@@ -632,13 +863,70 @@ export const getOverviewData = async (req, res) => {
       if (!activeTimerByUser.has(uid)) activeTimerByUser.set(uid, t);
     }
 
+    // 3. Bulk Telemetry Queries (Screenshots & Activities across [baselineGlobalMinStart, globalMaxEnd])
+    let bulkScreenshots = [];
+    let bulkActivities = [];
+    const telemetryQueryStart = baselineGlobalMinStart || globalMinStart;
+    if (userIds.length > 0 && telemetryQueryStart && globalMaxEnd) {
+      try {
+        const [shots, acts] = await Promise.all([
+          screenshotRepository.find({
+            userId: { in: userIds },
+            capturedAt: {
+              gte: telemetryQueryStart,
+              lt: globalMaxEnd,
+            },
+          }),
+          activityRepository.find({
+            userId: { $in: userIds },
+            OR: [
+              {
+                eventTimestamp: {
+                  gte: telemetryQueryStart,
+                  lt: globalMaxEnd,
+                },
+              },
+              {
+                eventTimestamp: null,
+                createdAt: {
+                  gte: telemetryQueryStart,
+                  lt: globalMaxEnd,
+                },
+              },
+            ],
+          }),
+        ]);
+        bulkScreenshots = Array.isArray(shots) ? shots : [];
+        bulkActivities = Array.isArray(acts) ? acts : [];
+      } catch {
+        bulkScreenshots = [];
+        bulkActivities = [];
+      }
+    }
+
+    const screenshotsByUser = new Map();
+    for (const shot of bulkScreenshots) {
+      const uid = normalizeId(shot.userId || shot.user);
+      if (!screenshotsByUser.has(uid)) screenshotsByUser.set(uid, []);
+      screenshotsByUser.get(uid).push(shot);
+    }
+
+    const activitiesByUser = new Map();
+    for (const act of bulkActivities) {
+      const uid = normalizeId(act.userId || act.user);
+      if (!activitiesByUser.has(uid)) activitiesByUser.set(uid, []);
+      activitiesByUser.get(uid).push(act);
+    }
+
     const evalNow = new Date();
 
     const overview = users.map((user) => {
       const userId = normalizeId(user._id || user.id);
       const range = userRanges.get(userId);
+      const timezone = range?.timezone || getUserTimezone(user, req);
       const periodStart = range?.periodStart || null;
       const periodEnd = range?.periodEnd || null;
+      const baselineStart = range?.baselineStart || null;
 
       const userAllSessions = sessionsByUser.get(userId) || [];
       let sessions;
@@ -697,6 +985,86 @@ export const getOverviewData = async (req, res) => {
             )[0]
           : null;
 
+        const isTrackingNow =
+          user.devices?.some(
+            (device) => device.isOnline === true && device.isTracking === true,
+          ) ||
+          sessions.some((s) => s.type === "work" && !s.endTime) ||
+          Boolean(activeTimer?.startTime);
+
+        const isOnline = Boolean(
+          user.devices?.some((device) => device.isOnline === true) || isTrackingNow
+        );
+
+        const userShots = screenshotsByUser.get(userId) || [];
+        const userActs = activitiesByUser.get(userId) || [];
+
+        let activityScore = null;
+        let activityDelta = null;
+        let activityBuckets = [];
+
+        if (periodStart && periodEnd && startDate && endDate) {
+          const currentTelemetry = computeRangeActivitySummary({
+            screenshots: userShots,
+            activities: userActs,
+            sessions,
+            timezone,
+            startDate,
+            endDate,
+            rangeStart: periodStart,
+            rangeEnd: periodEnd,
+            evalNow,
+            includeTrend: true,
+          });
+          activityScore = currentTelemetry.activityScore;
+          activityBuckets = currentTelemetry.activityBuckets;
+
+          if (activityScore !== null && baselineStart) {
+            const baselineTelemetry = computeRangeActivitySummary({
+              screenshots: userShots,
+              activities: userActs,
+              sessions: [],
+              timezone,
+              startDate: null,
+              endDate: null,
+              rangeStart: baselineStart,
+              rangeEnd: periodStart,
+              evalNow,
+              includeTrend: false,
+            });
+            if (baselineTelemetry.activityScore !== null) {
+              activityDelta = activityScore - baselineTelemetry.activityScore;
+            }
+          }
+        }
+
+        // Resolve canonical ISO lastSyncAt across devices, telemetry, and sessions
+        const syncCandidates = [];
+        if (Array.isArray(user.devices)) {
+          for (const d of user.devices) {
+            if (d?.lastSync) syncCandidates.push(new Date(d.lastSync).getTime());
+          }
+        }
+        for (const act of userActs) {
+          const t = act.eventTimestamp || act.createdAt;
+          if (t) syncCandidates.push(new Date(t).getTime());
+        }
+        for (const shot of userShots) {
+          if (shot?.capturedAt) syncCandidates.push(new Date(shot.capturedAt).getTime());
+        }
+        if (lastSession) {
+          const t = lastSession.endTime || lastSession.startTime;
+          if (t) syncCandidates.push(new Date(t).getTime());
+        }
+        if (activeTimer?.startTime) {
+          syncCandidates.push(new Date(activeTimer.startTime).getTime());
+        }
+        const validSyncMs = syncCandidates.filter(
+          (ms) => Number.isFinite(ms) && ms > 0 && ms <= evalNow.getTime() + 60000
+        );
+        const lastSyncAt =
+          validSyncMs.length > 0 ? new Date(Math.max(...validSyncMs)).toISOString() : null;
+
         return {
           id: userId,
           date: startDate,
@@ -719,15 +1087,17 @@ export const getOverviewData = async (req, res) => {
 
           breakTime: formatTime(breakSeconds),
 
-          status: (user.devices?.some(
-            (device) => device.isOnline === true && device.isTracking === true,
-          ) || sessions.some((s) => s.type === "work" && !s.endTime) || Boolean(activeTimer?.startTime))
-            ? "Tracking running"
-            : "Tracking stopped",
+          status: isTrackingNow ? "Tracking running" : "Tracking stopped",
 
           lastSync: lastSession
             ? new Date(lastSession.endTime || lastSession.startTime).toLocaleString()
             : "--",
+
+          lastSyncAt,
+          isOnline,
+          activityScore,
+          activityDelta,
+          activityBuckets,
         };
       });
 

@@ -2,6 +2,8 @@ import Subscription from "../models/subscription.model.js";
 import BillingProfile from "../models/billingProfile.model.js";
 import PaymentMethod from "../models/paymentMethod.model.js";
 import Invoice from "../models/invoice.model.js";
+import { STRIPE_PLANS } from "../config/stripePlans.js";
+import { mapStripeSubscriptionStatus } from "../utils/stripeStatusMapper.js";
 import {
   createStripeProduct,
   createStripePrice,
@@ -11,16 +13,40 @@ import {
   updateStripeSubscription,
 } from "../services/stripeSubscription.service.js";
 import { createStripeCheckoutSession } from "../services/stripeCheckout.service.js";
+import {
+  auditBillingProfileUpdated,
+  auditPlanChanged,
+} from "../utils/auditService.js";
 import { syncStripeCheckoutSession } from "../services/stripeCheckoutSync.service.js";
 
 export const getBillingOverview = async (req, res) => {
   try {
-    const organization = req.user.organization;
+    const organization = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!organization) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context.",
+      });
+    }
 
     const [subscription, billingProfile, paymentMethod] = await Promise.all([
-      Subscription.findOne({
-        organization,
-      }),
+      Subscription.findOneAndUpdate(
+        {
+          organization,
+        },
+        {
+          $setOnInsert: {
+            organization,
+            plan: "standard",
+            billingCycle: "monthly",
+            status: "trial",
+            quantity: 1,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+        },
+      ),
 
       BillingProfile.findOneAndUpdate(
         { organization },
@@ -65,11 +91,37 @@ export const getBillingOverview = async (req, res) => {
 
 export const getSubscription = async (req, res) => {
   try {
-    const organization = req.user.organization;
+    const organization = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!organization) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context.",
+      });
+    }
 
-    const subscription = await Subscription.findOne({
+    let subscription = await Subscription.findOne({
       organization,
     });
+
+    if (!subscription) {
+      subscription = await Subscription.findOneAndUpdate(
+        {
+          organization,
+        },
+        {
+          $setOnInsert: {
+            organization,
+            plan: "standard",
+            billingCycle: "monthly",
+            status: "trial",
+            quantity: 1,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
+        },
+      );
+    }
 
     return res.status(200).json(subscription);
   } catch (error) {
@@ -83,7 +135,12 @@ export const getSubscription = async (req, res) => {
 
 export const getInvoices = async (req, res) => {
   try {
-    const organization = req.user.organization;
+    const organization = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!organization) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context.",
+      });
+    }
 
     const invoices = await Invoice.find({
       organization,
@@ -105,7 +162,12 @@ export const getInvoices = async (req, res) => {
 
 export const updateBillingProfile = async (req, res) => {
   try {
-    const organization = req.user.organization;
+    const organization = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!organization) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context.",
+      });
+    }
 
     const {
       companyName,
@@ -156,14 +218,24 @@ export const updateBillingProfile = async (req, res) => {
 
 export const createCheckoutSession = async (req, res) => {
   try {
-
-    const organizationId = req.user.organization?._id || req.user.organization;
+    const organizationId = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!organizationId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context.",
+      });
+    }
 
     const { plan, billingCycle } = req.body || {};
 
     if (!plan || !billingCycle) {
       return res.status(400).json({
         message: "Plan and billing cycle are required.",
+      });
+    }
+
+    if (!STRIPE_PLANS[plan] || !STRIPE_PLANS[plan][billingCycle]) {
+      return res.status(400).json({
+        message: `Invalid plan (${plan}) or billing cycle (${billingCycle}).`,
       });
     }
 
@@ -179,17 +251,22 @@ export const createCheckoutSession = async (req, res) => {
     });
   } catch (error) {
     console.error("STRIPE CHECKOUT ERROR:", error);
-
-    return res.status(500).json({
-      message: "Failed to create Stripe Checkout session.",
-      error: error.message,
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      message: error.message || "Failed to create Stripe Checkout session.",
+      error: error.message || "Failed to create Stripe Checkout session.",
     });
   }
 };
 
 export const syncCheckoutSession = async (req, res) => {
   try {
-    const organizationId = req.user.organization?._id || req.user.organization;
+    const organizationId = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!organizationId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context.",
+      });
+    }
 
     const { sessionId } = req.body || {};
 
@@ -210,17 +287,22 @@ export const syncCheckoutSession = async (req, res) => {
     });
   } catch (error) {
     console.error("STRIPE CHECKOUT SYNC ERROR:", error);
-
-    return res.status(500).json({
-      message: "Failed to sync Stripe Checkout session.",
-      error: error.message,
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      message: error.message || "Failed to sync Stripe Checkout session.",
+      error: error.message || "Failed to sync Stripe Checkout session.",
     });
   }
 };
 
 export const changeStripePlan = async (req, res) => {
   try {
-    const organizationId = req.user.organization?._id || req.user.organization;
+    const organizationId = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!organizationId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context.",
+      });
+    }
 
     const { plan, billingCycle } = req.body || {};
 
@@ -233,6 +315,12 @@ export const changeStripePlan = async (req, res) => {
     if (!billingCycle) {
       return res.status(400).json({
         message: "Billing cycle is required.",
+      });
+    }
+
+    if (!STRIPE_PLANS[plan] || !STRIPE_PLANS[plan][billingCycle]) {
+      return res.status(400).json({
+        message: `Invalid plan (${plan}) or billing cycle (${billingCycle}).`,
       });
     }
 
@@ -255,35 +343,37 @@ export const changeStripePlan = async (req, res) => {
 
     const result = await updateStripeSubscription({
       stripeSubscriptionId: currentSubscription.stripeSubscriptionId,
-
       organizationId,
-
       plan,
-
       billingCycle,
     });
 
-    // Update MongoDB
-    currentSubscription.plan = plan;
-    currentSubscription.billingCycle = billingCycle;
-    currentSubscription.quantity = result.quantity;
-    currentSubscription.stripePriceId = result.priceId;
-    currentSubscription.status = result.subscription.status;
+    const mappedStatus = mapStripeSubscriptionStatus(result.subscription.status);
 
-    await currentSubscription.save();
+    const updatedSubscription = await Subscription.findOneAndUpdate(
+      { organization: organizationId },
+      {
+        $set: {
+          plan,
+          billingCycle,
+          quantity: result.quantity,
+          stripePriceId: result.priceId,
+          status: mappedStatus,
+        },
+      },
+      { new: true }
+    );
 
     return res.status(200).json({
       message: "Stripe subscription plan updated successfully.",
-
-      subscription: currentSubscription,
+      subscription: updatedSubscription,
     });
   } catch (error) {
     console.error("STRIPE PLAN CHANGE ERROR:", error);
-
-    return res.status(500).json({
-      message: "Failed to change Stripe subscription plan.",
-
-      error: error.message,
+    const statusCode = error.statusCode || 500;
+    return res.status(statusCode).json({
+      message: error.message || "Failed to change Stripe subscription plan.",
+      error: error.message || "Failed to change Stripe subscription plan.",
     });
   }
 };

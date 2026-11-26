@@ -2,7 +2,7 @@
 
 import { useDesktop } from "@/context/DesktopContext";
 
-import SecurityLayout from "@/app/dashboard/settings/account/security/layout";
+import SecurityLayoutView from "@/app/dashboard/settings/account/security/SecurityLayoutView";
 
 import TwoFactorPage from "@/app/dashboard/settings/account/security/two-factor/page";
 import AppUpdatePage from "@/app/dashboard/settings/account/security/app-update/page";
@@ -22,7 +22,7 @@ export default function SecurityModule() {
     };
 
     return (
-        <SecurityLayout
+        <SecurityLayoutView
             desktop
             activeSecurityTab={activeSecurityTab}
             setActiveSecurityTab={setActiveSecurityTab}
@@ -30,6 +30,6 @@ export default function SecurityModule() {
             {pages[
                 activeSecurityTab as keyof typeof pages
             ]}
-        </SecurityLayout>
+        </SecurityLayoutView>
     );
 }

@@ -12,7 +12,7 @@ export default function ToggleSettingRow({
             onClick={() => onChange(!checked)}
             className={`relative h-8 w-14 rounded-full transition ${checked
                     ? "bg-indigo-600"
-                    : "bg-gray-300"
+                    : "bg-gray-300 dark:bg-gray-700"
                 }`}
         >
             <span

@@ -30,4 +30,9 @@ const sessionSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-export default mongoose.model("Session", sessionSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { sessionRepository } from "../db/repositories/session.repository.js";
+
+const _Model = mongoose.model("Session", sessionSchema);
+export default createModelProxy(_Model, () => sessionRepository);

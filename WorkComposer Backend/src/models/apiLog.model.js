@@ -50,4 +50,9 @@ const apiLogSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("ApiLog", apiLogSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { apiLogRepository } from "../db/repositories/apiLog.repository.js";
+
+const _Model = mongoose.model("ApiLog", apiLogSchema);
+export default createModelProxy(_Model, () => apiLogRepository);

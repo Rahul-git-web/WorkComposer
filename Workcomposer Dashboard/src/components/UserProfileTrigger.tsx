@@ -1,24 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import API from "@/api";
 import UserProfileModal from "@/components/UserProfilemodal";
 import { mapUserToProfileData } from "@/utils/mapUserToProfileData";
+import toast from "react-hot-toast";
 
 type Props = {
     user: any;
     children: React.ReactNode;
     className?: string;
+    trackingStatus?: string;
 };
 
 export default function UserProfileTrigger({
     user,
     children,
     className = "",
+    trackingStatus,
 }: Props) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [profileUser, setProfileUser] = useState<any>(null);
+    const activeRequestIdRef = useRef<number>(0);
 
     if (!user) {
         return <>{children}</>;
@@ -29,6 +33,8 @@ export default function UserProfileTrigger({
     const handleOpenProfile = async () => {
         if (!userId || loading) return;
 
+        const requestId = ++activeRequestIdRef.current;
+
         // Open immediately so there is no delayed mount/flicker.
         setOpen(true);
         setLoading(true);
@@ -38,23 +44,44 @@ export default function UserProfileTrigger({
                 `/users/profile/${userId}`
             );
 
-            setProfileUser(data);
+            // Guard against late out-of-order responses
+            if (requestId === activeRequestIdRef.current) {
+                setProfileUser(data);
+            }
         } catch (error: any) {
-            console.error(
-                "FAILED TO FETCH USER PROFILE:",
-                error?.response?.data || error
-            );
+            if (requestId === activeRequestIdRef.current) {
+                setOpen(false);
+                setProfileUser(null);
 
-            // Close if profile couldn't be loaded.
-            setOpen(false);
+                // Informative, non-intrusive feedback for permission-denied errors
+                if (error?.response?.status === 403) {
+                    const message =
+                        error?.response?.data?.message ||
+                        "You do not have permission to view this profile.";
+                    toast.error(message);
+                } else if (error?.response?.status === 404) {
+                    toast.error("User profile not found.");
+                } else {
+                    console.error(
+                        "FAILED TO FETCH USER PROFILE:",
+                        error?.response?.data || error
+                    );
+                    toast.error("Failed to load user profile.");
+                }
+            }
         } finally {
-            setLoading(false);
+            if (requestId === activeRequestIdRef.current) {
+                setLoading(false);
+            }
         }
     };
 
     const handleClose = () => {
+        // Increment requestId to cancel any in-flight response from applying
+        activeRequestIdRef.current++;
         setOpen(false);
         setProfileUser(null);
+        setLoading(false);
     };
 
     return (
@@ -63,8 +90,7 @@ export default function UserProfileTrigger({
                 type="button"
                 onClick={handleOpenProfile}
                 disabled={loading}
-                className={`${className} ${loading ? "cursor-wait" : ""
-                    }`}
+                className={`${className} ${loading ? "cursor-wait" : ""}`}
                 title="View profile"
             >
                 {children}
@@ -72,14 +98,11 @@ export default function UserProfileTrigger({
 
             <UserProfileModal
                 open={open}
-                onClose={() => {
-                    setOpen(false);
-                    setProfileUser(null);
-                }}
+                onClose={handleClose}
                 loading={loading}
                 user={
                     profileUser
-                        ? mapUserToProfileData(profileUser)
+                        ? mapUserToProfileData(profileUser, trackingStatus)
                         : undefined
                 }
             />

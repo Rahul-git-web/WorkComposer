@@ -1,5 +1,6 @@
 import Task from "../models/task.model.js";
 import User from "../models/user.model.js";
+import Role from "../models/role.model.js";
 import { getAvatarUrl } from "../utils/avatar.js";
 import Integration from "../models/integration.model.js";
 import Project from "../models/project.model.js";
@@ -10,34 +11,78 @@ import {
   notifyTaskAssigned,
   notifyTaskEvents,
 } from "../services/notification.service.js";
-import { hasPermission } from "../middleware/permission.middleware.js";
+import {
+  resolveEffectiveAuthContext,
+  normalizeId,
+} from "../security/effectiveAuthContext.js";
 import axios from "axios";
+import { runTransaction } from "../db/transaction.js";
+import {
+  auditTaskCreated,
+  auditTaskUpdated,
+  auditTaskDeleted,
+  auditTaskRestored,
+} from "../utils/auditService.js";
 
-const getTaskAccessScope = async (req, canManageTasks) => {
-  const organizationId = req.user.organization?._id || req.user.organization;
+export const resolveTaskAuth = async (req) => {
+  const callerOrgId = normalizeId(
+    req.user?.organizationId || req.user?.organization?._id || req.user?.organization
+  );
+  const callerUserId = normalizeId(req.user?._id || req.user?.id);
 
-  // Owner and users with manage_tasks:
-  // Admins get organization-wide access.
-  // Managers are restricted to themselves + managed users.
-  if (canManageTasks) {
-    if (req.user.role !== "manager") {
-      return {
-        organization: organizationId,
-      };
-    }
+  if (!callerOrgId || !callerUserId) {
+    return {
+      authenticated: false,
+      authContext: null,
+      callerOrgId: null,
+      callerUserId: null,
+      canManageTasks: false,
+      effectiveRoleName: null,
+    };
+  }
+
+  const callerRoleDoc = req.user?.roleRef
+    ? await Role.findById(normalizeId(req.user.roleRef))
+    : null;
+
+  const authContext = resolveEffectiveAuthContext(req.user, callerRoleDoc);
+  const canManageTasks =
+    authContext.effectiveRoleName === "owner" ||
+    authContext.effectivePermissions.has("manage_tasks");
+
+  return {
+    authenticated: true,
+    authContext,
+    callerOrgId,
+    callerUserId,
+    canManageTasks,
+    effectiveRoleName: authContext.effectiveRoleName,
+  };
+};
+
+const getTaskAccessScope = async (req, auth) => {
+  const organizationId = auth.callerOrgId;
+  const callerUserId = auth.callerUserId;
+  const effectiveRole = auth.effectiveRoleName;
+
+  // Owner and non-manager users with manage_tasks get organization-wide access.
+  if (auth.canManageTasks && effectiveRole !== "manager") {
+    return {
+      organization: organizationId,
+    };
   }
 
   // Manager: own tasks + tasks assigned to users they manage
-  if (req.user.role === "manager") {
+  if (effectiveRole === "manager") {
     const managedUsers = await User.find(
       {
         organization: organizationId,
-        manager: req.user._id,
+        manager: callerUserId,
       },
       "_id",
     );
 
-    const userIds = [req.user._id, ...managedUsers.map((user) => user._id)];
+    const userIds = [callerUserId, ...managedUsers.map((user) => normalizeId(user._id || user.id))];
 
     return {
       organization: organizationId,
@@ -50,18 +95,33 @@ const getTaskAccessScope = async (req, canManageTasks) => {
   // Normal user: only their own tasks
   return {
     organization: organizationId,
-    assignedTo: req.user._id,
+    assignedTo: callerUserId,
   };
 };
 
 // CREATE TASK
 export const createTask = async (req, res) => {
   try {
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing authentication context",
+      });
+    }
 
-    if (!canManageTasks) {
+    if (!auth.canManageTasks) {
       return res.status(403).json({
         message: "You do not have permission to create tasks.",
+      });
+    }
+
+    // Tenant boundary: client-supplied organizationId or organization must match callerOrgId if provided
+    if (
+      (req.body?.organizationId && normalizeId(req.body.organizationId) !== auth.callerOrgId) ||
+      (req.body?.organization && normalizeId(req.body.organization) !== auth.callerOrgId)
+    ) {
+      return res.status(404).json({
+        message: "Organization not found",
       });
     }
 
@@ -75,7 +135,13 @@ export const createTask = async (req, res) => {
       project,
     } = req.body;
 
-    const projectDoc = await Project.findById(project);
+    const targetProjectId = normalizeId(project);
+    const projectDoc = targetProjectId
+      ? await Project.findOne({
+          _id: targetProjectId,
+          organization: auth.callerOrgId,
+        })
+      : null;
 
     if (!projectDoc) {
       return res.status(404).json({
@@ -83,68 +149,106 @@ export const createTask = async (req, res) => {
       });
     }
 
+    // Assignee validation & tenant boundary
+    let assignedUser = null;
+    let normalizedAssignedTo = null;
+    if (assignedTo !== undefined && assignedTo !== null && assignedTo !== "") {
+      const targetAssigneeId = Array.isArray(assignedTo)
+        ? normalizeId(assignedTo[0])
+        : normalizeId(assignedTo);
+
+      if (targetAssigneeId) {
+        assignedUser = await User.findOne({
+          _id: targetAssigneeId,
+          organization: auth.callerOrgId,
+        }).select("_id firstName lastName manager asanaAccountId");
+
+        if (!assignedUser) {
+          return res.status(404).json({
+            message: "Assigned user not found.",
+          });
+        }
+
+        if (auth.effectiveRoleName === "manager") {
+          const canAssign =
+            assignedUser._id.toString() === auth.callerUserId ||
+            assignedUser.manager?.toString() === auth.callerUserId;
+
+          if (!canAssign) {
+            return res.status(403).json({
+              message:
+                "Managers can only assign tasks to themselves or users they manage.",
+            });
+          }
+        }
+
+        normalizedAssignedTo = assignedUser._id;
+      }
+    }
+
     let provider = "local";
     let jiraIssueId = null;
     let jiraIssueKey = null;
-
     let asanaTaskId = null;
 
     if (projectDoc.provider === "jira") {
       const integration = await Integration.findOne({
-        organization: req.user.organization,
+        organization: auth.callerOrgId,
         provider: "jira",
         connected: true,
       });
 
-      if (new Date() >= integration.expiresAt) {
-        await refreshJiraToken(integration);
+      if (integration) {
+        if (new Date() >= integration.expiresAt) {
+          await refreshJiraToken(integration);
+        }
+
+        const { data } = await axios.post(
+          `https://api.atlassian.com/ex/jira/${integration.cloudId}/rest/api/3/issue`,
+          {
+            fields: {
+              project: {
+                key: projectDoc.jiraProjectKey,
+              },
+              summary: title,
+              description: {
+                type: "doc",
+                version: 1,
+                content: [
+                  {
+                    type: "paragraph",
+                    content: [
+                      {
+                        type: "text",
+                        text: description || "",
+                      },
+                    ],
+                  },
+                ],
+              },
+              issuetype: {
+                name: "Task",
+              },
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${integration.accessToken}`,
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        provider = "jira";
+        jiraIssueId = data.id;
+        jiraIssueKey = data.key;
       }
-
-      const { data } = await axios.post(
-        `https://api.atlassian.com/ex/jira/${integration.cloudId}/rest/api/3/issue`,
-        {
-          fields: {
-            project: {
-              key: projectDoc.jiraProjectKey,
-            },
-            summary: title,
-            description: {
-              type: "doc",
-              version: 1,
-              content: [
-                {
-                  type: "paragraph",
-                  content: [
-                    {
-                      type: "text",
-                      text: description || "",
-                    },
-                  ],
-                },
-              ],
-            },
-            issuetype: {
-              name: "Task",
-            },
-          },
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${integration.accessToken}`,
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-      provider = "jira";
-      jiraIssueId = data.id;
-      jiraIssueKey = data.key;
     }
 
     if (projectDoc.provider === "asana") {
       const integration = await Integration.findOne({
-        organization: req.user.organization,
+        organization: auth.callerOrgId,
         provider: "asana",
         connected: true,
       });
@@ -160,13 +264,8 @@ export const createTask = async (req, res) => {
       }
 
       let assignee = null;
-
-      if (assignedTo) {
-        const assignedUser = await User.findById(assignedTo);
-
-        if (assignedUser?.asanaAccountId) {
-          assignee = assignedUser.asanaAccountId;
-        }
+      if (assignedUser?.asanaAccountId) {
+        assignee = assignedUser.asanaAccountId;
       }
 
       const { data } = await axios.post(
@@ -176,11 +275,9 @@ export const createTask = async (req, res) => {
             name: title,
             notes: description || "",
             projects: [projectDoc.asanaProjectId],
-
             due_on: dueDate
               ? new Date(dueDate).toISOString().split("T")[0]
               : undefined,
-
             assignee,
           },
         },
@@ -196,31 +293,29 @@ export const createTask = async (req, res) => {
       asanaTaskId = data.data.gid;
     }
 
+    // STRICT SERVER-OWNED ATTRIBUTE DERIVATION
     const task = await Task.create({
       title,
       description,
       priority,
       status,
-      assignedTo,
+      assignedTo: normalizedAssignedTo,
       dueDate,
       project,
 
       provider,
       jiraIssueId,
       jiraIssueKey,
-
       asanaTaskId,
 
-      assignedBy: req.user._id,
-      organization: req.user.organization,
+      assignedBy: auth.callerUserId,
+      organization: auth.callerOrgId,
     });
 
-    if (assignedTo) {
-      const assignedUser = await User.findById(assignedTo);
-
+    if (assignedUser) {
       await notifyTaskAssigned({
         taskId: task._id.toString(),
-        organizationId: req.user.organization,
+        organizationId: auth.callerOrgId,
         assignedToId: assignedUser._id,
         title: task.title,
         project: projectDoc.name,
@@ -228,7 +323,7 @@ export const createTask = async (req, res) => {
         priority: task.priority,
         status: task.status,
         dueDate: task.dueDate,
-        createdBy: `${req.user.firstName} ${req.user.lastName}`,
+        createdBy: `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || "User",
       });
     }
 
@@ -239,7 +334,8 @@ export const createTask = async (req, res) => {
     console.error(err.response?.status);
 
     return res.status(500).json({
-      message: err.response?.data || err.message,
+      message: "Failed to create task",
+      error: "Failed to create task",
     });
   }
 };
@@ -247,10 +343,14 @@ export const createTask = async (req, res) => {
 // GET TASK
 export const getTasks = async (req, res) => {
   try {
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
+    const scope = await getTaskAccessScope(req, auth);
     const query = {
-      ...(await getTaskAccessScope(req, canManageTasks)),
+      ...scope,
       deleted: false,
     };
 
@@ -260,7 +360,7 @@ export const getTasks = async (req, res) => {
       .sort({ createdAt: -1 });
 
     const formattedTasks = tasks.map((task) => {
-      const obj = task.toObject();
+      const obj = task.toObject ? task.toObject() : { ...task };
 
       if (obj.assignedTo) {
         obj.assignedTo.avatar = getAvatarUrl(obj.assignedTo.avatar);
@@ -274,7 +374,8 @@ export const getTasks = async (req, res) => {
     console.error(err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to fetch tasks",
+      error: "Failed to fetch tasks",
     });
   }
 };
@@ -282,9 +383,12 @@ export const getTasks = async (req, res) => {
 // GET RECENTLY DELETED TASKS
 export const getRecentlyDeletedTasks = async (req, res) => {
   try {
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    const scope = await getTaskAccessScope(req, canManageTasks);
+    const scope = await getTaskAccessScope(req, auth);
 
     const tasks = await Task.find({
       ...scope,
@@ -296,7 +400,7 @@ export const getRecentlyDeletedTasks = async (req, res) => {
       .sort({ deletedAt: -1 });
 
     const formattedTasks = tasks.map((task) => {
-      const obj = task.toObject();
+      const obj = task.toObject ? task.toObject() : { ...task };
 
       if (obj.assignedTo) {
         obj.assignedTo.avatar = getAvatarUrl(obj.assignedTo.avatar);
@@ -310,7 +414,8 @@ export const getRecentlyDeletedTasks = async (req, res) => {
     console.error("GET RECENTLY DELETED TASKS ERROR:", err);
 
     return res.status(500).json({
-      message: err.message,
+      message: "Failed to fetch deleted tasks",
+      error: "Failed to fetch deleted tasks",
     });
   }
 };
@@ -318,17 +423,22 @@ export const getRecentlyDeletedTasks = async (req, res) => {
 // RESTORE DELETED TASK
 export const restoreTask = async (req, res) => {
   try {
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    if (!canManageTasks) {
+    if (!auth.canManageTasks) {
       return res.status(403).json({
         message: "You do not have permission to restore tasks.",
       });
     }
 
+    const scope = await getTaskAccessScope(req, auth);
+
     const task = await Task.findOne({
       _id: req.params.id,
-      organization: req.user.organization,
+      ...scope,
       deleted: true,
     });
 
@@ -352,24 +462,30 @@ export const restoreTask = async (req, res) => {
     console.error("RESTORE TASK ERROR:", err);
 
     return res.status(500).json({
-      message: err.message,
+      message: "Failed to restore task",
+      error: "Failed to restore task",
     });
   }
 };
 
 export const permanentlyDeleteTask = async (req, res) => {
   try {
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    if (!canManageTasks) {
+    if (!auth.canManageTasks) {
       return res.status(403).json({
         message: "You do not have permission to permanently delete tasks.",
       });
     }
 
+    const scope = await getTaskAccessScope(req, auth);
+
     const task = await Task.findOne({
       _id: req.params.id,
-      organization: req.user.organization,
+      ...scope,
       deleted: true,
     });
 
@@ -390,7 +506,8 @@ export const permanentlyDeleteTask = async (req, res) => {
     console.error("PERMANENT DELETE TASK ERROR:", err);
 
     return res.status(500).json({
-      message: err.message,
+      message: "Failed to delete task",
+      error: "Failed to delete task",
     });
   }
 };
@@ -398,17 +515,31 @@ export const permanentlyDeleteTask = async (req, res) => {
 // UPDATE TASK
 export const updateTask = async (req, res) => {
   try {
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    if (!canManageTasks) {
+    if (!auth.canManageTasks) {
       return res.status(403).json({
         message: "You do not have permission to update tasks.",
       });
     }
 
+    // Tenant boundary: client-supplied organizationId or organization must match callerOrgId if provided
+    if (
+      (req.body?.organizationId && normalizeId(req.body.organizationId) !== auth.callerOrgId) ||
+      (req.body?.organization && normalizeId(req.body.organization) !== auth.callerOrgId)
+    ) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
+
+    const scope = await getTaskAccessScope(req, auth);
     const taskQuery = {
       _id: req.params.id,
-      ...(await getTaskAccessScope(req, canManageTasks)),
+      ...scope,
     };
 
     const task = await Task.findOne(taskQuery);
@@ -427,34 +558,85 @@ export const updateTask = async (req, res) => {
       status: task.status,
     };
 
-    if (
-      req.user.role === "manager" &&
-      Object.prototype.hasOwnProperty.call(req.body, "assignedTo")
-    ) {
-      const assignedUser = await User.findOne({
-        _id: req.body.assignedTo,
-        organization: req.user.organization?._id || req.user.organization,
-      }).select("_id manager");
+    // Relationship validation for assignee
+    let newAssignedUser = null;
+    let shouldUpdateAssignedTo = false;
+    let resolvedNewAssignedTo = task.assignedTo;
 
-      if (!assignedUser) {
-        return res.status(404).json({
-          message: "Assigned user not found.",
-        });
-      }
+    if (Object.prototype.hasOwnProperty.call(req.body, "assignedTo")) {
+      shouldUpdateAssignedTo = true;
+      const rawAssignedTo = req.body.assignedTo;
+      const targetAssigneeId = Array.isArray(rawAssignedTo)
+        ? normalizeId(rawAssignedTo[0])
+        : normalizeId(rawAssignedTo);
 
-      const canAssign =
-        assignedUser._id.toString() === req.user._id.toString() ||
-        assignedUser.manager?.toString() === req.user._id.toString();
+      if (targetAssigneeId) {
+        newAssignedUser = await User.findOne({
+          _id: targetAssigneeId,
+          organization: auth.callerOrgId,
+        }).select("_id firstName lastName manager asanaAccountId jiraAccountId");
 
-      if (!canAssign) {
-        return res.status(403).json({
-          message:
-            "Managers can only assign tasks to themselves or users they manage.",
-        });
+        if (!newAssignedUser) {
+          return res.status(404).json({
+            message: "Assigned user not found.",
+          });
+        }
+
+        if (auth.effectiveRoleName === "manager") {
+          const canAssign =
+            newAssignedUser._id.toString() === auth.callerUserId ||
+            newAssignedUser.manager?.toString() === auth.callerUserId;
+
+          if (!canAssign) {
+            return res.status(403).json({
+              message:
+                "Managers can only assign tasks to themselves or users they manage.",
+            });
+          }
+        }
+
+        resolvedNewAssignedTo = newAssignedUser._id;
+      } else {
+        resolvedNewAssignedTo = null;
       }
     }
 
-    Object.assign(task, req.body);
+    // EXPLICIT FIELD ALLOWLIST — SEC-11 IMMUNITY TO MASS ASSIGNMENT
+    if (req.body.title !== undefined) {
+      task.title = req.body.title;
+    }
+    if (req.body.description !== undefined) {
+      task.description = req.body.description;
+    }
+    if (req.body.status !== undefined) {
+      task.status = req.body.status;
+    }
+    if (req.body.priority !== undefined) {
+      task.priority = req.body.priority;
+    }
+    if (req.body.dueDate !== undefined) {
+      task.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
+    }
+    if (shouldUpdateAssignedTo) {
+      task.assignedTo = resolvedNewAssignedTo;
+    }
+    if (req.body.project !== undefined) {
+      if (req.body.project) {
+        const targetProjectId = normalizeId(req.body.project);
+        const projDoc = targetProjectId
+          ? await Project.findOne({
+              _id: targetProjectId,
+              organization: auth.callerOrgId,
+            })
+          : null;
+        if (!projDoc) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        task.project = projDoc._id;
+      } else {
+        task.project = null;
+      }
+    }
 
     await task.save();
 
@@ -462,9 +644,9 @@ export const updateTask = async (req, res) => {
       ? await User.findById(previousTask.assignedTo)
       : null;
 
-    const newAssignedUser = task.assignedTo
-      ? await User.findById(task.assignedTo)
-      : null;
+    if (!newAssignedUser && task.assignedTo) {
+      newAssignedUser = await User.findById(task.assignedTo);
+    }
 
     const project = task.project
       ? await Project.findById(task.project).select("name")
@@ -723,8 +905,10 @@ export const updateTask = async (req, res) => {
 
     res.status(200).json(task);
   } catch (err) {
+    console.error("UPDATE TASK ERROR:", err);
     res.status(500).json({
-      message: err.message,
+      message: "Failed to update task",
+      error: "Failed to update task",
     });
   }
 };
@@ -732,17 +916,21 @@ export const updateTask = async (req, res) => {
 // DELETE TASK
 export const deleteTask = async (req, res) => {
   try {
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    if (!canManageTasks) {
+    if (!auth.canManageTasks) {
       return res.status(403).json({
         message: "You do not have permission to delete tasks.",
       });
     }
 
+    const scope = await getTaskAccessScope(req, auth);
     const taskQuery = {
       _id: req.params.id,
-      ...(await getTaskAccessScope(req, canManageTasks)),
+      ...scope,
     };
 
     const task = await Task.findOne(taskQuery);
@@ -822,7 +1010,7 @@ export const deleteTask = async (req, res) => {
 
     task.deleted = true;
     task.deletedAt = new Date();
-    task.deletedBy = req.user._id;
+    task.deletedBy = auth.callerUserId;
 
     await task.save();
 
@@ -830,8 +1018,10 @@ export const deleteTask = async (req, res) => {
       message: "Task moved to Recently Deleted",
     });
   } catch (err) {
+    console.error("DELETE TASK ERROR:", err);
     res.status(500).json({
-      message: err.message,
+      message: "Failed to delete task",
+      error: "Failed to delete task",
     });
   }
 };
@@ -839,37 +1029,73 @@ export const deleteTask = async (req, res) => {
 // SELECTED DELETE TASK
 export const deleteMultipleTasks = async (req, res) => {
   try {
-    const { taskIds } = req.body;
+    const auth = await resolveTaskAuth(req);
+    if (!auth.authenticated) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
 
-    const canManageTasks = await hasPermission(req.user, "manage_tasks");
-
-    if (!canManageTasks) {
+    if (!auth.canManageTasks || !["owner", "admin"].includes(auth.effectiveRoleName)) {
       return res.status(403).json({
         message: "You do not have permission to delete tasks.",
       });
     }
 
-    const scope = await getTaskAccessScope(req, canManageTasks);
+    const { taskIds } = req.body;
+    if (!Array.isArray(taskIds) || taskIds.length === 0) {
+      return res.status(400).json({
+        message: "taskIds must be a non-empty array",
+      });
+    }
+
+    const scope = await getTaskAccessScope(req, auth);
 
     const tasks = await Task.find({
       _id: { $in: taskIds },
       ...scope,
     });
 
+    if (tasks.length === 0) {
+      return res.status(200).json({
+        message: "Tasks moved to Recently Deleted",
+      });
+    }
+
+    // 1. Authoritative local soft-delete committed FIRST in atomic transaction (SEC20-F03)
+    await runTransaction(async () => {
+      await Task.updateMany(
+        {
+          _id: {
+            $in: tasks.map((task) => task._id),
+          },
+          ...scope,
+        },
+        {
+          $set: {
+            deleted: true,
+            deletedAt: new Date(),
+            deletedBy: auth.callerUserId,
+          },
+        },
+      );
+    });
+
+    // 2. Post-commit remote provider synchronization (Jira / Asana)
+    const syncErrors = [];
+
     for (const task of tasks) {
       if (task.provider === "jira") {
-        const integration = await Integration.findOne({
-          organization: task.organization,
-          provider: "jira",
-          connected: true,
-        });
+        try {
+          const integration = await Integration.findOne({
+            organization: task.organization,
+            provider: "jira",
+            connected: true,
+          });
 
-        if (integration && task.jiraIssueKey) {
-          if (new Date() >= integration.expiresAt) {
-            await refreshJiraToken(integration);
-          }
+          if (integration && task.jiraIssueKey) {
+            if (new Date() >= integration.expiresAt) {
+              await refreshJiraToken(integration);
+            }
 
-          try {
             await axios.delete(
               `https://api.atlassian.com/ex/jira/${integration.cloudId}/rest/api/3/issue/${task.jiraIssueKey}`,
               {
@@ -879,28 +1105,33 @@ export const deleteMultipleTasks = async (req, res) => {
                 },
               },
             );
-          } catch (error) {
-            console.error(
-              `Failed to delete Jira issue ${task.jiraIssueKey}:`,
-              error.response?.data || error.message,
-            );
           }
+        } catch (error) {
+          console.error(
+            `Failed to delete Jira issue for task ${task._id}: [status ${error.response?.status || "network_error"}] ${error.message}`,
+          );
+          syncErrors.push({
+            taskId: (task._id || task.id)?.toString(),
+            provider: "jira",
+            issueKey: task.jiraIssueKey,
+            error: "Failed to delete remote Jira issue",
+          });
         }
       }
 
       if (task.provider === "asana") {
-        const integration = await Integration.findOne({
-          organization: task.organization,
-          provider: "asana",
-          connected: true,
-        });
+        try {
+          const integration = await Integration.findOne({
+            organization: task.organization,
+            provider: "asana",
+            connected: true,
+          });
 
-        if (integration && task.asanaTaskId) {
-          if (new Date() >= integration.expiresAt) {
-            await refreshAsanaToken(integration);
-          }
+          if (integration && task.asanaTaskId) {
+            if (new Date() >= integration.expiresAt) {
+              await refreshAsanaToken(integration);
+            }
 
-          try {
             await axios.delete(
               `https://app.asana.com/api/1.0/tasks/${task.asanaTaskId}`,
               {
@@ -909,40 +1140,38 @@ export const deleteMultipleTasks = async (req, res) => {
                 },
               },
             );
-          } catch (error) {
-            console.error(
-              `Failed to delete Asana task ${task.asanaTaskId}:`,
-              error.response?.data || error.message,
-            );
           }
+        } catch (error) {
+          console.error(
+            `Failed to delete Asana task for task ${task._id}: [status ${error.response?.status || "network_error"}] ${error.message}`,
+          );
+          syncErrors.push({
+            taskId: (task._id || task.id)?.toString(),
+            provider: "asana",
+            externalId: task.asanaTaskId,
+            error: "Failed to delete remote Asana task",
+          });
         }
       }
     }
 
-    await Task.updateMany(
-      {
-        _id: {
-          $in: tasks.map((task) => task._id),
-        },
-        ...scope,
-      },
-      {
-        $set: {
-          deleted: true,
-          deletedAt: new Date(),
-          deletedBy: req.user._id,
-        },
-      },
-    );
+    if (syncErrors.length > 0) {
+      return res.status(200).json({
+        message: "Tasks moved to Recently Deleted",
+        warning: "Some external tasks could not be deleted from provider",
+        syncErrors,
+      });
+    }
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Tasks moved to Recently Deleted",
     });
   } catch (err) {
-    console.error(err);
+    console.error("DELETE MULTIPLE TASKS ERROR:", err);
 
-    res.status(500).json({
-      message: err.message,
+    return res.status(500).json({
+      message: "Failed to delete tasks",
+      error: "Failed to delete tasks",
     });
   }
 };

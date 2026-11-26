@@ -28,12 +28,19 @@ export default function ScheduleBreakModal({
         initialEndTime ?? "13:00"
     );
 
-    useEffect(() => {
-        if (!open) return;
+    const [prevProps, setPrevProps] = useState({ open, initialStartTime, initialEndTime });
 
-        setStartTime(initialStartTime ?? "12:00");
-        setEndTime(initialEndTime ?? "13:00");
-    }, [open, initialStartTime, initialEndTime]);
+    if (
+        prevProps.open !== open ||
+        prevProps.initialStartTime !== initialStartTime ||
+        prevProps.initialEndTime !== initialEndTime
+    ) {
+        setPrevProps({ open, initialStartTime, initialEndTime });
+        if (open) {
+            setStartTime(initialStartTime ?? "12:00");
+            setEndTime(initialEndTime ?? "13:00");
+        }
+    }
 
     if (!open) return null;
 
@@ -44,11 +51,11 @@ export default function ScheduleBreakModal({
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-lg rounded-2xl bg-white shadow-xl"
+                className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] shadow-xl"
             >
                 {/* Header */}
-                <div className="border-b border-gray-200 px-8 py-6">
-                    <h2 className="text-2xl font-semibold text-gray-900">
+                <div className="border-b border-gray-200 dark:border-gray-800 px-8 py-6">
+                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
                         Schedule Break
                     </h2>
                 </div>
@@ -57,7 +64,7 @@ export default function ScheduleBreakModal({
                 <div className="space-y-6 px-8 py-6">
 
                     <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
+                        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
                             From
                         </label>
 
@@ -68,7 +75,7 @@ export default function ScheduleBreakModal({
                     </div>
 
                     <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
+                        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
                             To
                         </label>
 
@@ -81,10 +88,10 @@ export default function ScheduleBreakModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end gap-3 border-t border-gray-200 px-8 py-5">
+                <div className="flex justify-end gap-3 border-t border-gray-200 dark:border-gray-800 px-8 py-5">
                     <button
                         onClick={onClose}
-                        className="rounded-lg border border-gray-300 px-5 py-2"
+                        className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700 px-5 py-2"
                     >
                         Cancel
                     </button>

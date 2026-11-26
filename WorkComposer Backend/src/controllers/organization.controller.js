@@ -18,9 +18,75 @@ import Timer from "../models/timer.model.js";
 import UsageLog from "../models/usageLog.model.js";
 import User from "../models/user.model.js";
 import { getAvatarUrl } from "../utils/avatar.js";
+import { getIO } from "../socket/socket.js";
 import path from "path";
-import mongoose from "mongoose";
 import { logAudit } from "../utils/logAudit.js";
+import {
+  auditOrgUpdated,
+  auditOrgDeleted,
+  audit2FASettingsUpdated,
+  auditAppUpdateSettingsUpdated,
+  auditEmailReportSettingsUpdated,
+} from "../utils/auditService.js";
+import { resolveEffectiveAuthContext, normalizeId } from "../security/effectiveAuthContext.js";
+import { canAccessOrganizationNotifications } from "../security/policyEvaluator.js";
+import { DECISION_CODES } from "../security/policyTypes.js";
+import { runTransaction } from "../db/transaction.js";
+
+const EMAIL_DAY_MAP = {
+  sun: 0,
+  sunday: 0,
+  mon: 1,
+  monday: 1,
+  tue: 2,
+  tuesday: 2,
+  wed: 3,
+  wednesday: 3,
+  thu: 4,
+  thursday: 4,
+  fri: 5,
+  friday: 5,
+  sat: 6,
+  saturday: 6,
+};
+
+function normalizeDailyWeekDays(days) {
+  if (!Array.isArray(days)) return days;
+  const normalized = [];
+  for (const d of days) {
+    let val = null;
+    if (typeof d === "number" && Number.isInteger(d) && d >= 0 && d <= 6) {
+      val = d;
+    } else if (typeof d === "string") {
+      const trimmed = d.trim().toLowerCase();
+      if (/^[0-6]$/.test(trimmed)) {
+        val = Number(trimmed);
+      } else if (EMAIL_DAY_MAP[trimmed] !== undefined) {
+        val = EMAIL_DAY_MAP[trimmed];
+      }
+    }
+    if (val !== null && !normalized.includes(val)) {
+      normalized.push(val);
+    }
+  }
+  return normalized;
+}
+
+function getCallerOrgId(req) {
+  return normalizeId(
+    req.user?.organizationId ||
+      req.user?.organization?._id ||
+      req.user?.organization?.id ||
+      req.user?.organization,
+  );
+}
+
+function emitOrgEvent(orgId, event, payload) {
+  if (!orgId) return;
+  try {
+    getIO()?.to(`organization:${orgId}`).emit(event, payload);
+  } catch {}
+}
 
 export const getOrganization = async (req, res) => {
   try {
@@ -37,8 +103,10 @@ export const getOrganization = async (req, res) => {
       logo: getAvatarUrl(organization.logo),
     });
   } catch (err) {
+    console.error("GET ORGANIZATION ERROR:", err);
     res.status(500).json({
-      message: err.message,
+      message: "Failed to get organization",
+      error: "Failed to get organization",
     });
   }
 };
@@ -72,6 +140,12 @@ export const uploadLogo = async (req, res) => {
 
     await organization.save();
 
+    const orgId = getCallerOrgId(req);
+    emitOrgEvent(orgId, "organization-updated", {
+      organizationId: orgId,
+      logo: getAvatarUrl(organization.logo),
+    });
+
     res.status(200).json({
       message: "Logo uploaded successfully",
       logo: `${process.env.BACKEND_URL}/${organization.logo}`,
@@ -88,9 +162,10 @@ export const uploadLogo = async (req, res) => {
 export const updateOrganization = async (req, res) => {
   try {
     const { name, timezone } = req.body;
+    const orgId = getCallerOrgId(req);
 
     const organization = await Organization.findByIdAndUpdate(
-      req.user.organization,
+      orgId,
       {
         name,
         timezone,
@@ -100,6 +175,13 @@ export const updateOrganization = async (req, res) => {
         runValidators: true,
       },
     );
+
+    emitOrgEvent(orgId, "organization-updated", organization);
+    emitOrgEvent(orgId, "tracking-settings-updated", {
+      module: "organization",
+      timezone: organization?.timezone,
+      name: organization?.name,
+    });
 
     res.status(200).json(organization);
   } catch (err) {
@@ -119,138 +201,133 @@ export const deleteOrganization = async (req, res) => {
     });
   }
 
-  const session = await mongoose.startSession();
+  const organizationId = req.user.organization;
+  let screenshots = [];
+  let usersWithAvatars = [];
+  let organizationLogo = null;
 
   try {
-    session.startTransaction();
+    const orgFound = await runTransaction(async () => {
+      // Fetch organization before deleting
+      const organization = await Organization.findById(organizationId);
 
-    const organizationId = req.user.organization;
+      if (!organization) {
+        return false;
+      }
+      organizationLogo = organization.logo || null;
 
-    // Fetch organization before deleting
-    const organization =
-      await Organization.findById(organizationId).session(session);
+      // Fetch users (keep avatars for filesystem cleanup)
+      usersWithAvatars = await User.find({
+        organization: organizationId,
+      }).select("_id avatar");
 
-    if (!organization) {
-      await session.abortTransaction();
+      const userIds = usersWithAvatars.map((user) => user._id);
 
+      // Fetch screenshot publicIds before deleting
+      screenshots = await Screenshot.find({
+        user: { $in: userIds },
+      }).select("publicId");
+
+      // -----------------------
+      // USER RELATED DATA
+      // -----------------------
+
+      await Activity.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await AppUsage.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await Screenshot.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await Timer.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await UsageLog.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await Report.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await ProjectTracking.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await EmailChange.deleteMany({
+        user: { $in: userIds },
+      });
+
+      await Attendance.deleteMany({
+        userId: { $in: userIds },
+      });
+
+      await Session.deleteMany({
+        userId: { $in: userIds },
+      });
+
+      // -----------------------
+      // ORGANIZATION DATA
+      // -----------------------
+
+      await Task.deleteMany({
+        organization: organizationId,
+      });
+
+      await Project.deleteMany({
+        organization: organizationId,
+      });
+
+      await Team.deleteMany({
+        organization: organizationId,
+      });
+
+      await AppClassification.deleteMany({
+        organization: organizationId,
+      });
+
+      await Invite.deleteMany({
+        organization: organizationId,
+      });
+
+      // Clear refresh tokens
+      await User.updateMany(
+        {
+          organization: organizationId,
+        },
+        {
+          $set: {
+            refreshToken: null,
+          },
+        },
+      );
+
+      // Delete users
+      await User.deleteMany({
+        organization: organizationId,
+      });
+
+      // Delete organization
+      await Organization.findByIdAndDelete(organizationId);
+
+      return true;
+    });
+
+    if (!orgFound) {
       return res.status(404).json({
         success: false,
         message: "Organization not found",
       });
     }
 
-    // Fetch users (keep avatars for filesystem cleanup)
-    const usersWithAvatars = await User.find({
-      organization: organizationId,
-    })
-      .select("_id avatar")
-      .session(session);
-
-    const userIds = usersWithAvatars.map((user) => user._id);
-
-    // Fetch screenshot publicIds before deleting
-    const screenshots = await Screenshot.find({
-      user: { $in: userIds },
-    })
-      .select("publicId")
-      .session(session);
-
     // -----------------------
-    // USER RELATED DATA
-    // -----------------------
-
-    await Activity.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await AppUsage.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await AppClassification.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await Screenshot.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await Timer.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await UsageLog.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await Report.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await ProjectTracking.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await EmailChange.deleteMany({
-      user: { $in: userIds },
-    }).session(session);
-
-    await Attendance.deleteMany({
-      userId: { $in: userIds },
-    }).session(session);
-
-    await Session.deleteMany({
-      userId: { $in: userIds },
-    }).session(session);
-
-    // -----------------------
-    // ORGANIZATION DATA
-    // -----------------------
-
-    await Task.deleteMany({
-      organization: organizationId,
-    }).session(session);
-
-    await Project.deleteMany({
-      organization: organizationId,
-    }).session(session);
-
-    await Team.deleteMany({
-      organization: organizationId,
-    }).session(session);
-
-    await Invite.deleteMany({
-      organization: organizationId,
-    }).session(session);
-
-    // Clear refresh tokens
-    await User.updateMany(
-      {
-        organization: organizationId,
-      },
-      {
-        $set: {
-          refreshToken: null,
-        },
-      },
-      {
-        session,
-      },
-    );
-
-    // Delete users
-    await User.deleteMany({
-      organization: organizationId,
-    }).session(session);
-
-    // Delete organization
-    await Organization.findByIdAndDelete(organizationId).session(session);
-
-    // Commit database changes
-    await session.commitTransaction();
-
-    // -----------------------
-    // CLEANUP FILES
+    // CLEANUP FILES (AFTER COMMIT)
     // -----------------------
 
     // Delete Cloudinary screenshots
@@ -268,11 +345,15 @@ export const deleteOrganization = async (req, res) => {
     }
 
     // Delete organization logo
-    if (organization.logo) {
-      const logoPath = path.join(process.cwd(), organization.logo);
+    if (organizationLogo) {
+      const logoPath = path.join(process.cwd(), organizationLogo);
 
       if (fs.existsSync(logoPath)) {
-        fs.unlinkSync(logoPath);
+        try {
+          fs.unlinkSync(logoPath);
+        } catch (err) {
+          console.error("Failed to delete organization logo file:", err);
+        }
       }
     }
 
@@ -283,7 +364,11 @@ export const deleteOrganization = async (req, res) => {
       const avatarPath = path.join(process.cwd(), user.avatar);
 
       if (fs.existsSync(avatarPath)) {
-        fs.unlinkSync(avatarPath);
+        try {
+          fs.unlinkSync(avatarPath);
+        } catch (err) {
+          console.error(`Failed to delete user avatar file: ${user.avatar}`, err);
+        }
       }
     }
 
@@ -292,18 +377,13 @@ export const deleteOrganization = async (req, res) => {
       message: "Organization deleted successfully.",
     });
   } catch (err) {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
-
-    console.error(err);
+    console.error("DELETE ORGANIZATION ERROR:", err);
 
     return res.status(500).json({
       success: false,
-      message: err.message,
+      message: "Failed to delete organization",
+      error: "Failed to delete organization",
     });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -350,6 +430,12 @@ export const updateTwoFactorSettings = async (req, res) => {
     organization.twoFactor[role] = enabled;
 
     await organization.save();
+
+    const orgId = getCallerOrgId(req);
+    emitOrgEvent(orgId, "organization-updated", {
+      organizationId: orgId,
+      twoFactor: organization.twoFactor,
+    });
 
     res.status(200).json({
       message: "Two factor settings updated successfully",
@@ -443,6 +529,16 @@ export const updateAppUpdateSettings = async (req, res) => {
 
     await organization.save();
 
+    const orgId = getCallerOrgId(req);
+    emitOrgEvent(orgId, "organization-updated", {
+      organizationId: orgId,
+      appUpdates: organization.appUpdates,
+    });
+    emitOrgEvent(orgId, "tracking-settings-updated", {
+      module: "appUpdate",
+      appUpdates: organization.appUpdates,
+    });
+
     res.status(200).json({
       message: "App update settings updated successfully",
       appUpdates: organization.appUpdates,
@@ -477,7 +573,7 @@ export const getEmailReportSettings = async (req, res) => {
           hours: 4,
           minutes: 0,
         },
-        dailyWeekDays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        dailyWeekDays: [1, 2, 3, 4, 5],
 
         weeklyWarningEmails: false,
         weeklyBasedOnShift: true,
@@ -490,6 +586,14 @@ export const getEmailReportSettings = async (req, res) => {
         idlePercentage: 30,
       };
 
+      await organization.save();
+    } else if (
+      Array.isArray(organization.emailReports.dailyWeekDays) &&
+      organization.emailReports.dailyWeekDays.some((d) => typeof d === "string")
+    ) {
+      organization.emailReports.dailyWeekDays = normalizeDailyWeekDays(
+        organization.emailReports.dailyWeekDays,
+      );
       await organization.save();
     }
 
@@ -549,9 +653,20 @@ export const updateEmailReportSettings = async (req, res) => {
       };
     }
 
-    organization.emailReports[setting] = value;
+    organization.emailReports[setting] =
+      setting === "dailyWeekDays" ? normalizeDailyWeekDays(value) : value;
 
     await organization.save();
+
+    const orgId = getCallerOrgId(req);
+    emitOrgEvent(orgId, "organization-updated", {
+      organizationId: orgId,
+      emailReports: organization.emailReports,
+    });
+    emitOrgEvent(orgId, "tracking-settings-updated", {
+      module: "emailReports",
+      emailReports: organization.emailReports,
+    });
 
     return res.status(200).json({
       message: "Email report settings updated successfully",
@@ -624,6 +739,12 @@ export const updateTaskManagementSettings = async (req, res) => {
 
     await organization.save();
 
+    const orgId = getCallerOrgId(req);
+    emitOrgEvent(orgId, "organization-updated", {
+      organizationId: orgId,
+      taskManagement: organization.taskManagement,
+    });
+
     return res.status(200).json({
       message: "Task management settings updated successfully",
       taskManagement: organization.taskManagement,
@@ -639,9 +760,31 @@ export const updateTaskManagementSettings = async (req, res) => {
 
 export const getOrganizationNotifications = async (req, res) => {
   try {
-    const organization = await Organization.findById(
-      req.user.organization,
-    ).select("notifications");
+    const callerOrgId = normalizeId(req.user?.organizationId || req.user?.organization?._id || req.user?.organization?.id || req.user?.organization);
+    const explicitTargetOrgId = req.params?.organizationId || req.query?.organizationId || req.body?.organizationId;
+    const targetOrgId = explicitTargetOrgId ? normalizeId(explicitTargetOrgId) : callerOrgId;
+
+    let roleDoc = null;
+    if (req.user?.roleRef) {
+      try {
+        const { prisma } = await import("../config/prisma.js");
+        roleDoc = await prisma.role.findUnique({ where: { id: req.user.roleRef } });
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    const authContext = resolveEffectiveAuthContext(req.user, roleDoc);
+    const decision = canAccessOrganizationNotifications(authContext, targetOrgId, "view");
+
+    if (!decision.allowed) {
+      if (decision.code === DECISION_CODES.TENANT_MISMATCH) {
+        return res.status(404).json({ message: "Organization not found." });
+      }
+      return res.status(403).json({ message: `Forbidden: ${decision.message}` });
+    }
+
+    const organization = await Organization.findById(callerOrgId);
 
     if (!organization) {
       return res.status(404).json({
@@ -666,9 +809,35 @@ export const getOrganizationNotifications = async (req, res) => {
 
 export const updateOrganizationNotifications = async (req, res) => {
   try {
-    const { notifications } = req.body;
+    const callerOrgId = normalizeId(req.user?.organizationId || req.user?.organization?._id || req.user?.organization?.id || req.user?.organization);
+    const explicitTargetOrgId = req.params?.organizationId || req.query?.organizationId || req.body?.organizationId;
+    const targetOrgId = explicitTargetOrgId ? normalizeId(explicitTargetOrgId) : callerOrgId;
 
-    if (!notifications || typeof notifications !== "object") {
+    let roleDoc = null;
+    if (req.user?.roleRef) {
+      try {
+        const { prisma } = await import("../config/prisma.js");
+        roleDoc = await prisma.role.findUnique({ where: { id: req.user.roleRef } });
+      } catch (e) {
+        // Fallback
+      }
+    }
+
+    const authContext = resolveEffectiveAuthContext(req.user, roleDoc);
+    const decision = canAccessOrganizationNotifications(authContext, targetOrgId, "mutate");
+
+    if (!decision.allowed) {
+      if (decision.code === DECISION_CODES.TENANT_MISMATCH) {
+        return res.status(404).json({ message: "Organization not found." });
+      }
+      return res.status(403).json({ message: `Forbidden: ${decision.message}` });
+    }
+
+    const rawNotifications = (req.body && typeof req.body.notifications === "object" && req.body.notifications !== null)
+      ? req.body.notifications
+      : req.body;
+
+    if (!rawNotifications || typeof rawNotifications !== "object") {
       return res.status(400).json({
         message: "Invalid notification settings.",
       });
@@ -683,25 +852,62 @@ export const updateOrganizationNotifications = async (req, res) => {
       "overtimeStarted",
     ];
 
-    const update = {};
-
+    const sanitizedUpdates = {};
     for (const key of allowedKeys) {
-      if (typeof notifications[key] === "boolean") {
-        update[`notifications.${key}`] = notifications[key];
+      if (typeof rawNotifications[key] === "boolean") {
+        sanitizedUpdates[key] = rawNotifications[key];
       }
     }
 
-    const organization = await Organization.findByIdAndUpdate(
-      req.user.organization,
-      { $set: update },
+    if (Object.keys(sanitizedUpdates).length === 0) {
+      return res.status(400).json({
+        message: "Invalid notification settings.",
+      });
+    }
+
+    const organization = await Organization.findById(callerOrgId);
+    if (!organization) {
+      return res.status(404).json({
+        message: "Organization not found.",
+      });
+    }
+
+    const currentNotifications = organization.notifications || {
+      shiftStarted: true,
+      shiftEndingSoon: true,
+      breakStarted: true,
+      breakEnded: true,
+      dailyTargetReached: true,
+      overtimeStarted: true,
+    };
+
+    const updatedNotifications = {
+      ...currentNotifications,
+      ...sanitizedUpdates,
+    };
+
+    const updatedOrg = await Organization.findByIdAndUpdate(
+      callerOrgId,
+      { notifications: updatedNotifications },
       {
         new: true,
         runValidators: true,
       },
-    ).select("notifications");
+    );
+
+    const savedNotifications = updatedOrg?.notifications || updatedNotifications;
+    emitOrgEvent(callerOrgId, "organization-updated", {
+      organizationId: callerOrgId,
+      notifications: savedNotifications,
+    });
+    emitOrgEvent(callerOrgId, "tracking-settings-updated", {
+      module: "notifications",
+      notifications: savedNotifications,
+    });
 
     return res.status(200).json({
-      notifications: organization.notifications,
+      message: "Notification settings updated.",
+      notifications: updatedOrg?.notifications || updatedNotifications,
     });
   } catch (error) {
     console.error(

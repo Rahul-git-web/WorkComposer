@@ -1,5 +1,104 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme {
+  --color-wc-primary: #4f46e5;
+  --color-wc-primary-text: #ffffff;
+  --color-wc-danger: #ef4444;
+  --color-wc-surface: var(--surface-bg);
+  --color-wc-surface-2: var(--surface-secondary);
+  --color-wc-surface-3: var(--surface-elevated);
+  --color-wc-border: var(--surface-border);
+  --color-wc-text: var(--text-primary);
+  --color-wc-text-2: var(--text-secondary);
+  --color-wc-text-3: var(--text-muted);
+}
+
+/* ============================================================
+   Semantic Design Tokens for WorkComposer
+   ============================================================ */
+
+:root {
+  --canvas-bg: #f8fafc;
+  --surface-bg: #ffffff;
+  --surface-secondary: #f1f5f9;
+  --surface-elevated: #ffffff;
+  --surface-border: #e2e8f0;
+  --divider-border: #e5e7eb;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --hover-bg: rgba(0, 0, 0, 0.04);
+  --focus-ring: #2563eb;
+
+  --nav-bg: #ffffff;
+  --nav-border: #e2e8f0;
+
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+
+  --dialog-bg: #ffffff;
+  --dialog-border: #e2e8f0;
+
+  --tooltip-bg: #0f172a;
+  --tooltip-text: #ffffff;
+
+  --chart-grid: #e2e8f0;
+  --chart-label: #64748b;
+
+  --toast-success-bg: #f0fdf4;
+  --toast-success-text: #166534;
+  --toast-success-border: #bbf7d0;
+  --toast-error-bg: #fef2f2;
+  --toast-error-text: #991b1b;
+  --toast-error-border: #fecaca;
+}
+
+[data-theme="dark"] {
+  --canvas-bg: #090f1d;
+  --surface-bg: #0f172a;
+  --surface-secondary: #1e293b;
+  --surface-elevated: #162742;
+  --surface-border: #22324d;
+  --divider-border: #263852;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+
+  --input-bg: #1e293b;
+  --input-border: #334155;
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --focus-ring: #3b82f6;
+
+  --nav-bg: #162742;
+  --nav-border: #263852;
+
+  --card-bg: #0f172a;
+  --card-border: #22324d;
+
+  --dialog-bg: #0f172a;
+  --dialog-border: #22324d;
+
+  --tooltip-bg: #1e293b;
+  --tooltip-text: #f8fafc;
+
+  --chart-grid: #22324d;
+  --chart-label: #94a3b8;
+
+  --toast-success-bg: #064e3b;
+  --toast-success-text: #a7f3d0;
+  --toast-success-border: #047857;
+  --toast-error-bg: #7f1d1d;
+  --toast-error-text: #fecaca;
+  --toast-error-border: #b91c1c;
+}
+
 /* Existing WorkComposer map / popup styles — preserved */
 .employee-popup .leaflet-popup-content-wrapper {
   padding: 0;

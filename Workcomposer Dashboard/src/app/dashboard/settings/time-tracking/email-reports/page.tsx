@@ -105,16 +105,16 @@ export default function EmailReportsPage() {
         showConfigure = false,
         onConfigure,
     }: ToggleRowProps) => (
-        <div className="border-b border-gray-200 px-4 py-5 sm:px-6 sm:py-6">
+        <div className="border-b border-gray-200 dark:border-gray-800 px-4 py-5 sm:px-6 sm:py-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
                 <div className="flex-1">
-                    <h3 className="text-[17px] font-medium text-gray-900">
+                    <h3 className="text-[17px] font-medium text-gray-900 dark:text-white">
                         {title}
                     </h3>
 
                     {description && (
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             {description}
                         </p>
                     )}
@@ -125,7 +125,7 @@ export default function EmailReportsPage() {
                     {showConfigure && (
                         <button
                             onClick={onConfigure}
-                            className="whitespace-nowrap text-sm font-medium text-indigo-600 hover:underline"
+                            className="whitespace-nowrap text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
                         >
                             Configure per user
                         </button>
@@ -137,7 +137,7 @@ export default function EmailReportsPage() {
                             onClick={onToggle}
                             className={`relative h-7 w-14 rounded-full transition ${checked
                                 ? "bg-indigo-600"
-                                : "bg-gray-300"
+                                : "bg-gray-300 dark:bg-gray-700"
                                 }`}
                         >
                             <span
@@ -150,8 +150,8 @@ export default function EmailReportsPage() {
 
                         <span
                             className={`text-sm font-medium ${checked
-                                ? "text-indigo-600"
-                                : "text-gray-500"
+                                ? "text-indigo-600 dark:text-indigo-400"
+                                : "text-gray-500 dark:text-gray-400"
                                 }`}
                         >
                             {checked ? "On" : "Off"}
@@ -176,15 +176,15 @@ export default function EmailReportsPage() {
     return (
         <>
             <div className="mx-auto w-full max-w-6xl px-4 py-8 pt-6 pb-10 sm:px-6 lg:px-8 lg:pt-8">
-                <h1 className="text-2xl font-semibold leading-none text-gray-900 sm:text-[25px]">
+                <h1 className="text-2xl font-semibold leading-none text-gray-900 dark:text-white sm:text-[25px]">
                     Email Reports
                 </h1>
 
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 sm:text-[15px]">
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-gray-400 sm:text-[15px]">
                     Configure tracking reports and warning emails for your organization.
                 </p>
 
-                <div className="mt-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="mt-8 overflow-hidden rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
                     <ToggleRow
                         title="Receive weekly tracking reports"
                         description="Send weekly productivity and tracking reports."
@@ -247,7 +247,7 @@ export default function EmailReportsPage() {
                                             }
                                             className={`relative h-7 w-14 rounded-full transition ${settings.dailyBasedOnShift
                                                 ? "bg-indigo-600"
-                                                : "bg-gray-300"
+                                                : "bg-gray-300 dark:bg-gray-700"
                                                 }`}
                                         >
                                             <span
@@ -260,8 +260,8 @@ export default function EmailReportsPage() {
 
                                         <span
                                             className={`text-sm font-medium ${settings.dailyBasedOnShift
-                                                ? "text-indigo-600"
-                                                : "text-gray-500"
+                                                ? "text-indigo-600 dark:text-indigo-400"
+                                                : "text-gray-500 dark:text-gray-400"
                                                 }`}
                                         >
                                             {settings.dailyBasedOnShift ? "On" : "Off"}
@@ -359,7 +359,7 @@ export default function EmailReportsPage() {
                                                     }}
                                                     className={`rounded-md border px-1.5 py-1 text-xs font-medium ${active
                                                         ? "border-indigo-600 bg-indigo-600 text-white"
-                                                        : "border-gray-300 bg-white text-gray-600"
+                                                        : "border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-gray-300"
                                                         }`}
                                                 >
                                                     {day.label}
@@ -410,7 +410,7 @@ export default function EmailReportsPage() {
                                         }
                                         className={`relative h-7 w-14 rounded-full transition ${settings.weeklyBasedOnShift
                                             ? "bg-indigo-600"
-                                            : "bg-gray-300"
+                                            : "bg-gray-300 dark:bg-gray-700"
                                             }`}
                                     >
                                         <span
@@ -422,8 +422,8 @@ export default function EmailReportsPage() {
                                     </button>
                                     <span
                                         className={`text-sm font-medium ${settings.weeklyBasedOnShift
-                                            ? "text-indigo-600"
-                                            : "text-gray-500"
+                                            ? "text-indigo-600 dark:text-indigo-400"
+                                            : "text-gray-500 dark:text-gray-400"
                                             }`}
                                     >
                                         {settings.weeklyBasedOnShift ? "On" : "Off"}

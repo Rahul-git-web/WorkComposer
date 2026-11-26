@@ -15,7 +15,7 @@ export default function TimeSettingRow({
         <div className="flex items-end gap-6">
 
             <div>
-                <label className="mb-2 block text-sm font-medium text-gray-900">
+                <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">
                     Hours
                 </label>
 
@@ -27,12 +27,12 @@ export default function TimeSettingRow({
                     onChange={(e) =>
                         onHoursChange(Number(e.target.value))
                     }
-                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="w-24 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                 />
             </div>
 
             <div>
-                <label className="mb-2 block text-sm font-medium text-gray-900">
+                <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">
                     Minutes
                 </label>
 
@@ -44,7 +44,7 @@ export default function TimeSettingRow({
                     onChange={(e) =>
                         onMinutesChange(Number(e.target.value))
                     }
-                    className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    className="w-24 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                 />
             </div>
 

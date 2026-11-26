@@ -8,6 +8,7 @@ import API from "@/api";
 import toast from "react-hot-toast";
 import { useDashboard } from "@/context/DashboardContext";
 import SettingsLoading from '@/components/settings/SettingsLoading';
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
 
 export default function ProfilePage() {
 
@@ -18,12 +19,19 @@ export default function ProfilePage() {
         avatar: "",
     });
 
+    const [initialProfile, setInitialProfile] = useState({
+        firstName: "",
+        lastName: "",
+    });
+
     const [passwordData, setPasswordData] = useState({
+        currentPassword: "",
         newPassword: "",
         confirmPassword: "",
         signOutAllDevices: false,
     });
 
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -55,6 +63,21 @@ export default function ProfilePage() {
 
     const { refreshUser } = useDashboard();
 
+    const isProfileDirty =
+        profile.firstName !== initialProfile.firstName ||
+        profile.lastName !== initialProfile.lastName ||
+        avatarFile !== null;
+
+    const isPasswordDirty = Boolean(
+        passwordData.currentPassword ||
+        passwordData.newPassword ||
+        passwordData.confirmPassword
+    );
+
+    const isFormDirty = isProfileDirty || isPasswordDirty;
+
+    useUnsavedChangesWarning(isFormDirty);
+
     const browserTimezone = useMemo(
         () => Intl.DateTimeFormat().resolvedOptions().timeZone,
         []
@@ -82,19 +105,9 @@ export default function ProfilePage() {
     }, [timezoneSearch, timezones]);
 
     const timezoneDisplay =
-        preferences.reportTimezone === browserTimezone
+        preferences.reportTimezone === "Browser timezone"
             ? `Browser timezone (${browserTimezone})`
             : preferences.reportTimezone;
-
-    useEffect(() => {
-        setPreferences((prev) => ({
-            ...prev,
-            reportTimezone:
-                prev.reportTimezone === "Browser timezone"
-                    ? browserTimezone
-                    : prev.reportTimezone,
-        }));
-    }, [browserTimezone]);
 
     const fetchProfile = async () => {
         try {
@@ -107,11 +120,16 @@ export default function ProfilePage() {
                 avatar: data.avatar || "",
             });
 
+            setInitialProfile({
+                firstName: data.firstName || "",
+                lastName: data.lastName || "",
+            });
+
             setPreferences({
                 weeklyReport: data.weeklyReport ?? true,
                 dailyReport: data.dailyReport ?? false,
                 reportTeam: data.reportTeam?._id || null,
-                reportTimezone: data.reportTimezone || browserTimezone,
+                reportTimezone: data.reportTimezone || "Browser timezone",
             });
 
         } catch (err: any) {
@@ -185,6 +203,11 @@ export default function ProfilePage() {
                 fileInputRef.current.value = "";
             }
 
+            setInitialProfile({
+                firstName: profile.firstName,
+                lastName: profile.lastName,
+            });
+
             await Promise.all([
                 fetchProfile(),
                 refreshUser(),
@@ -212,6 +235,7 @@ export default function ProfilePage() {
             toast.success("Password changed successfully");
 
             setPasswordData({
+                currentPassword: "",
                 newPassword: "",
                 confirmPassword: "",
                 signOutAllDevices: false,
@@ -240,6 +264,8 @@ export default function ProfilePage() {
                 reportTeam: data.reportTeam?._id || null,
                 reportTimezone: data.reportTimezone,
             });
+
+            await refreshUser();
 
             toast.success("Preferences updated successfully");
         } catch (err: any) {
@@ -315,9 +341,9 @@ export default function ProfilePage() {
         <>
             <div className="py-10 flex-1">
                 <div className="mx-auto w-full max-w-[1700px] px-4 sm:px-6 lg:px-8">
-                    <div className="my-2 min-h-[calc(100vh-250px)] rounded-lg bg-white shadow-sm px-2 py-4 sm:px-4">
+                    <div className="my-2 min-h-[calc(100vh-250px)] rounded-lg bg-white dark:bg-[#0F172A] shadow-sm px-2 py-4 sm:px-4 border border-gray-200 dark:border-[#22324D] text-gray-900 dark:text-white transition-colors duration-200">
                         <div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-6">User Profile</h3>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">User Profile</h3>
                             <div className="text-center mb-6">
                                 <img
                                     onClick={() => fileInputRef.current?.click()}
@@ -340,7 +366,7 @@ export default function ProfilePage() {
                                 className="space-y-4 max-w-xl mx-auto"
                             >
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-900">First name</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-200">First name</label>
                                     <input
                                         type="text"
                                         required
@@ -351,11 +377,11 @@ export default function ProfilePage() {
                                                 firstName: e.target.value,
                                             })
                                         }
-                                        className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-indigo-600"></input>
+                                        className="block w-full rounded-md bg-white dark:bg-[#1E293B] px-3 py-1.5 text-base text-gray-900 dark:text-white outline outline-1 outline-gray-300 dark:outline-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-indigo-600"></input>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-900">Last name</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-200">Last name</label>
                                     <input
                                         type="text"
                                         required
@@ -366,17 +392,17 @@ export default function ProfilePage() {
                                                 lastName: e.target.value,
                                             })
                                         }
-                                        className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-indigo-600"></input>
+                                        className="block w-full rounded-md bg-white dark:bg-[#1E293B] px-3 py-1.5 text-base text-gray-900 dark:text-white outline outline-1 outline-gray-300 dark:outline-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-indigo-600"></input>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-900">Email</label>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-200">Email</label>
                                     <input
                                         type="email"
                                         readOnly
                                         required
                                         value={profile.email}
-                                        className="block w-full rounded-md bg-gray-100 px-3 py-1.5 text-base text-gray-500 outline outline-1 outline-gray-300 sm:text-sm"></input>
+                                        className="block w-full rounded-md bg-gray-100 dark:bg-gray-800 px-3 py-1.5 text-base text-gray-500 dark:text-gray-400 outline outline-1 outline-gray-300 dark:outline-gray-700 sm:text-sm"></input>
                                 </div>
 
                                 <div className="text-center pt-4">
@@ -384,10 +410,10 @@ export default function ProfilePage() {
                                 </div>
                             </form>
 
-                            <div className="my-6 border-t border-gray-200"></div>
+                            <div className="my-6 border-t border-gray-200 dark:border-gray-800"></div>
                             <div className="space-y-6 max-w-xl mx-auto">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-gray-900">Receive Weekly Report</span>
+                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-200">Receive Weekly Report</span>
                                     <div className="flex items-center space-x-3">
                                         <button
                                             type="button"
@@ -399,7 +425,7 @@ export default function ProfilePage() {
                                             }
                                             className={`relative inline-flex h-6 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${preferences.weeklyReport
                                                 ? "bg-indigo-600"
-                                                : "bg-gray-200"
+                                                : "bg-gray-200 dark:bg-gray-700"
                                                 }`}
                                         >
                                             <span className="sr-only">Toggle setting</span>
@@ -411,14 +437,14 @@ export default function ProfilePage() {
                                             />
                                         </button>
                                         <span className={`text-sm font-medium ${preferences.weeklyReport
-                                            ? "text-indigo-700"
-                                            : "text-gray-500"
+                                            ? "text-indigo-600 dark:text-indigo-400"
+                                            : "text-gray-500 dark:text-gray-400"
                                             }`}>{preferences.weeklyReport ? "On" : "Off"}</span>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-gray-900">Receive Daily Report</span>
+                                    <span className="text-sm font-medium text-gray-900 dark:text-gray-200">Receive Daily Report</span>
                                     <div className="flex items-center space-x-3">
                                         <button
                                             type="button"
@@ -430,7 +456,7 @@ export default function ProfilePage() {
                                             }
                                             className={`relative inline-flex h-6 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${preferences.dailyReport
                                                 ? "bg-indigo-600"
-                                                : "bg-gray-200"
+                                                : "bg-gray-200 dark:bg-gray-700"
                                                 }`}
                                         >
                                             <span className="sr-only">Toggle setting</span>
@@ -443,15 +469,15 @@ export default function ProfilePage() {
                                             />
                                         </button>
                                         <span className={`text-sm font-medium ${preferences.dailyReport
-                                            ? "text-indigo-700"
-                                            : "text-gray-500"
+                                            ? "text-indigo-600 dark:text-indigo-400"
+                                            : "text-gray-500 dark:text-gray-400"
                                             }`}>{preferences.dailyReport ? "On" : "Off"}</span>
                                     </div>
                                 </div>
 
                                 <div>
                                     <div>
-                                        <label className="block text-sm/6 font-medium text-gray-900 mb-1">Email reports for managing teams</label>
+                                        <label className="block text-sm/6 font-medium text-gray-900 dark:text-gray-200 mb-1">Email reports for managing teams</label>
                                         <div
                                             ref={teamDropdownRef}
                                             className="relative mt-2"
@@ -461,7 +487,7 @@ export default function ProfilePage() {
                                                 onClick={() => setTeamDropdownOpen(!teamDropdownOpen)}
                                                 aria-haspopup="listbox"
                                                 aria-expanded={teamDropdownOpen}
-                                                className="grid w-full cursor-default grid-cols-1 rounded-md bg-white py-1.5 pr-2 pl-3 text-left text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
+                                                className="grid w-full cursor-default grid-cols-1 rounded-md bg-white dark:bg-[#1E293B] py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
                                             >
                                                 <span className="col-start-1 row-start-1 truncate pr-6">
                                                     {selectedTeam ? selectedTeam.name : "All Teams"}
@@ -473,7 +499,7 @@ export default function ProfilePage() {
                                                 <ul
                                                     aria-orientation="vertical"
                                                     role="listbox"
-                                                    className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm"
+                                                    className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-[#1E293B] py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 focus:outline-none sm:text-sm"
                                                 >
                                                     <li
                                                         role="option"
@@ -486,7 +512,7 @@ export default function ProfilePage() {
 
                                                             setTeamDropdownOpen(false);
                                                         }}
-                                                        className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 hover:bg-gray-100"
+                                                        className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                     >
                                                         <span className="block truncate">All Teams</span>
 
@@ -510,7 +536,7 @@ export default function ProfilePage() {
 
                                                                 setTeamDropdownOpen(false);
                                                             }}
-                                                            className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 hover:bg-gray-100"
+                                                            className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                         >
                                                             <span
                                                                 className={`block truncate ${preferences.reportTeam === team._id
@@ -557,7 +583,7 @@ export default function ProfilePage() {
                                                     setTimezoneDropdownOpen(true);
                                                 }}
                                                 placeholder="Select timezone"
-                                                className="block w-full rounded-md bg-white py-1.5 pr-12 pl-3 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
+                                                className="block w-full rounded-md bg-white dark:bg-[#1E293B] py-1.5 pr-12 pl-3 text-base text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm"
                                             />
 
                                             <button
@@ -577,25 +603,25 @@ export default function ProfilePage() {
                                             {timezoneDropdownOpen && (
                                                 <ul
                                                     role="listbox"
-                                                    className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm"
+                                                    className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-[#1E293B] py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 sm:text-sm"
                                                 >
                                                     {/* Browser Timezone */}
                                                     <li
                                                         role="option"
-                                                        aria-selected={preferences.reportTimezone === browserTimezone ? "true" : "false"}
+                                                        aria-selected={preferences.reportTimezone === "Browser timezone" ? "true" : "false"}
                                                         onClick={() => {
                                                             setPreferences({
                                                                 ...preferences,
-                                                                reportTimezone: browserTimezone,
+                                                                reportTimezone: "Browser timezone",
                                                             });
 
                                                             setTimezoneSearch("");
                                                             setTimezoneDropdownOpen(false);
                                                         }}
-                                                        className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 hover:bg-gray-100"
+                                                        className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                     >
                                                         <span
-                                                            className={`block truncate ${preferences.reportTimezone === browserTimezone
+                                                            className={`block truncate ${preferences.reportTimezone === "Browser timezone"
                                                                 ? "font-semibold"
                                                                 : "font-normal"
                                                                 }`}
@@ -603,14 +629,14 @@ export default function ProfilePage() {
                                                             Browser timezone ({browserTimezone})
                                                         </span>
 
-                                                        {preferences.reportTimezone === browserTimezone && (
+                                                        {preferences.reportTimezone === "Browser timezone" && (
                                                             <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-indigo-600">
                                                                 <Check className="size-5" />
                                                             </span>
                                                         )}
                                                     </li>
 
-                                                    <div className="my-1 border-t border-gray-200" />
+                                                    <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
 
                                                     {filteredTimezones.map((timezone) => (
                                                         <li
@@ -626,7 +652,7 @@ export default function ProfilePage() {
                                                                 setTimezoneSearch("");
                                                                 setTimezoneDropdownOpen(false);
                                                             }}
-                                                            className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 hover:bg-gray-100"
+                                                            className="relative cursor-pointer py-2 pr-9 pl-3 select-none text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                         >
                                                             <span
                                                                 className={`block truncate ${preferences.reportTimezone === timezone
@@ -661,16 +687,39 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            <div className='my-6 border-t border-gray-200'></div>
+                            <div className='my-6 border-t border-gray-200 dark:border-gray-800'></div>
                             <div className='max-w-xl mx-auto'>
-                                <h4 className='text-base font-semibold text-gray-900 mb-4'>Change account password</h4>
+                                <h4 className='text-base font-semibold text-gray-900 dark:text-white mb-4'>Change account password</h4>
 
                                 <form
                                     onSubmit={handlePasswordChange}
                                     className="space-y-4"
                                 >
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-900 mb-2'>New password</label>
+                                        <label className='block text-sm font-medium text-gray-900 dark:text-gray-200 mb-2'>Current password</label>
+                                        <div className='relative'>
+                                            <input
+                                                type={showCurrentPassword ? "text" : "password"}
+                                                value={passwordData.currentPassword}
+                                                onChange={(e) =>
+                                                    setPasswordData({
+                                                        ...passwordData,
+                                                        currentPassword: e.target.value,
+                                                    })
+                                                }
+                                                required
+                                                className='block w-full rounded-md bg-white dark:bg-[#1E293B] px-3 py-1.5 pr-10 text-base text-gray-900 dark:text-white outline outline-1 outline-gray-300 dark:outline-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-indigo-600'>
+                                            </input>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                                className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600'>
+                                                <MdRemoveRedEye className='h-5 w-5' />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className='block text-sm font-medium text-gray-900 dark:text-gray-200 mb-2'>New password</label>
                                         <div className='relative'>
                                             <input
                                                 type={showNewPassword ? "text" : "password"}
@@ -682,7 +731,7 @@ export default function ProfilePage() {
                                                     })
                                                 }
                                                 required
-                                                className='block w-full rounded-md bg-white px-3 py-1.5 pr-10 text-base text-gray-900 outline outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-indigo-600'>
+                                                className='block w-full rounded-md bg-white dark:bg-[#1E293B] px-3 py-1.5 pr-10 text-base text-gray-900 dark:text-white outline outline-1 outline-gray-300 dark:outline-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-indigo-600'>
                                             </input>
                                             <button
                                                 type="button"
@@ -693,7 +742,7 @@ export default function ProfilePage() {
                                         </div>
                                     </div>
                                     <div>
-                                        <label className='block text-sm font-medium text-gray-900 mb-2'>Repeat new password</label>
+                                        <label className='block text-sm font-medium text-gray-900 dark:text-gray-200 mb-2'>Repeat new password</label>
                                         <div className='relative'>
                                             <input
                                                 type={showConfirmPassword ? "text" : "password"}
@@ -705,7 +754,7 @@ export default function ProfilePage() {
                                                     })
                                                 }
                                                 required
-                                                className='block w-full rounded-md bg-white px-3 py-1.5 pr-10 text-base text-gray-900 outline outline-1 outline-gray-300 placeholder:text-gray-400 focus:outline-indigo-600'></input>
+                                                className='block w-full rounded-md bg-white dark:bg-[#1E293B] px-3 py-1.5 pr-10 text-base text-gray-900 dark:text-white outline outline-1 outline-gray-300 dark:outline-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-indigo-600'></input>
                                             <button
                                                 type="button"
                                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}

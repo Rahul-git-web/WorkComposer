@@ -40,7 +40,7 @@ export default function IdlePage() {
     }, []);
 
     return (
-        <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-[#1D3557] via-[#1A2F4B] to-[#13243D]">
+        <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 dark:from-[#1D3557] dark:via-[#1A2F4B] dark:to-[#13243D] text-gray-900 dark:text-white transition-colors duration-300">
 
            <div className="flex h-screen flex-col">
 
@@ -51,7 +51,7 @@ export default function IdlePage() {
                     <div className="flex h-20 w-20 items-center justify-center rounded-full bg-yellow-500/10 border border-yellow-500/30">
 
                         <svg
-                            className="h-10 w-10 text-yellow-400"
+                            className="h-10 w-10 text-yellow-500 dark:text-yellow-400"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2"
@@ -68,14 +68,14 @@ export default function IdlePage() {
 
                     <h1
                         className={`mt-8 text-4xl font-bold transition-colors ${countdown <= 5
-                            ? "text-red-300"
-                            : "text-white"
+                            ? "text-red-500 dark:text-red-300"
+                            : "text-gray-900 dark:text-white"
                             }`}
                     >
                         Are you still working?
                     </h1>
 
-                    <p className="mt-5 max-w-lg text-center text-lg leading-8 text-slate-300">
+                    <p className="mt-5 max-w-lg text-center text-lg leading-8 text-slate-600 dark:text-slate-300">
                         No activity has been detected for a while.
                         Confirm below to continue tracking your work session.
                     </p>
@@ -88,16 +88,16 @@ export default function IdlePage() {
 
                             <h2
                                 className={`text-8xl font-extrabold transition-colors duration-300 ${countdown <= 5
-                                        ? "text-red-400"
+                                        ? "text-red-500 dark:text-red-400"
                                         : countdown <= 10
-                                            ? "text-orange-400"
-                                            : "text-yellow-400"
+                                            ? "text-orange-500 dark:text-orange-400"
+                                            : "text-yellow-500 dark:text-yellow-400"
                                     }`}
                             >
                                 {countdown}
                             </h2>
 
-                            <p className="mt-2 text-sm font-semibold tracking-[0.35em] uppercase text-slate-400">
+                            <p className="mt-2 text-sm font-semibold tracking-[0.35em] uppercase text-slate-500 dark:text-slate-400">
                                 Seconds Remaining
                             </p>
 
@@ -105,7 +105,7 @@ export default function IdlePage() {
 
                         <div className="mt-8">
 
-                            <div className="h-3 w-full overflow-hidden rounded-full bg-[#304968]">
+                            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-300 dark:bg-[#304968]">
 
                                 <div
                                     className="h-full rounded-full transition-all duration-1000 ease-linear"
@@ -125,7 +125,7 @@ export default function IdlePage() {
 
                 {/* Footer */}
 
-                <div className="border-t border-[#36557C] px-10 py-6">
+                <div className="border-t border-slate-300 dark:border-[#36557C] px-10 py-6">
 
                     <button
                         className="

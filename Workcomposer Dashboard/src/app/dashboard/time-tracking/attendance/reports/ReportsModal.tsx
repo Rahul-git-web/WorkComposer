@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import API from "@/api";
 import { Loader2 } from "lucide-react";
 import { BarChart3, CircleCheck, Download } from "lucide-react";
@@ -22,7 +22,7 @@ export default function ReportsModal({
 }: Props) {
 
     const [reports, setReports] = useState<any[]>([]);
-    const [hasGenerated, setHasGenerated] = useState(false);
+    const hasGeneratedRef = useRef(false);
 
 
     const fetchReports = async () => {
@@ -38,22 +38,30 @@ export default function ReportsModal({
     };
 
     useEffect(() => {
-
         if (!open) return;
+        let mounted = true;
 
-        fetchReports();
+        const load = () => {
+            API.get("/reports")
+                .then(({ data }) => {
+                    if (mounted) setReports(data);
+                })
+                .catch((err) => console.error(err));
+        };
 
-        const interval = setInterval(() => {
-            fetchReports();
-        }, 3000);
+        load();
 
-        return () => clearInterval(interval);
+        const interval = setInterval(load, 3000);
 
+        return () => {
+            mounted = false;
+            clearInterval(interval);
+        };
     }, [open]);
 
     useEffect(() => {
         if (!open) {
-            setHasGenerated(false);
+            hasGeneratedRef.current = false;
             return;
         }
 
@@ -61,12 +69,12 @@ export default function ReportsModal({
 
         if (!onGenerate) return;
 
-        if (hasGenerated) return;
+        if (hasGeneratedRef.current) return;
 
-        setHasGenerated(true);
+        hasGeneratedRef.current = true;
 
         onGenerate();
-    }, [open, autoGenerate, onGenerate, hasGenerated]);
+    }, [open, autoGenerate, onGenerate]);
 
     if (!open) return null;
 
@@ -122,19 +130,19 @@ export default function ReportsModal({
                     }
                 }}
             >
-                <div className="bg-white rounded-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto p-6 shadow-xl mx-auto mt-10">
+                <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto p-6 shadow-xl mx-auto mt-10">
 
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                             Background Tasks and Reports
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                                 {reports.length} Reports
                             </p>
                         </h2>
 
                         <button
                             onClick={onClose}
-                            className="text-gray-500 hover:text-black"
+                            className="text-gray-500 dark:text-slate-400 hover:text-black dark:hover:text-white p-1 rounded"
                         >
                             ✕
                         </button>
@@ -142,19 +150,19 @@ export default function ReportsModal({
 
                     {processingReport ? (
 
-                        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
+                        <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 p-5">
 
                             <div className="flex items-center gap-3">
 
-                                <Loader2 className="h-5 w-5 text-amber-600 animate-spin" />
+                                <Loader2 className="h-5 w-5 text-amber-600 dark:text-amber-400 animate-spin" />
 
-                                <h3 className="text-lg font-semibold text-amber-800">
+                                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-300">
                                     Generating Report...
                                 </h3>
 
                             </div>
 
-                            <p className="text-sm text-amber-700 mt-2">
+                            <p className="text-sm text-amber-700 dark:text-amber-400 mt-2">
                                 Your report is currently being generated.
                             </p>
 
@@ -162,26 +170,26 @@ export default function ReportsModal({
 
                     ) : latestCompletedReport ? (
 
-                        <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-5">
+                        <div className="mb-6 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/60 p-5">
 
                             <div className="flex items-center justify-between">
 
                                 <div>
 
-                                    <h3 className="text-lg font-semibold text-gray-900">
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                                         Latest Report Ready
                                     </h3>
 
                                     <div className="mt-1">
 
-                                        <p className="text-sm text-gray-700 font-medium">
+                                        <p className="text-sm text-gray-700 dark:text-slate-300 font-medium">
 
                                             {getReportName(latestCompletedReport.type)}
                                         </p>
 
                                         {latestCompletedReport.startDate &&
                                             latestCompletedReport.endDate && (
-                                                <p className="text-xs text-gray-500 mt-1">
+                                                <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
 
                                                     {latestCompletedReport.startDate ===
                                                         latestCompletedReport.endDate ? (
@@ -229,7 +237,7 @@ export default function ReportsModal({
                                     href={`${process.env.NEXT_PUBLIC_API_ORIGIN}${latestCompletedReport.fileUrl}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
                                 >
                                     Download
                                 </a>
@@ -240,9 +248,9 @@ export default function ReportsModal({
 
                     ) : null}
 
-                    <div className="overflow-hidden rounded-lg border border-gray-300">
+                    <div className="overflow-hidden rounded-lg border border-gray-300 dark:border-slate-700">
 
-                        <div className="grid grid-cols-4 bg-gray-50 px-6 py-3 font-semibold text-gray-700">
+                        <div className="grid grid-cols-4 bg-gray-50 dark:bg-slate-900 px-6 py-3 font-semibold text-gray-700 dark:text-slate-200">
                             <div>Title</div>
                             <div>Status</div>
                             <div>Generated</div>
@@ -252,11 +260,11 @@ export default function ReportsModal({
                         {reports.map((report: any) => (
                             <div
                                 key={report._id}
-                                className="grid grid-cols-4 items-center border-t border-gray-100 px-6 py-3"
+                                className="grid grid-cols-4 items-center border-t border-gray-100 dark:border-slate-700 px-6 py-3 text-slate-800 dark:text-slate-200"
                             >
                                 <div>
                                     <div className="font-medium text-sm flex gap-1">
-                                        <div className="mt-1 text-gray-400">
+                                        <div className="mt-1 text-gray-400 dark:text-slate-400">
                                             <AiOutlineFileText className="w-3.5 h-3.5" />
                                         </div>
                                         {getReportName(report.type)}
@@ -266,25 +274,25 @@ export default function ReportsModal({
 
                                 <div>
                                     {report.status === "done" ? (
-                                        <span className="flex text-green-600 font-medium text-sm gap-1">
+                                        <span className="flex text-green-600 dark:text-green-400 font-medium text-sm gap-1">
                                             <div className="mt-1">
                                                 <CircleCheck className="w-3.5 h-3.5" />
                                             </div>
                                             Done
                                         </span>
                                     ) : report.status === "failed" ? (
-                                        <span className="flex text-red-600 font-medium text-sm gap-1">
+                                        <span className="flex text-red-600 dark:text-red-400 font-medium text-sm gap-1">
                                             <span>✕</span>
                                             Rejected
                                         </span>
                                     ) : (
-                                        <span className="text-amber-600 font-medium text-sm">
+                                        <span className="text-amber-600 dark:text-amber-400 font-medium text-sm">
                                             ⏳ Processing
                                         </span>
                                     )}
                                 </div>
 
-                                <div className="text-sm">
+                                <div className="text-sm text-slate-700 dark:text-slate-300">
                                     {new Date(report.createdAt).toLocaleDateString(
                                         "en-US",
                                         {
@@ -301,7 +309,7 @@ export default function ReportsModal({
                                             href={`${process.env.NEXT_PUBLIC_API_ORIGIN}${report.fileUrl}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex bg-indigo-600 text-white px-3 py-1 rounded-md text-sm gap-1"
+                                            className="flex bg-indigo-600 text-white px-3 py-1 rounded-md text-sm gap-1 hover:bg-indigo-700 transition"
                                         >
                                             <div className="mt-1">
                                                 <Download className="w-3.5 h-3.5" />
@@ -324,7 +332,7 @@ export default function ReportsModal({
                                                console.error(err);
                                             }
                                         }}
-                                        className="bg-gray-100 px-3 py-1 rounded-md text-sm"
+                                        className="bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600 px-3 py-1 rounded-md text-sm cursor-pointer transition"
                                     >
                                         Delete
                                     </button>

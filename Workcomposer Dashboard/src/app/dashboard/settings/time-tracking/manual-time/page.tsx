@@ -34,7 +34,7 @@ export default function ManualTimePage() {
     return (
         <div className="py-10 flex-1">
             <div className="mx-auto w-full max-w-[1700px] px-6 sm:px-8 lg:px-10">
-                <div className="mx-auto mt-8 w-full max-w-6xl rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="mx-auto mt-8 w-full max-w-6xl rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
 
                     <TrackingHeader
                         title="Manual Time"
@@ -95,7 +95,7 @@ export default function ManualTimePage() {
                         title="Time entry backdating limit"
                     >
                         <div className="flex flex-col">
-                            <label className="mb-2 text-sm font-medium">
+                            <label className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">
                                 Days
                             </label>
 

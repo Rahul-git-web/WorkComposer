@@ -3,8 +3,10 @@ import { uploadAvatar as uploadAvatarMiddleware } from "../middleware/avatarUplo
 import { protect } from "../middleware/auth.middleware.js";
 import {
   changePassword,
+  getThemePreference,
   updatePreferences,
   updateProfile,
+  updateThemePreference,
   uploadAvatar,
 } from "../controllers/settings.controller.js";
 
@@ -15,6 +17,10 @@ router.put("/profile", protect, updateProfile);
 router.put("/change-password", protect, changePassword);
 
 router.put("/preferences", protect, updatePreferences);
+
+router.get("/theme", protect, getThemePreference);
+
+router.put("/theme", protect, updateThemePreference);
 
 router.post(
   "/avatar",

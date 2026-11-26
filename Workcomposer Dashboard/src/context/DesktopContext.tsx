@@ -59,7 +59,7 @@ export function DesktopProvider({
         useState("dashboard");
 
     const [activeReport, setActiveReport] =
-        useState("overview");
+        useState("home");
 
     const [activeUserSection, setActiveUserSection] =
         useState("teams");

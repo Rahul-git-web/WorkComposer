@@ -78,6 +78,10 @@ export default function FullListModal({
                 ref={modalRef}
                 className="
   bg-white
+  dark:bg-slate-800
+  border
+  border-transparent
+  dark:border-slate-700
   w-[95%]
   max-w-6xl
   max-h-[90vh]
@@ -88,10 +92,10 @@ export default function FullListModal({
 "
             >
 
-                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
 
-                    <h2 className="flex items-center text-lg font-semibold text-gray-800">
-                        <HiMiniCommandLine className="h-7 w-7 text-blue-600 mr-4" />
+                    <h2 className="flex items-center text-lg font-semibold text-gray-800 dark:text-white">
+                        <HiMiniCommandLine className="h-7 w-7 text-blue-600 dark:text-blue-400 mr-4" />
                         All apps used by {user?.name}
                     </h2>
 
@@ -101,12 +105,16 @@ export default function FullListModal({
     rounded-full
     p-2.5
     text-gray-400
+    dark:text-slate-400
     hover:bg-gray-100
+    dark:hover:bg-slate-700
     hover:text-gray-600
+    dark:hover:text-slate-200
     transition-all
     duration-200
     border
     border-blue-200
+    dark:border-slate-700
   "
                     >
                         <X className="h-6 w-6" />
@@ -118,7 +126,7 @@ export default function FullListModal({
 
                     {user?.apps?.length === 0 ? (
 
-                        <div className="text-center py-16 text-gray-500">
+                        <div className="text-center py-16 text-gray-500 dark:text-slate-400">
                             No apps found
                         </div>
 
@@ -128,15 +136,15 @@ export default function FullListModal({
 
                             <table className="w-full">
 
-                                <thead className="sticky top-0 bg-gray-50 z-10">
+                                <thead className="sticky top-0 bg-gray-50 dark:bg-slate-900/60 z-10">
 
-                                    <tr className="border-b border-gray-300 bg-gray-50">
+                                    <tr className="border-b border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/60">
 
-                                        <th className="text-left px-6 py-4 text-xs text-gray-600 font-medium">
+                                        <th className="text-left px-6 py-4 text-xs text-gray-600 dark:text-slate-300 font-medium">
                                             APP
                                         </th>
 
-                                        <th className="text-right px-6 py-4 text-xs text-gray-600 font-medium">
+                                        <th className="text-right px-6 py-4 text-xs text-gray-600 dark:text-slate-300 font-medium">
                                             DURATION
                                         </th>
 
@@ -150,16 +158,16 @@ export default function FullListModal({
 
                                         <tr
                                             key={index}
-                                            className="border-b border-gray-200 hover:bg-gray-50"
+                                            className="border-b border-gray-200 dark:border-slate-700/60 hover:bg-gray-50 dark:hover:bg-slate-700/40"
                                         >
 
                                             <td className="px-6 py-5">
 
                                                 <div className="flex items-center gap-3">
 
-                                                    <Monitor className="h-6 w-6 text-gray-800" />
+                                                    <Monitor className="h-6 w-6 text-gray-800 dark:text-slate-300" />
 
-                                                    <span className="font-medium text-sm text-gray-800">
+                                                    <span className="font-medium text-sm text-gray-800 dark:text-white">
                                                         {app.name}
                                                     </span>
 
@@ -167,7 +175,7 @@ export default function FullListModal({
 
                                             </td>
 
-                                            <td className="px-6 py-5 text-right text-sm font-semibold text-gray-700">
+                                            <td className="px-6 py-5 text-right text-sm font-semibold text-gray-700 dark:text-slate-200">
                                                 {formatDuration(app.duration)}
                                             </td>
 

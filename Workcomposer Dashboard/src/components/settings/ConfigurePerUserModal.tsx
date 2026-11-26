@@ -368,16 +368,16 @@ export default function ConfigurePerUserModal({
         >
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-4xl rounded-2xl bg-white shadow-xl"
+                className="w-full max-w-4xl rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] shadow-xl"
             >
 
                 {/* Header */}
-                <div className="rounded-t-xl bg-gray-100 mt-6 px-10 py-3 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900">
+                <div className="rounded-t-xl bg-gray-100 dark:bg-[#1E293B] mt-6 px-10 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                         {title}
                     </h2>
 
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                         Configure this setting for individual users in your organization.
                     </p>
                 </div>
@@ -385,7 +385,7 @@ export default function ConfigurePerUserModal({
                 {/* Body */}
                 <div className="h-[500px] overflow-y-auto p-8">
                     <div>
-                        <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        <label className="block text-sm font-semibold text-gray-900 dark:text-gray-200 mb-2">
                             Search Users
                         </label>
 
@@ -405,11 +405,11 @@ export default function ConfigurePerUserModal({
                                     setCurrentPage(1);
                                 }}
                                 placeholder="Search by name or select from dropdown..."
-                                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                                className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
                             />
 
                             {dropdownOpen && (
-                                <div className="absolute z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                                <div className="absolute z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E293B] shadow-lg">
 
                                     {dropdownUsers.map((user: any) => (
                                         <button
@@ -426,7 +426,7 @@ export default function ConfigurePerUserModal({
 
                                                 setCurrentPage(1);
                                             }}
-                                            className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                                            className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-[#273549]"
                                         >
                                             {user?.avatar ? (
                                                 <img
@@ -441,11 +441,11 @@ export default function ConfigurePerUserModal({
                                             )}
 
                                             <div>
-                                                <p className="text-sm font-medium text-gray-900">
+                                                <p className="text-sm font-medium text-gray-900 dark:text-white">
                                                     {user.firstName} {user.lastName}
                                                 </p>
 
-                                                <p className="text-xs text-gray-500 capitalize">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                                                     {user.role}
                                                 </p>
                                             </div>
@@ -453,7 +453,7 @@ export default function ConfigurePerUserModal({
                                     ))}
 
                                     {dropdownUsers.length === 0 && (
-                                        <div className="px-4 py-6 text-center text-sm text-gray-500">
+                                        <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                                             No users found
                                         </div>
                                     )}
@@ -483,8 +483,8 @@ export default function ConfigurePerUserModal({
                                         setCurrentPage(1);
                                     }}
                                     className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition ${filter === "all"
-                                        ? "bg-indigo-100 text-indigo-700"
-                                        : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                        ? "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold"
+                                        : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
                                         }`}
                                 >
                                     <HiOutlineUsers className="mr-2 h-4 w-4" />
@@ -499,8 +499,8 @@ export default function ConfigurePerUserModal({
                                         setCurrentPage(1);
                                     }}
                                     className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition ${filter === "custom"
-                                        ? "bg-indigo-100 text-indigo-700"
-                                        : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                        ? "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold"
+                                        : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
                                         }`}
                                 >
                                     <LiaSlidersHSolid className="mr-2 h-4 w-4" />
@@ -515,8 +515,8 @@ export default function ConfigurePerUserModal({
                                         setCurrentPage(1);
                                     }}
                                     className={`inline-flex items-center rounded-md px-3 py-2 text-sm font-medium transition ${filter === "default"
-                                        ? "bg-indigo-100 text-indigo-700"
-                                        : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                                        ? "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-semibold"
+                                        : "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
                                         }`}
                                 >
                                     <Star className="mr-2 h-4 w-4" />
@@ -551,29 +551,29 @@ export default function ConfigurePerUserModal({
                             )}
                         </div>
 
-                        <div className="mt-6 overflow-hidden rounded-xl border border-gray-200">
+                        <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
 
                             {loadingUsers ? (
-                                <div className="p-8 text-center text-gray-500">
+                                <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                                     Loading users...
                                 </div>
                             ) : filteredUsers.length === 0 ? (
 
                                 <div className="flex h-[320px] flex-col items-center justify-center">
 
-                                    <HiOutlineUsers className="h-12 w-12 text-gray-600" />
+                                    <HiOutlineUsers className="h-12 w-12 text-gray-600 dark:text-gray-400" />
 
-                                    <h3 className="mt-2 text-md font-semibold text-gray-900">
+                                    <h3 className="mt-2 text-md font-semibold text-gray-900 dark:text-white">
                                         No users found
                                     </h3>
 
-                                    <p className="mt-1 text-center text-sm text-gray-500">
+                                    <p className="mt-1 text-center text-sm text-gray-500 dark:text-gray-400">
                                         Try adjusting your search or clear filters.
                                     </p>
 
                                     <button
                                         onClick={clearFilters}
-                                        className="mt-4 rounded-md text-sm bg-indigo-50 px-3 py-2 font-medium text-indigo-600 hover:bg-indigo-100"
+                                        className="mt-4 rounded-md text-sm bg-indigo-50 dark:bg-indigo-950/40 px-3 py-2 font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
                                     >
                                         Clear Filters
                                     </button>
@@ -588,7 +588,7 @@ export default function ConfigurePerUserModal({
                                     return (
                                         <div
                                             key={user._id}
-                                            className="flex items-center justify-between border-b border-gray-100 px-6 py-4 last:border-0"
+                                            className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 px-6 py-4 last:border-0 hover:bg-gray-50/50 dark:hover:bg-slate-800/30"
                                         >
                                             <div className="flex items-center gap-3">
                                                 {user?.avatar ? (
@@ -604,11 +604,11 @@ export default function ConfigurePerUserModal({
                                                 )}
 
                                                 <div>
-                                                    <p className="font-medium text-gray-900">
+                                                    <p className="font-medium text-gray-900 dark:text-white">
                                                         {user.firstName} {user.lastName}
                                                     </p>
 
-                                                    <p className="text-xs text-gray-500 capitalize">
+                                                    <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                                                         {user.role}
                                                     </p>
                                                 </div>
@@ -667,7 +667,7 @@ export default function ConfigurePerUserModal({
                                                                 }
                                                                 className={`relative h-7 w-14 rounded-full transition-colors ${effectiveSetting
                                                                     ? "bg-indigo-600"
-                                                                    : "bg-gray-300"
+                                                                    : "bg-gray-300 dark:bg-gray-700"
                                                                     }`}
                                                             >
                                                                 <span
@@ -678,14 +678,13 @@ export default function ConfigurePerUserModal({
                                                                 />
                                                             </button>
 
-                                                            <span className="w-8 text-sm text-gray-600">
+                                                            <span className="w-8 text-sm text-gray-600 dark:text-gray-400">
                                                                 {effectiveSetting ? "On" : "Off"}
                                                             </span>
                                                         </div>
 
 
-                                                        {false &&
-                                                            safeAdvancedFields.length > 0 &&
+                                                        {safeAdvancedFields.length > 0 &&
                                                             effectiveSetting && (
                                                                 <div className="flex gap-3">
                                                                     {safeAdvancedFields.map((field) => (
@@ -805,12 +804,12 @@ export default function ConfigurePerUserModal({
                                         onClick={() =>
                                             setCurrentPage((p) => p - 1)
                                         }
-                                        className="rounded-md border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+                                        className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 px-3 py-1 text-sm disabled:opacity-50"
                                     >
                                         Previous
                                     </button>
 
-                                    <span className="px-3 py-1 text-sm">
+                                    <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
                                         {currentPage} / {totalPages}
                                     </span>
 
@@ -819,7 +818,7 @@ export default function ConfigurePerUserModal({
                                         onClick={() =>
                                             setCurrentPage((p) => p + 1)
                                         }
-                                        className="rounded-md border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+                                        className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 px-3 py-1 text-sm disabled:opacity-50"
                                     >
                                         Next
                                     </button>
@@ -832,10 +831,10 @@ export default function ConfigurePerUserModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex justify-end rounded-b-2xl border-t border-gray-200 bg-gray-50 px-6 py-4">
+                <div className="flex justify-end rounded-b-2xl border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1E293B] px-6 py-4">
                     <button
                         onClick={onClose}
-                        className="rounded-md bg-indigo-50 px-5 py-2 text-indigo-600 hover:bg-indigo-100"
+                        className="rounded-md bg-indigo-50 dark:bg-indigo-950/40 px-5 py-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 font-medium transition"
                     >
                         Close
                     </button>

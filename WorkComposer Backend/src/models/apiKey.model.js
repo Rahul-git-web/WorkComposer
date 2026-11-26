@@ -62,4 +62,9 @@ const apiKeySchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("ApiKey", apiKeySchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { apiKeyRepository } from "../db/repositories/apiKey.repository.js";
+
+const _Model = mongoose.model("ApiKey", apiKeySchema);
+export default createModelProxy(_Model, () => apiKeyRepository);

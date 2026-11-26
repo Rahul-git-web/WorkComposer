@@ -14,12 +14,17 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import API from "@/api";
+import {
+    hasDesktopIntegrationOAuth,
+    useDesktopIntegrationOAuth,
+} from "@/lib/desktopIntegrationOAuth";
 
 export default function AsanaPage() {
 
     const searchParams = useSearchParams();
     const router = useRouter();
     const desktop = useOptionalDesktop();
+    const isDesktop = Boolean(desktop);
 
     useEffect(() => {
         const status = searchParams.get("status");
@@ -36,12 +41,23 @@ export default function AsanaPage() {
             });
         }
 
+        if (status === "error") {
+            const errorParam = searchParams.get("error");
+            const msg =
+                errorParam === "invalid_state"
+                    ? "Asana connection failed: invalid or expired session state."
+                    : "Failed to connect Asana.";
+            toast.error(msg);
+        }
+
         window.history.replaceState(
             {},
             "",
-            "/dashboard/settings/account/integrations/asana"
+            isDesktop
+                ? window.location.pathname
+                : "/dashboard/settings/account/integrations/asana"
         );
-    }, [searchParams]);
+    }, [searchParams, isDesktop]);
 
     const [loading, setLoading] = useState(false);
     const [integration, setIntegration] = useState<any>(null);
@@ -65,7 +81,19 @@ export default function AsanaPage() {
         fetchIntegration();
     }, []);
 
+    const { oauthWaiting, startDesktopOAuth, cancelWaiting } =
+        useDesktopIntegrationOAuth({
+            provider: "asana",
+            label: "Asana",
+            onConnected: fetchIntegration,
+        });
+
     const connectAsana = async () => {
+        if (hasDesktopIntegrationOAuth()) {
+            await startDesktopOAuth();
+            return;
+        }
+
         try {
             setLoading(true);
 
@@ -101,6 +129,7 @@ export default function AsanaPage() {
             toast.success(data.message);
 
             await fetchIntegration();
+            window.dispatchEvent(new Event("integrationsUpdated"));
         } catch (err: any) {
             console.error("ASANA DISCONNECT ERROR:", err);
 
@@ -156,140 +185,161 @@ export default function AsanaPage() {
 
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-3 sm:px-5 lg:px-6 py-3 sm:py-5">
+        <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 sm:py-6">
             {/* Back */}
             <button
                 type="button"
                 onClick={handleBackToIntegrations}
-                className="mb-6 sm:mb-8 flex items-center gap-2 text-sm sm:text-base text-gray-500 transition hover:text-black"
+                className="mb-6 inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 transition hover:text-gray-900 dark:hover:text-white"
             >
-                <ArrowLeft size={18} />
+                <ArrowLeft size={16} />
                 <span>Back to Integrations</span>
             </button>
 
             {/* Header */}
-            <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="mb-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
                 <Image
                     src="/icons/asana.png"
                     alt="Asana"
-                    width={56}
-                    height={56}
-                    className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl shadow"
+                    width={48}
+                    height={48}
+                    className="shrink-0"
                 />
 
-                <div>
-                    <h1 className="text-lg sm:text-xl font-bold text-gray-900">
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                         Asana Integration
                     </h1>
 
-                    <p className="mt-1 text-sm sm:text-base text-gray-500">
+                    <p className="mt-1 text-sm text-gray-600 dark:text-gray-400 sm:text-base">
                         Sync tasks and track time across platforms
                     </p>
                 </div>
             </div>
 
-            {/* Hero */}
-            <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-                <div className="flex flex-col items-center px-4 py-8 text-center sm:px-8 sm:py-10 lg:px-10">
-                    <div className="mb-5 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full bg-gray-100">
-                        <Link2
-                            size={28}
-                            className="text-gray-500 sm:h-[34px] sm:w-[34px]"
-                        />
-                    </div>
-
-                    <h2 className="text-base sm:text-lg font-semibold">
-                        {integration?.connected
-                            ? "Asana Connected"
-                            : "Connect Your Asana Workspace"}
-                    </h2>
-
-                    {integration?.connected ? (
-                        <div className="w-full text-center">
-                            <p className="font-medium text-green-600">
-                                ✓ Successfully connected
-                            </p>
-
-                            <p className="mt-2 break-words text-sm text-gray-500">
-                                Workspace: {integration.workspaceName}
-                            </p>
-
-                            <p className="break-all text-sm text-gray-500">
-                                {integration.email}
-                            </p>
-
-                            {/* Actions */}
-                            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row sm:gap-0">
-                                <button
-                                    onClick={importProjects}
-                                    disabled={loading}
-                                    className="w-full rounded-md bg-[#f24b09] px-6 py-2.5 font-medium text-white transition hover:bg-[#e15d2b] disabled:cursor-not-allowed disabled:opacity-60 sm:mr-2 sm:w-auto"
-                                >
-                                    {loading
-                                        ? "Importing..."
-                                        : "Import Projects"}
-                                </button>
-
-                                <button
-                                    onClick={disconnectAsana}
-                                    disabled={loading}
-                                    className="w-full rounded-md border border-red-300 px-6 py-2.5 font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 sm:ml-2 sm:w-auto"
-                                >
-                                    {loading
-                                        ? "Disconnecting..."
-                                        : "Disconnect"}
-                                </button>
+            <div className="space-y-6">
+                {/* Main Card */}
+                {integration?.connected ? (
+                    <div className="rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] p-4 sm:p-6">
+                        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                                <span className="font-medium text-gray-900 dark:text-white">
+                                    ✓ Successfully connected
+                                </span>
                             </div>
+
+                            <button
+                                onClick={disconnectAsana}
+                                disabled={loading}
+                                className="text-sm text-red-600 transition hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {loading ? "Disconnecting..." : "Disconnect"}
+                            </button>
                         </div>
-                    ) : (
-                        <>
-                            <p className="max-w-md text-sm leading-6 text-gray-600 sm:text-base">
-                                Link your Asana workspace to import tasks,
-                                track time against Asana projects,
-                                and automatically sync time entries —
-                                all without leaving your workspace.
+
+                        <dl className="mb-6 grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                            <div>
+                                <dt className="text-gray-500 dark:text-gray-400">Workspace</dt>
+                                <dd className="break-words font-medium text-gray-900 dark:text-white">
+                                    Workspace: {integration.workspaceName}
+                                </dd>
+                            </div>
+                            {integration.email && (
+                                <div>
+                                    <dt className="text-gray-500 dark:text-gray-400">Account Email</dt>
+                                    <dd className="break-all font-medium text-gray-900 dark:text-white">
+                                        {integration.email}
+                                    </dd>
+                                </div>
+                            )}
+                        </dl>
+
+                        <div className="border-t border-gray-100 dark:border-gray-800 pt-6">
+                            <h2 className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">
+                                Project Import
+                            </h2>
+                            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                                Pull projects and tasks from your connected Asana workspace.
                             </p>
 
                             <button
-                                onClick={connectAsana}
+                                onClick={importProjects}
                                 disabled={loading}
-                                className="mt-6 w-full rounded-md bg-[#f24b09] px-7 py-2.5 font-semibold text-white transition hover:bg-[#e15d2b] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                                className="w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                             >
-                                {loading
-                                    ? "Connecting..."
-                                    : "Connect to Asana"}
+                                {loading ? "Importing..." : "Import Projects"}
                             </button>
-                        </>
-                    )}
-                </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] p-4 sm:p-6">
+                        <h2 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">
+                            Connect Your Asana Workspace
+                        </h2>
 
-                {/* Bottom */}
-                <div className="border-t bg-gray-50 px-4 py-7 sm:px-6 sm:py-8">
-                    <h3 className="mb-6 text-center text-xs sm:text-sm font-semibold tracking-[0.2em] text-gray-500">
-                        WHAT YOU&apos;LL GET
+                        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
+                            Link your Asana workspace to import tasks, track time against Asana
+                            projects, and automatically sync time entries — all without leaving your
+                            workspace.
+                        </p>
+
+                        <div className="flex flex-col items-start gap-3">
+                            <button
+                                onClick={connectAsana}
+                                disabled={loading || oauthWaiting}
+                                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                            >
+                                <Link2 size={16} />
+                                {oauthWaiting
+                                    ? "Waiting for Asana Authorization..."
+                                    : loading
+                                        ? "Connecting..."
+                                        : "Connect to Asana"}
+                            </button>
+                            {oauthWaiting && (
+                                <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
+                                    <span>Complete authorization in your browser.</span>
+                                    <button
+                                        type="button"
+                                        onClick={cancelWaiting}
+                                        className="font-medium text-gray-900 dark:text-white hover:underline"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Features Card */}
+                <div className="rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] p-4 sm:p-6">
+                    <h3 className="mb-5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        What You&apos;ll Get
                     </h3>
 
-                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                         <Feature
-                            icon={<Download size={18} />}
+                            icon={<Download size={18} className="text-gray-700 dark:text-gray-300" />}
                             title="Import Tasks"
                             desc="Pull tasks from Asana projects"
                         />
 
                         <Feature
-                            icon={<Clock3 size={22} />}
+                            icon={<Clock3 size={18} className="text-gray-700 dark:text-gray-300" />}
                             title="Track Time"
                             desc="Log hours against Asana tasks"
                         />
 
                         <Feature
-                            icon={<RefreshCw size={22} />}
+                            icon={<RefreshCw size={18} className="text-gray-700 dark:text-gray-300" />}
                             title="Auto Sync"
                             desc="Background sync every 15 min"
                         />
 
                         <Feature
-                            icon={<BarChart3 size={22} />}
+                            icon={<BarChart3 size={18} className="text-gray-700 dark:text-gray-300" />}
                             title="Time Entries"
                             desc="Push time entries to Asana"
                         />
@@ -310,18 +360,20 @@ function Feature({
     desc: string;
 }) {
     return (
-        <div className="flex flex-col items-center text-center">
-            <div className="mb-4 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-lg border bg-white shadow-sm">
+        <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-slate-800">
                 {icon}
             </div>
 
-            <h4 className="text-sm sm:text-base font-semibold text-gray-900">
-                {title}
-            </h4>
+            <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {title}
+                </h4>
 
-            <p className="mt-2 max-w-[220px] text-xs sm:text-sm leading-5 text-gray-500">
-                {desc}
-            </p>
+                <p className="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-400">
+                    {desc}
+                </p>
+            </div>
         </div>
     );
 }

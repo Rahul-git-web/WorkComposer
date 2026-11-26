@@ -66,4 +66,9 @@ const screenshotSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-export default mongoose.model("Screenshot", screenshotSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { screenshotRepository } from "../db/repositories/screenshot.repository.js";
+
+const _Model = mongoose.model("Screenshot", screenshotSchema);
+export default createModelProxy(_Model, () => screenshotRepository);

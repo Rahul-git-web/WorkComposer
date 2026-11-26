@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Plus, CreditCard } from "lucide-react";
+import toast from "react-hot-toast";
 import { useBillingOverview } from "../hooks/useBillingOverview";
 import EditBillingProfileModal from "./EditBillingProfileModal";
 
@@ -137,7 +138,20 @@ export default function PaymentBilling() {
                                 No Debit/Credit Cards attached to your account yet.
                             </p>
 
-                            <button className="flex items-center gap-2 rounded-xl border border-blue-600 px-6 py-3 font-medium text-blue-600 transition hover:bg-blue-50">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const subTab = Array.from(document.querySelectorAll("button")).find(
+                                        (btn) => btn.textContent?.trim() === "Subscription"
+                                    );
+                                    if (subTab) {
+                                        subTab.click();
+                                        window.scrollTo({ top: 0, behavior: "smooth" });
+                                    }
+                                    toast("Select a plan or complete Stripe checkout to attach a payment card.");
+                                }}
+                                className="flex items-center gap-2 rounded-xl border border-blue-600 px-6 py-3 font-medium text-blue-600 transition hover:bg-blue-50"
+                            >
 
                                 <Plus className="h-5 w-5" />
 

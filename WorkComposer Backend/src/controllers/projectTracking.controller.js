@@ -1,3 +1,4 @@
+
 import ProjectTracking from "../models/projectTracking.model.js";
 import Project from "../models/project.model.js";
 import Task from "../models/task.model.js";
@@ -7,15 +8,66 @@ import { hasPermission } from "../middleware/permission.middleware.js";
 
 export const trackProject = async (req, res) => {
   try {
-    const { projectId, taskId, startTime, endTime, duration } = req.body;
+    const { projectId, taskId, startTime, endTime, duration } = req.body || {};
 
-    // If this is task tracking, verify task assignment.
-    if (taskId) {
-      const task = await Task.findOne({
-        _id: taskId,
-        organization: req.user.organization,
-        deleted: false,
-      }).select("assignedTo project");
+    const organizationId =
+      req.user?.organization?._id ||
+      req.user?.organizationId ||
+      req.user?.organization;
+
+    if (!req.user || !organizationId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context",
+      });
+    }
+
+    const callerUserId = req.user?._id || req.user?.id;
+    if (!callerUserId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing user identity",
+      });
+    }
+
+    const cleanTaskId = typeof taskId === "string" ? taskId.trim() : "";
+    const cleanProjectId = typeof projectId === "string" ? projectId.trim() : "";
+
+    // Validate malformed taskId if supplied
+    if (taskId !== undefined && taskId !== null && (!cleanTaskId || cleanTaskId === "[object Object]")) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
+
+    // Validate malformed projectId if supplied
+    if (projectId !== undefined && projectId !== null && (!cleanProjectId || cleanProjectId === "[object Object]")) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    let finalTaskId = null;
+    let finalProjectId = cleanProjectId || null;
+
+    // If this is task tracking, verify task assignment and tenant ownership.
+    if (cleanTaskId) {
+      let task;
+      try {
+        task = await Task.findOne({
+          _id: cleanTaskId,
+          organization: organizationId,
+          deleted: false,
+        }).select("assignedTo project");
+      } catch (findErr) {
+        if (
+          findErr.name === "CastError" ||
+          (findErr.message && findErr.message.includes("Invalid identifier"))
+        ) {
+          return res.status(404).json({
+            message: "Task not found",
+          });
+        }
+        throw findErr;
+      }
 
       if (!task) {
         return res.status(404).json({
@@ -24,33 +76,68 @@ export const trackProject = async (req, res) => {
       }
 
       // Only the assigned user can track the task.
+      const assignedToId = task.assignedTo?._id || task.assignedTo;
       if (
-        !task.assignedTo ||
-        task.assignedTo.toString() !== req.user._id.toString()
+        !assignedToId ||
+        assignedToId.toString() !== callerUserId.toString()
       ) {
         return res.status(403).json({
           message: "You can only track tasks assigned to you.",
         });
       }
 
+      const taskProjectId = (task.project?._id || task.project)?.toString();
+
       // Make sure the task belongs to the requested project.
-      if (
-        projectId &&
-        task.project &&
-        task.project.toString() !== projectId.toString()
-      ) {
+      if (cleanProjectId && taskProjectId && taskProjectId !== cleanProjectId) {
         return res.status(400).json({
           message: "Task does not belong to this project.",
         });
       }
+
+      finalTaskId = task._id || task.id || cleanTaskId;
+      if (!finalProjectId && taskProjectId) {
+        finalProjectId = taskProjectId;
+      }
+    } else if (cleanProjectId) {
+      // When taskId is omitted but projectId is supplied, verify project ownership
+      let project;
+      try {
+        project = await Project.findOne({
+          _id: cleanProjectId,
+          organization: organizationId,
+        });
+      } catch (findErr) {
+        if (
+          findErr.name === "CastError" ||
+          (findErr.message && findErr.message.includes("Invalid identifier"))
+        ) {
+          return res.status(404).json({
+            message: "Project not found",
+          });
+        }
+        throw findErr;
+      }
+
+      if (!project) {
+        return res.status(404).json({
+          message: "Project not found",
+        });
+      }
+
+      finalProjectId = project._id || project.id || cleanProjectId;
+    } else {
+      return res.status(400).json({
+        message: "Project or task is required to track time.",
+      });
     }
 
     const date = new Date(startTime).toISOString().split("T")[0];
 
     const tracking = await ProjectTracking.create({
-      user: req.user._id,
-      project: projectId,
-      task: taskId || null,
+      user: callerUserId,
+      project: finalProjectId,
+      task: finalTaskId,
       startTime,
       endTime,
       duration,
@@ -65,7 +152,8 @@ export const trackProject = async (req, res) => {
     console.error("TRACK PROJECT ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to track project",
+      error: "Failed to track project",
     });
   }
 };
@@ -74,10 +162,21 @@ export const getProjectTracking = async (req, res) => {
   try {
     const { startDate, endDate, sortBy = "name", order = "asc" } = req.query;
 
+    const organizationId =
+      req.user?.organization?._id ||
+      req.user?.organizationId ||
+      req.user?.organization;
+
+    if (!req.user || !organizationId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context",
+      });
+    }
+
     const canManageProjects = await hasPermission(req.user, "manage_projects");
 
     const projectQuery = {
-      organization: req.user.organization,
+      organization: organizationId,
     };
 
     if (!canManageProjects) {
@@ -140,14 +239,16 @@ export const getProjectTracking = async (req, res) => {
           .populate("user", "firstName lastName email")
           .populate("task", "title");
 
-        records.forEach((r) => {});
+        records.forEach((r) => { });
 
         const taskMap = new Map();
 
         for (const record of records) {
-          if (!record.task) continue;
+          if (!record.task || !record.user) continue;
 
-          const key = `${record.task._id}-${record.user._id}`;
+          const taskId = record.task._id || record.task.id;
+          const userId = record.user._id || record.user.id;
+          const key = `${taskId}-${userId}`;
 
           if (!taskMap.has(key)) {
             taskMap.set(key, {
@@ -173,7 +274,7 @@ export const getProjectTracking = async (req, res) => {
 
           name: project.name,
 
-          users: project.users,
+          users: (project.users || []).filter(Boolean),
 
           totalSeconds,
 
@@ -202,10 +303,11 @@ export const getProjectTracking = async (req, res) => {
 
     res.json(filteredData);
   } catch (err) {
-    console.error(err);
+    console.error("GET PROJECT TRACKING ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to get project tracking",
+      error: "Failed to get project tracking",
     });
   }
 };
@@ -215,14 +317,63 @@ export const getTaskDetails = async (req, res) => {
     const { taskId } = req.params;
     const { startDate, endDate } = req.query;
 
+    const organizationId =
+      req.user?.organization?._id ||
+      req.user?.organizationId ||
+      req.user?.organization;
+
+    if (!req.user || !organizationId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context",
+      });
+    }
+
+    if (
+      !taskId ||
+      typeof taskId !== "string" ||
+      !taskId.trim() ||
+      taskId.trim() === "[object Object]"
+    ) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
+
+    const cleanTaskId = taskId.trim();
+
+    let task;
+    try {
+      task = await Task.findOne({
+        _id: cleanTaskId,
+        organization: organizationId,
+        deleted: false,
+      });
+    } catch (findErr) {
+      if (
+        findErr.name === "CastError" ||
+        (findErr.message && findErr.message.includes("Invalid identifier"))
+      ) {
+        return res.status(404).json({
+          message: "Task not found",
+        });
+      }
+      throw findErr;
+    }
+
+    if (!task) {
+      return res.status(404).json({
+        message: "Task not found",
+      });
+    }
+
     const canManageProjects = await hasPermission(req.user, "manage_projects");
 
     const query = {
-      task: taskId,
+      task: task._id || task.id || cleanTaskId,
     };
 
     if (!canManageProjects) {
-      query.user = req.user._id;
+      query.user = req.user._id || req.user.id;
     }
 
     if (startDate && endDate) {
@@ -240,13 +391,13 @@ export const getTaskDetails = async (req, res) => {
     const userMap = new Map();
 
     for (const record of records) {
-      const key = record.user._id.toString();
+      const key = (record.user?._id || record.user?.id || record.user)?.toString();
 
       if (!userMap.has(key)) {
         userMap.set(key, {
           user: {
-            ...record.user.toObject(),
-            avatar: getAvatarUrl(record.user.avatar),
+            ...(record.user?.toObject ? record.user.toObject() : record.user),
+            avatar: getAvatarUrl(record.user?.avatar),
           },
           duration: 0,
         });
@@ -257,10 +408,11 @@ export const getTaskDetails = async (req, res) => {
 
     res.json(Array.from(userMap.values()));
   } catch (err) {
-    console.error(err);
+    console.error("GET TASK DETAILS ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to get task details",
+      error: "Failed to get task details",
     });
   }
 };

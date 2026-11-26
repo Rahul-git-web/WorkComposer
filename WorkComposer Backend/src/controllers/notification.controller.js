@@ -1,9 +1,34 @@
 import Notification from "../models/notification.model.js";
 import Organization from "../models/organization.model.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
 
 export const getNotifications = async (req, res) => {
     try {
-        const userId = req.user._id;
+        const callerUserId = normalizeId(req.user?._id || req.user?.id);
+        const callerOrgId = normalizeId(
+            req.user?.organization?._id ||
+            req.user?.organizationId ||
+            req.user?.organization?.id ||
+            req.user?.organization
+        );
+
+        if (!callerUserId || !callerOrgId) {
+            return res.status(401).json({
+                message: "Unauthorized: Missing authentication or organization context.",
+            });
+        }
+
+        const requestedOrgId = normalizeId(
+            req.query?.organizationId ||
+            req.query?.organization ||
+            req.body?.organizationId ||
+            req.body?.organization
+        );
+        if (requestedOrgId && requestedOrgId !== callerOrgId) {
+            return res.status(403).json({
+                message: "Forbidden: Cross-tenant notification access denied.",
+            });
+        }
 
         const page = Math.max(Number(req.query.page) || 1, 1);
         const limit = Math.min(
@@ -13,22 +38,23 @@ export const getNotifications = async (req, res) => {
 
         const skip = (page - 1) * limit;
 
+        const baseFilter = {
+            recipient: callerUserId,
+            organization: callerOrgId,
+        };
+
         const [notifications, total, unreadCount] =
             await Promise.all([
-                Notification.find({
-                    recipient: userId,
-                })
+                Notification.find(baseFilter)
                     .sort({ createdAt: -1 })
                     .skip(skip)
                     .limit(limit)
                     .lean(),
 
-                Notification.countDocuments({
-                    recipient: userId,
-                }),
+                Notification.countDocuments(baseFilter),
 
                 Notification.countDocuments({
-                    recipient: userId,
+                    ...baseFilter,
                     read: false,
                 }),
             ]);
@@ -54,8 +80,35 @@ export const getNotifications = async (req, res) => {
 
 export const getUnreadNotificationCount = async (req, res) => {
     try {
+        const callerUserId = normalizeId(req.user?._id || req.user?.id);
+        const callerOrgId = normalizeId(
+            req.user?.organization?._id ||
+            req.user?.organizationId ||
+            req.user?.organization?.id ||
+            req.user?.organization
+        );
+
+        if (!callerUserId || !callerOrgId) {
+            return res.status(401).json({
+                message: "Unauthorized: Missing authentication or organization context.",
+            });
+        }
+
+        const requestedOrgId = normalizeId(
+            req.query?.organizationId ||
+            req.query?.organization ||
+            req.body?.organizationId ||
+            req.body?.organization
+        );
+        if (requestedOrgId && requestedOrgId !== callerOrgId) {
+            return res.status(403).json({
+                message: "Forbidden: Cross-tenant notification access denied.",
+            });
+        }
+
         const unreadCount = await Notification.countDocuments({
-            recipient: req.user._id,
+            recipient: callerUserId,
+            organization: callerOrgId,
             read: false,
         });
 
@@ -76,11 +129,45 @@ export const getUnreadNotificationCount = async (req, res) => {
 
 export const markNotificationAsRead = async (req, res) => {
     try {
+        const callerUserId = normalizeId(req.user?._id || req.user?.id);
+        const callerOrgId = normalizeId(
+            req.user?.organization?._id ||
+            req.user?.organizationId ||
+            req.user?.organization?.id ||
+            req.user?.organization
+        );
+
+        if (!callerUserId || !callerOrgId) {
+            return res.status(401).json({
+                message: "Unauthorized: Missing authentication or organization context.",
+            });
+        }
+
+        const requestedOrgId = normalizeId(
+            req.query?.organizationId ||
+            req.query?.organization ||
+            req.body?.organizationId ||
+            req.body?.organization
+        );
+        if (requestedOrgId && requestedOrgId !== callerOrgId) {
+            return res.status(403).json({
+                message: "Forbidden: Cross-tenant notification access denied.",
+            });
+        }
+
+        const notificationId = normalizeId(req.params.id);
+        if (!notificationId) {
+            return res.status(400).json({
+                message: "Notification ID is required.",
+            });
+        }
+
         const notification =
             await Notification.findOneAndUpdate(
                 {
-                    _id: req.params.id,
-                    recipient: req.user._id,
+                    _id: notificationId,
+                    recipient: callerUserId,
+                    organization: callerOrgId,
                 },
                 {
                     $set: {
@@ -112,11 +199,97 @@ export const markNotificationAsRead = async (req, res) => {
     }
 };
 
+export const deleteNotification = async (req, res) => {
+    try {
+        const callerUserId = normalizeId(req.user?._id || req.user?.id);
+        const callerOrgId = normalizeId(
+            req.user?.organization?._id ||
+            req.user?.organizationId ||
+            req.user?.organization?.id ||
+            req.user?.organization
+        );
+
+        if (!callerUserId || !callerOrgId) {
+            return res.status(401).json({
+                message: "Unauthorized: Missing authentication or organization context.",
+            });
+        }
+
+        const requestedOrgId = normalizeId(
+            req.query?.organizationId ||
+            req.query?.organization ||
+            req.body?.organizationId ||
+            req.body?.organization
+        );
+        if (requestedOrgId && requestedOrgId !== callerOrgId) {
+            return res.status(403).json({
+                message: "Forbidden: Cross-tenant notification access denied.",
+            });
+        }
+
+        const notificationId = normalizeId(req.params.id);
+        if (!notificationId) {
+            return res.status(400).json({
+                message: "Notification ID is required.",
+            });
+        }
+
+        const notification = await Notification.findOneAndDelete({
+            _id: notificationId,
+            recipient: callerUserId,
+            organization: callerOrgId,
+        });
+
+        if (!notification) {
+            return res.status(404).json({
+                message: "Notification not found.",
+            });
+        }
+
+        res.json({
+            message: "Notification deleted successfully.",
+        });
+    } catch (error) {
+        console.error("DELETE NOTIFICATION ERROR:", error);
+
+        res.status(500).json({
+            message: "Failed to delete notification.",
+        });
+    }
+};
+
 export const markAllNotificationsAsRead = async (req, res) => {
     try {
+        const callerUserId = normalizeId(req.user?._id || req.user?.id);
+        const callerOrgId = normalizeId(
+            req.user?.organization?._id ||
+            req.user?.organizationId ||
+            req.user?.organization?.id ||
+            req.user?.organization
+        );
+
+        if (!callerUserId || !callerOrgId) {
+            return res.status(401).json({
+                message: "Unauthorized: Missing authentication or organization context.",
+            });
+        }
+
+        const requestedOrgId = normalizeId(
+            req.query?.organizationId ||
+            req.query?.organization ||
+            req.body?.organizationId ||
+            req.body?.organization
+        );
+        if (requestedOrgId && requestedOrgId !== callerOrgId) {
+            return res.status(403).json({
+                message: "Forbidden: Cross-tenant notification access denied.",
+            });
+        }
+
         await Notification.updateMany(
             {
-                recipient: req.user._id,
+                recipient: callerUserId,
+                organization: callerOrgId,
                 read: false,
             },
             {
@@ -141,56 +314,4 @@ export const markAllNotificationsAsRead = async (req, res) => {
         });
     }
 };
-
-export const updateOrganizationNotifications = async (req, res) => {
-  try {
-    const { notifications } = req.body;
-
-    if (!notifications || typeof notifications !== "object") {
-      return res.status(400).json({
-        message: "Invalid notification settings.",
-      });
-    }
-
-    const allowedKeys = [
-      "shiftStarted",
-      "shiftEndingSoon",
-      "breakStarted",
-      "breakEnded",
-      "dailyTargetReached",
-      "overtimeStarted",
-    ];
-
-    const update = {};
-
-    for (const key of allowedKeys) {
-      if (typeof notifications[key] === "boolean") {
-        update[`notifications.${key}`] = notifications[key];
-      }
-    }
-
-    const organization = await Organization.findByIdAndUpdate(
-      req.user.organization,
-      {
-        $set: update,
-      },
-      {
-        new: true,
-        runValidators: true,
-      },
-    ).select("notifications");
-
-    return res.status(200).json({
-      notifications: organization.notifications,
-    });
-  } catch (error) {
-    console.error(
-      "UPDATE ORGANIZATION NOTIFICATIONS ERROR:",
-      error,
-    );
-
-    return res.status(500).json({
-      message: "Failed to update notification settings.",
-    });
-  }
-};
+export { updateOrganizationNotifications } from "./organization.controller.js";

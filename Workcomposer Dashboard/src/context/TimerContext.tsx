@@ -16,7 +16,7 @@ import API from "@/api";
 import { useProject } from "@/context/ProjectContext";
 import socket from "@/socket/socket";
 import useEffectiveTrackingSettings from "@/hooks/useEffectiveTrackingSettings";
-import { useDashboard } from "@/context/DashboardContext";
+import { subscribeDashboardUpdates, useDashboard } from "@/context/DashboardContext";
 
 /*TYPES */
 
@@ -111,7 +111,7 @@ export const TimerProvider = ({ children }: Props) => {
     durationRef.current = duration;
   }, [duration]);
 
-  const { user } = useDashboard();
+  const { user, refreshUser } = useDashboard();
   const currentUserId = user?._id || user?.id;
 
   const {
@@ -341,7 +341,7 @@ export const TimerProvider = ({ children }: Props) => {
 
 
   // STOP
-  const stop = useCallback((options?: { isBreak?: boolean }) => {
+  const stop = useCallback((options?: { isBreak?: boolean; forceOfflineStop?: boolean }) => {
     if (!window.electronAPI) return;
 
     const isBreak = Boolean(options?.isBreak);
@@ -380,6 +380,41 @@ export const TimerProvider = ({ children }: Props) => {
     }
 
     if (!socket.connected) {
+      if (
+        options?.forceOfflineStop ||
+        effectiveSettings?.tracking?.stopTrackingWithoutInternet
+      ) {
+        handlingSleep.current = false;
+        setTimer(null);
+        setIsTracking(false);
+        setIsOnBreak(isBreak);
+        setBreakStartedAt(isBreak ? Date.now() : 0);
+        setBreakDuration(0);
+        setDuration(0);
+        setSnapshotTimestamp(0);
+        setStatsSnapshotTimestamp(0);
+
+        const stopTrackingFn = window.electronAPI.stopTracking as
+          | ((opts?: { isBreak?: boolean }) => void)
+          | undefined;
+        stopTrackingFn?.({ isBreak });
+
+        window.electronAPI.updateTrackingBar?.({
+          displayedWorkSeconds: snapshotWorkSecondsRef.current,
+          displayedBreakSeconds: snapshotBreakSecondsRef.current,
+          todayWorkSeconds: snapshotWorkSecondsRef.current,
+          todayBreakSeconds: snapshotBreakSecondsRef.current,
+          duration: 0,
+          isTracking: false,
+          isOnBreak: isBreak,
+          status: isBreak ? "break" : "stopped",
+        });
+
+        setLastStoppedAt(Date.now());
+        socket.connect();
+        return;
+      }
+
       toast.error("Connection lost. Reconnecting...");
       socket.connect();
       return;
@@ -389,18 +424,33 @@ export const TimerProvider = ({ children }: Props) => {
       timerId: timer._id,
       isBreak,
     });
-  }, [timer, refreshTodayWork]);
+  }, [timer, refreshTodayWork, effectiveSettings]);
 
   useEffect(() => {
     if (!user) return;
 
-    const removeListener =
-      window.electronAPI?.onAutoStopTracking(() => {
+    const onAutoStop = window.electronAPI?.onAutoStopTracking as
+      | ((
+          callback: (data?: { reason?: string; appName?: string }) => void
+        ) => (() => void) | void)
+      | undefined;
 
-        if (!isTrackingRef.current && !isOnBreakRef.current) return;
+    const removeListener = onAutoStop?.((payload) => {
+      if (!isTrackingRef.current && !isOnBreakRef.current) return;
 
-        stop({ isBreak: false });
+      if (payload?.reason === "blacklisted") {
+        toast.error(
+          `Tracking stopped: "${payload.appName || "Application"}" is blacklisted.`
+        );
+      } else if (payload?.reason === "offline") {
+        toast.error("Internet connection lost. Tracking stopped.");
+      }
+
+      stop({
+        isBreak: false,
+        forceOfflineStop: payload?.reason === "offline",
       });
+    });
 
     return () => {
       removeListener?.();
@@ -605,6 +655,8 @@ export const TimerProvider = ({ children }: Props) => {
     socket.on("session:updated", handleSessionUpdated);
     socket.on("connect", handleSocketReconnect);
 
+    const cleanupDashboardSync = subscribeDashboardUpdates(refreshUser);
+
     return () => {
       socket.off("timerStarted", handleTimerStarted);
       socket.off("timerStopped", handleTimerStopped);
@@ -613,6 +665,7 @@ export const TimerProvider = ({ children }: Props) => {
       socket.off("timerError", handleTimerError);
       socket.off("session:updated", handleSessionUpdated);
       socket.off("connect", handleSocketReconnect);
+      cleanupDashboardSync();
     };
   }, [user]);
 
@@ -626,10 +679,15 @@ export const TimerProvider = ({ children }: Props) => {
 
       if (!sleep) return;
 
-      if (
+      const continueDuringSleep = Boolean(
         effectiveSettings?.tracking?.continueTrackingDuringSleep
-      ) {
+      );
 
+      if (!continueDuringSleep) {
+        if (sleep.sleptMinutes > 0) {
+          handlingSleep.current = true;
+          stop({ isBreak: false });
+        }
         return;
       }
 
@@ -637,7 +695,7 @@ export const TimerProvider = ({ children }: Props) => {
         (effectiveSettings?.tracking?.sleepBreakHours || 0) * 60 +
         (effectiveSettings?.tracking?.sleepBreakMinutes || 0);
 
-      if (sleep.sleptMinutes > allowed) {
+      if (allowed > 0 && sleep.sleptMinutes > allowed) {
         handlingSleep.current = true;
 
         stop({ isBreak: false });

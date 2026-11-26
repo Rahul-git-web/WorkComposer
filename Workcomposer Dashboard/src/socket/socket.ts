@@ -11,30 +11,40 @@ const socket: Socket = io(
     }
 );
 
-const initializeSocket = async () => {
+/**
+ * Disconnect socket and clear authentication payload.
+ */
+export const disconnectSocket = () => {
     if (typeof window === "undefined") {
         return;
     }
 
-    let token: string | null = null;
+    try {
+        socket.auth = {};
+        if (socket.connected) {
+            socket.disconnect();
+        }
+    } catch (err) {
+        console.error("SOCKET DISCONNECT ERROR:", err);
+    }
+};
+
+/**
+ * Reconnect Socket.IO with a specific access token or resolve from Electron / localStorage.
+ */
+export const reconnectSocketWithToken = async (explicitToken?: string) => {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    let token: string | null = explicitToken || null;
 
     /*
-     * Electron
+     * Electron resolution if explicit token not provided
      */
-    if (window.electronAPI?.getToken) {
+    if (!token && window.electronAPI?.getToken) {
         try {
             token = await window.electronAPI.getToken();
-
-            console.info(
-                "SOCKET: ELECTRON TOKEN AVAILABLE:",
-                !!token
-            );
-
-            if (token) {
-                socket.auth = {
-                    token,
-                };
-            }
         } catch (error) {
             console.error(
                 "FAILED TO GET ELECTRON TOKEN:",
@@ -44,30 +54,35 @@ const initializeSocket = async () => {
     }
 
     /*
-     * Web fallback
+     * Web fallback resolution if explicit token not provided
      */
     if (!token && !window.electronAPI) {
-        const webToken =
-            localStorage.getItem("accessToken");
+        token =
+            localStorage.getItem("accessToken") ||
+            localStorage.getItem("token");
+    }
 
-        if (webToken) {
-            token = webToken;
-
-            socket.auth = {
-                token: webToken,
-            };
-        }
+    if (socket.connected) {
+        socket.disconnect();
     }
 
     if (!token) {
+        socket.auth = {};
         console.warn(
             "SOCKET: NO AUTH TOKEN AVAILABLE"
         );
-
         return;
     }
 
+    socket.auth = {
+        token,
+    };
+
     socket.connect();
+};
+
+export const initializeSocket = async () => {
+    await reconnectSocketWithToken();
 };
 
 /*
@@ -119,11 +134,7 @@ socket.on("connect_error", (error) => {
 });
 
 /*
- * Electron token refresh
- *
- * When Electron refreshes the access token,
- * update the existing socket authentication
- * and reconnect.
+ * Electron token refresh listener
  */
 if (
     typeof window !== "undefined" &&
@@ -134,7 +145,7 @@ if (
             console.warn(
                 "SOCKET: TOKEN REFRESH FAILED"
             );
-
+            disconnectSocket();
             return;
         }
 
@@ -142,15 +153,31 @@ if (
             "SOCKET: TOKEN REFRESHED"
         );
 
-        socket.auth = {
-            token: newToken,
-        };
+        void reconnectSocketWithToken(newToken);
+    });
+}
 
-        if (socket.connected) {
-            socket.disconnect();
-        }
+/*
+ * Electron logout listener
+ */
+if (
+    typeof window !== "undefined" &&
+    window.electronAPI?.onElectronLoggedOut
+) {
+    window.electronAPI.onElectronLoggedOut(() => {
+        disconnectSocket();
+    });
+}
 
-        socket.connect();
+/*
+ * Electron device remote sign-out listener
+ */
+if (
+    typeof window !== "undefined" &&
+    window.electronAPI?.onDeviceSignedOut
+) {
+    window.electronAPI.onDeviceSignedOut(() => {
+        disconnectSocket();
     });
 }
 

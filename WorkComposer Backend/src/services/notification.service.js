@@ -1,6 +1,9 @@
-import Integration from "../models/integration.model.js";
-import Organization from "../models/organization.model.js";
-import User from "../models/user.model.js";
+import {
+  integrationRepository,
+  organizationRepository,
+  userRepository,
+  notificationRepository,
+} from "../db/repositories/index.js";
 import sendEmail from "../utils/sendEmail.js";
 import taskAssignedEmailTemplate from "../templates/taskAssignedEmailTemplate.js";
 import { sendSlackMessage } from "./slack.service.js";
@@ -13,8 +16,8 @@ import {
   buildWeeklySummaryMessage,
 } from "./slackMessages.js";
 import { getDailySummary, getWeeklySummary } from "./report.service.js";
-import Notification from "../models/notification.model.js";
 import { getIO } from "../socket/socket.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
 
 const sendSlackNotification = async (
   organizationId,
@@ -22,7 +25,7 @@ const sendSlackNotification = async (
   fallbackText,
   blocks,
 ) => {
-  const integration = await Integration.findOne({
+  const integration = await integrationRepository.findOne({
     organization: organizationId,
     provider: "slack",
     connected: true,
@@ -96,18 +99,24 @@ export const notifyTaskAssigned = async ({
       });
     }
 
-    const organization = await Organization.findById(organizationId);
+    const organization = await organizationRepository.findById(organizationId);
 
     if (organization?.taskManagement?.notifyTaskAssignedEmail === false) {
       return;
     }
 
     const assignedUser = assignedToId
-      ? await User.findById(assignedToId)
+      ? await userRepository.findById(assignedToId)
       : null;
 
     if (!assignedUser) {
       console.info("USER NOT FOUND");
+      return;
+    }
+
+    const assignedUserOrgId = normalizeId(assignedUser.organization?._id || assignedUser.organization);
+    if (assignedUserOrgId && assignedUserOrgId !== normalizeId(organizationId)) {
+      console.warn("Cross-tenant task assignment email suppressed.");
       return;
     }
 
@@ -318,7 +327,7 @@ export const notifyDailySummary = async (organizationId) => {
     const summary = await getDailySummary(organizationId);
 
     const blocks = buildDailySummaryMessage({
-      date: new Date().toLocaleDateString(),
+      date: summary.date,
       ...summary,
     });
 
@@ -335,17 +344,10 @@ export const notifyDailySummary = async (organizationId) => {
 
 export const notifyWeeklySummary = async (organizationId) => {
   const summary = await getWeeklySummary(organizationId);
-  const endDate = new Date();
-
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - 7);
-
-  const formattedStartDate = startDate.toLocaleDateString();
-  const formattedEndDate = endDate.toLocaleDateString();
 
   const blocks = buildWeeklySummaryMessage({
-    startDate: formattedStartDate,
-    endDate: formattedEndDate,
+    startDate: summary.startDate,
+    endDate: summary.endDate,
     ...summary,
   });
 
@@ -368,7 +370,7 @@ export const createNotification = async ({
   metadata = {},
 }) => {
   try {
-    const notification = await Notification.create({
+    const notification = await notificationRepository.create({
       recipient: recipientId,
       organization: organizationId,
       type,

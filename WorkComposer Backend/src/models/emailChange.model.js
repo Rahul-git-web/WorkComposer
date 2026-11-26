@@ -28,4 +28,9 @@ const emailChangeSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("EmailChange", emailChangeSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { emailChangeRepository } from "../db/repositories/emailChange.repository.js";
+
+const _Model = mongoose.model("EmailChange", emailChangeSchema);
+export default createModelProxy(_Model, () => emailChangeRepository);

@@ -11,6 +11,8 @@ import UsageDetailsModal from "./UsageDetailsModal";
 import FullListModal from "./FullListModal";
 import ReportsModal from "../attendance/reports/ReportsModal";
 import UserProfileTrigger from "@/components/UserProfileTrigger";
+import { formatDateForApi } from "@/utils/appTimezone";
+import { useAppTimezone } from "@/hooks/useAppTimezone";
 
 type Props = {
   usageData: any[];
@@ -20,13 +22,21 @@ type Props = {
     startDate: Date;
     endDate: Date;
   };
+  selectedUsers?: any[];
+  selectedTeams?: any[];
+  timezone?: string;
 };
 
 export default function WebAppUsageCard({
   usageData,
   allUsers,
   reportRange,
+  selectedUsers = [],
+  selectedTeams = [],
+  timezone: propTimezone,
 }: Props) {
+  const defaultTimezone = useAppTimezone();
+  const timezone = propTimezone || defaultTimezone;
 
   const [openModal, setOpenModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -58,8 +68,8 @@ export default function WebAppUsageCard({
 
   const appNames = [
     ...new Set(
-      usageData.flatMap((user) =>
-        user.apps.map((app: any) => app.name)
+      (usageData || []).flatMap((user) =>
+        user.apps?.map((app: any) => app.name) || []
       )
     ),
   ].sort();
@@ -79,16 +89,25 @@ export default function WebAppUsageCard({
 
   const generateUsageReport = async () => {
     try {
-      await API.post("/reports/usage", {
-        startDate: reportRange.startDate
-          .toISOString()
-          .split("T")[0],
+      const startDate = formatDateForApi(reportRange.startDate, timezone);
+      const endDate = formatDateForApi(reportRange.endDate, timezone);
+      const userIds = (selectedUsers || [])
+        .map((u: any) => u?._id || u?.id)
+        .filter(Boolean);
+      const teamIds = (selectedTeams || [])
+        .map((team: any) =>
+          typeof team === "object" ? team?._id || team?.id : team
+        )
+        .filter(Boolean);
 
-        endDate: reportRange.endDate
-          .toISOString()
-          .split("T")[0],
+      await API.post("/reports/usage", {
+        startDate,
+        endDate,
+        selectedUsers: userIds,
+        selectedTeams: teamIds,
       });
 
+      setOpenReports(true);
     } catch (err) {
       console.error(err);
     }
@@ -96,17 +115,17 @@ export default function WebAppUsageCard({
 
   return (
     <>
-      <div className="min-h-[calc(100vh-250px)] rounded-b-lg bg-white shadow-sm border-l border-r border-b border-gray-200">
-        <div className="overflow-visible bg-gray-50 divide-y divide-gray-200">
-          <div className="px-3 py-2 sm:px-5 bg-white shadow-sm border-b border-gray-200">
+      <div className="min-h-[calc(100vh-250px)] rounded-b-lg bg-white dark:bg-[#0F172A] shadow-sm border-l border-r border-b border-gray-200 dark:border-[#22324D]">
+        <div className="overflow-visible bg-gray-50 dark:bg-[#090F1D] divide-y divide-gray-200 dark:divide-[#22324D]">
+          <div className="px-3 py-2 sm:px-5 bg-white dark:bg-[#0F172A] shadow-sm border-b border-gray-200 dark:border-[#22324D]">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <h2 className="text-lg font-bold text-gray-800">Web and App Usage</h2>
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white">Web and App Usage</h2>
               <div className="flex items-center gap-2">
                 <div
                   ref={dropdownRef}
                   className="relative"
                 >
-                  <div className="relative w-64 shadow-sm rounded-lg border-gray-300 focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                  <div className="relative w-64 shadow-sm rounded-lg border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
                     <input
                       type="text"
                       placeholder="Search app"
@@ -116,7 +135,7 @@ export default function WebAppUsageCard({
                         setShowDropdown(true);
                       }}
                       onFocus={() => setShowDropdown(true)}
-                      className="w-full px-3 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring focus:border-indigo-300 pr-10"
+                      className="w-full px-3 py-1 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring focus:border-indigo-300 pr-10"
                     />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
 
@@ -128,7 +147,7 @@ export default function WebAppUsageCard({
                             setSearchApp("");
                             setShowDropdown(false);
                           }}
-                          className="mr-1 rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          className="mr-1 rounded-full p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300"
                           aria-label="Clear search"
                         >
                           <X className="h-4 w-4" />
@@ -139,7 +158,7 @@ export default function WebAppUsageCard({
                       <button
                         type="button"
                         onClick={() => setShowDropdown((prev) => !prev)}
-                        className="text-gray-500 hover:text-gray-700"
+                        className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                         aria-label="Toggle suggestions"
                       >
                         <ChevronDown
@@ -150,7 +169,7 @@ export default function WebAppUsageCard({
 
                     </div>
                     {showDropdown && (
-                      <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto overscroll-contain">
+                      <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-[#1E293B] border border-gray-300 dark:border-gray-700 rounded-md shadow-lg z-50 max-h-64 overflow-y-auto overscroll-contain">
 
                         {filteredApps.length === 0 ? (
 
@@ -219,13 +238,13 @@ export default function WebAppUsageCard({
 
               <div className="py-20 text-center">
 
-                <CiViewColumn className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                <CiViewColumn className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-4" />
 
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                   No data available
                 </h3>
 
-                <p className="mt-2 text-sm text-gray-500">
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                   App usage data will appear here once it&apos;s captured.
                 </p>
 
@@ -244,7 +263,7 @@ export default function WebAppUsageCard({
                 return (
                   <div
                     key={user._id}
-                    className='p-4 mb-6 relative border-b border-gray-100'
+                    className='p-4 mb-6 relative border-b border-gray-100 dark:border-gray-800'
                   >
                     <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-4'>
 
@@ -286,7 +305,7 @@ export default function WebAppUsageCard({
                             }
                             className="ml-3 text-left"
                           >
-                            <h3 className="text-blue-700 font-semibold text-lg cursor-pointer transition-colors flex items-center">
+                            <h3 className="text-blue-700 dark:text-indigo-400 font-semibold text-lg cursor-pointer transition-colors flex items-center">
                               <span className="truncate max-w-xs">
                                 {user.name}
                               </span>

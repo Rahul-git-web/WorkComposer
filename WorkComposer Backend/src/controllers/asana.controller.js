@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import axios from "axios";
 import Integration from "../models/integration.model.js";
 import User from "../models/user.model.js";
@@ -5,15 +6,55 @@ import Project from "../models/project.model.js";
 import Task from "../models/task.model.js";
 import { refreshAsanaToken } from "../utils/asanaToken.js";
 import { isAsanaSyncing } from "../utils/asanaSyncCache.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
+import {
+  DesktopIntegrationOAuthError,
+  createDesktopCompletionHandoff,
+  createIntegrationOAuthContext,
+  resolveDesktopCancelRedirect,
+  verifyIntegrationCallbackState,
+} from "../utils/desktopIntegrationOAuth.js";
+
+function verifyAsanaSignature(signature, secret, payload) {
+  if (!signature || !secret || typeof signature !== "string") return false;
+  try {
+    const expectedSig = crypto
+      .createHmac("sha256", secret)
+      .update(payload)
+      .digest("hex");
+
+    const expectedBuf = Buffer.from(expectedSig, "utf8");
+    const actualBuf = Buffer.from(signature, "utf8");
+
+    if (expectedBuf.length !== actualBuf.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(expectedBuf, actualBuf);
+  } catch {
+    return false;
+  }
+}
 
 export const connectAsana = async (req, res) => {
   try {
-    const state = Buffer.from(
-      JSON.stringify({
-        organization: req.user.organization._id,
-        user: req.user._id,
-      }),
-    ).toString("base64");
+    const orgId = normalizeId(
+      req.user?.organizationId || req.user?.organization?._id || req.user?.organization,
+    );
+    const userId = normalizeId(req.user?._id || req.user?.id);
+
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to connect Asana",
+      });
+    }
+
+    const { state } = createIntegrationOAuthContext({
+      req,
+      res,
+      organizationId: orgId,
+      userId,
+      provider: "asana",
+    });
 
     const url =
       `https://app.asana.com/-/oauth_authorize` +
@@ -24,7 +65,13 @@ export const connectAsana = async (req, res) => {
 
     return res.json({ url });
   } catch (err) {
-    console.error(err);
+    if (err instanceof DesktopIntegrationOAuthError) {
+      return res.status(err.statusCode).json({
+        message: err.message,
+      });
+    }
+
+    console.error("[Asana] Failed to initiate connection:", err.message || "Unknown error");
 
     return res.status(500).json({
       message: "Failed to connect Asana",
@@ -33,21 +80,49 @@ export const connectAsana = async (req, res) => {
 };
 
 export const asanaCallback = async (req, res) => {
+  let callbackContext = null;
   try {
     const { code, state, error } = req.query;
-
-    const decodedState = JSON.parse(
-      Buffer.from(decodeURIComponent(state), "base64").toString(),
-    );
-
-    const organizationId = decodedState.organization;
-    const userId = decodedState.user;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
     if (error) {
+      const desktopCancelRedirect = resolveDesktopCancelRedirect({
+        req,
+        res,
+        provider: "asana",
+      });
+      if (desktopCancelRedirect) {
+        return res.redirect(desktopCancelRedirect);
+      }
       return res.redirect(
-        `${process.env.FRONTEND_URL}/dashboard/settings/account/integrations/asana?status=cancelled`,
+        `${frontendUrl}/dashboard/settings/account/integrations/asana?status=cancelled`,
       );
     }
+
+    if (!code || !state) {
+      return res.status(400).json({
+        message: "Missing code or state parameter",
+      });
+    }
+
+    try {
+      callbackContext = verifyIntegrationCallbackState({
+        req,
+        res,
+        provider: "asana",
+      });
+    } catch (err) {
+      console.error("[Asana] OAuth state verification failed:", err.message);
+      if (err?.desktopErrorRedirectUrl) {
+        return res.redirect(err.desktopErrorRedirectUrl);
+      }
+      return res.redirect(
+        `${frontendUrl}/dashboard/settings/account/integrations/asana?status=error&error=invalid_state`,
+      );
+    }
+
+    const organizationId = callbackContext.organizationId;
+    const userId = callbackContext.userId;
 
     const params = new URLSearchParams();
 
@@ -77,6 +152,7 @@ export const asanaCallback = async (req, res) => {
     );
 
     const expiresAt = new Date(Date.now() + response.data.expires_in * 1000);
+    const workspaceName = asanaUser.data.workspaces?.[0]?.name || "";
 
     await Integration.findOneAndUpdate(
       {
@@ -91,7 +167,7 @@ export const asanaCallback = async (req, res) => {
         accountId: asanaUser.data.gid,
         email: asanaUser.data.email,
         workspaceId: asanaUser.data.workspaces?.[0]?.gid || "",
-        workspaceName: asanaUser.data.workspaces?.[0]?.name || "",
+        workspaceName,
       },
       {
         upsert: true,
@@ -103,113 +179,299 @@ export const asanaCallback = async (req, res) => {
       asanaAccountId: asanaUser.data.gid,
     });
 
+    if (callbackContext.isDesktop) {
+      const { deepLinkUrl } = createDesktopCompletionHandoff({
+        provider: "asana",
+        status: "connected",
+        organizationId,
+        userId,
+        desktopChallenge: callbackContext.desktopChallenge,
+        workspaceName,
+        message: "Asana connected successfully.",
+      });
+      return res.redirect(deepLinkUrl);
+    }
+
     return res.redirect(
       `${process.env.FRONTEND_URL}/dashboard/settings/account/integrations/asana`,
     );
   } catch (error) {
-    console.error(error.response?.data || error.message);
+    console.error("[Asana] Callback failed:", error.response?.data?.message || error.message || "Asana callback failed");
+
+    if (callbackContext?.isDesktop) {
+      const { deepLinkUrl } = createDesktopCompletionHandoff({
+        provider: "asana",
+        status: "error",
+        error: "asana_auth_failed",
+        message: "Failed to connect Asana. Please try again.",
+        organizationId: callbackContext.organizationId,
+        userId: callbackContext.userId,
+        desktopChallenge: callbackContext.desktopChallenge,
+      });
+      return res.redirect(deepLinkUrl);
+    }
 
     return res.status(500).json({
       message: "Asana callback failed",
-      error: error.response?.data || error.message,
+      error: "Asana callback failed",
     });
   }
 };
 
 export const asanaWebhook = async (req, res) => {
-  const hookSecret = req.headers["x-hook-secret"];
+  try {
+    // 1. Handshake evaluation
+    const hookSecret = req.headers["x-hook-secret"];
 
-  if (hookSecret) {
-    return res.set("X-Hook-Secret", hookSecret).sendStatus(200);
-  }
+    if (hookSecret) {
+      if (typeof hookSecret !== "string" || hookSecret.trim().length === 0) {
+        return res.status(400).json({
+          message: "Invalid Asana hook secret header",
+        });
+      }
 
-  const { events } = req.body;
+      const integrationId =
+        req.query.integrationId ||
+        req.params?.integrationId ||
+        req.headers["x-integration-id"];
 
-  for (const event of events || []) {
-    if (
-      event.resource?.resource_type !== "task" ||
-      !["changed", "deleted"].includes(event.action)
-    ) {
-      continue;
+      let integration = null;
+      if (integrationId) {
+        try {
+          integration = await Integration.findOne({
+            _id: integrationId,
+            provider: "asana",
+          });
+        } catch {
+          integration = null;
+        }
+      } else {
+        integration = await Integration.findOne({
+          provider: "asana",
+          connected: true,
+        });
+      }
+
+      // If integration ID was provided but not found, or no connected integration found, fail closed
+      if (!integration) {
+        return res.status(401).json({
+          message: "Unknown or invalid integration",
+        });
+      }
+
+      await Integration.findOneAndUpdate(
+        { _id: integration._id || integration.id },
+        { clientSecret: hookSecret },
+      );
+
+      return res.set("X-Hook-Secret", hookSecret).status(200).send();
     }
-    const taskGid = event.resource.gid;
 
-    if (event.action === "deleted") {
-      await Task.findOneAndDelete({
-        provider: "asana",
-        asanaTaskId: taskGid,
+    // 2. Normal signed event delivery authentication
+    const signature = req.headers["x-hook-signature"];
+
+    if (!signature || typeof signature !== "string") {
+      return res.status(401).json({
+        message: "Missing Asana webhook signature",
       });
-
-      continue;
     }
 
-    const integration = await Integration.findOne({
-      provider: "asana",
-      connected: true,
-    });
+    // Determine raw payload for HMAC calculation
+    const rawPayload =
+      typeof req.rawBody === "string"
+        ? req.rawBody
+        : typeof req.body === "string"
+          ? req.body
+          : JSON.stringify(req.body || {});
 
-    if (!integration) {
-      continue;
+    // Resolve trusted integration via signature verification
+    const queryIntegrationId =
+      req.query.integrationId ||
+      req.params?.integrationId ||
+      req.headers["x-integration-id"];
+    let authenticatedIntegration = null;
+
+    if (queryIntegrationId) {
+      let candidate = null;
+      try {
+        candidate = await Integration.findOne({
+          _id: queryIntegrationId,
+          provider: "asana",
+          connected: true,
+        });
+      } catch {
+        candidate = null;
+      }
+
+      if (candidate?.clientSecret) {
+        if (verifyAsanaSignature(signature, candidate.clientSecret, rawPayload)) {
+          authenticatedIntegration = candidate;
+        }
+      }
+    } else {
+      // Search all connected Asana integrations with a stored secret
+      let candidates = [];
+      try {
+        candidates = await Integration.find({
+          provider: "asana",
+          connected: true,
+        });
+      } catch {
+        candidates = [];
+      }
+
+      for (const candidate of candidates || []) {
+        if (!candidate.clientSecret) continue;
+
+        if (verifyAsanaSignature(signature, candidate.clientSecret, rawPayload)) {
+          authenticatedIntegration = candidate;
+          break;
+        }
+      }
     }
 
-    if (new Date() >= integration.expiresAt) {
-      await refreshAsanaToken(integration);
+    if (!authenticatedIntegration) {
+      return res.status(401).json({
+        message: "Invalid Asana webhook signature",
+      });
     }
 
-    let asanaTask;
-
-    try {
-      const { data } = await axios.get(
-        `https://app.asana.com/api/1.0/tasks/${taskGid}`,
-        {
-          headers: {
-            Authorization: `Bearer ${integration.accessToken}`,
-          },
-        },
-      );
-
-      asanaTask = data.data;
-    } catch (error) {
-      console.error(
-        "Failed to fetch Asana task:",
-        taskGid,
-        error.response?.data || error.message,
-      );
-
-      continue;
+    // 3. Payload validation
+    if (!req.body || typeof req.body !== "object") {
+      return res.status(400).json({
+        message: "Malformed webhook payload: body must be an object",
+      });
     }
 
-    const task = await Task.findOne({
-      provider: "asana",
-      asanaTaskId: taskGid,
-    });
+    const { events } = req.body;
 
-    if (task && isAsanaSyncing(task._id.toString())) {
+    if (events !== undefined && !Array.isArray(events)) {
+      return res.status(400).json({
+        message: "Malformed webhook payload: events must be an array",
+      });
+    }
+
+    if (!events || events.length === 0) {
       return res.sendStatus(200);
     }
 
-    if (!task) {
-      continue;
+    // 4. Derive tenant identity exclusively from authenticated integration
+    const authenticatedOrgId = normalizeId(
+      authenticatedIntegration.organization ||
+      authenticatedIntegration.organizationId,
+    );
+
+    // 5. Process events within strict tenant boundary
+    for (const event of events) {
+      if (!event || typeof event !== "object") continue;
+      if (
+        event.resource?.resource_type !== "task" ||
+        !["changed", "deleted"].includes(event.action)
+      ) {
+        continue;
+      }
+      const taskGid = event.resource.gid;
+      if (!taskGid) continue;
+
+      if (event.action === "deleted") {
+        await Task.findOneAndDelete({
+          provider: "asana",
+          asanaTaskId: taskGid,
+          organization: authenticatedOrgId,
+        });
+
+        continue;
+      }
+
+      // Action === "changed"
+      // Resolve resource in tenant FIRST
+      const task = await Task.findOne({
+        provider: "asana",
+        asanaTaskId: taskGid,
+        organization: authenticatedOrgId,
+      });
+
+      if (!task) {
+        continue;
+      }
+
+      const taskIdStr = (task._id || task.id)?.toString();
+      if (taskIdStr && isAsanaSyncing(taskIdStr)) {
+        return res.sendStatus(200);
+      }
+
+      if (
+        authenticatedIntegration.expiresAt &&
+        new Date() >= new Date(authenticatedIntegration.expiresAt)
+      ) {
+        await refreshAsanaToken(authenticatedIntegration);
+      }
+
+      let asanaTask;
+      try {
+        const { data } = await axios.get(
+          `https://app.asana.com/api/1.0/tasks/${taskGid}`,
+          {
+            headers: {
+              Authorization: `Bearer ${authenticatedIntegration.accessToken}`,
+            },
+          },
+        );
+
+        asanaTask = data.data;
+      } catch (error) {
+        console.error(
+          "Failed to fetch Asana task:",
+          taskGid,
+          error.response?.data || error.message,
+        );
+
+        continue;
+      }
+
+      if (!asanaTask) continue;
+
+      task.title = asanaTask.name;
+      task.description = asanaTask.notes;
+      task.dueDate = asanaTask.due_on ? new Date(asanaTask.due_on) : null;
+      task.status = asanaTask.completed ? "completed" : "todo";
+
+      await task.save();
     }
 
-    task.title = asanaTask.name;
-    task.description = asanaTask.notes;
-    task.dueDate = asanaTask.due_on ? new Date(asanaTask.due_on) : null;
-
-    task.status = asanaTask.completed ? "completed" : "todo";
-
-    await task.save();
+    return res.sendStatus(200);
+  } catch (err) {
+    console.error("Asana webhook error:", err.message);
+    return res.status(500).json({
+      message: "Internal server error",
+    });
   }
-
-  return res.sendStatus(200);
 };
 
 export const getAsanaIntegration = async (req, res) => {
   try {
+    const orgId = normalizeId(
+      req.user?.organizationId || req.user?.organization?._id || req.user?.organization,
+    );
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to fetch Asana integration",
+      });
+    }
+
     const integration = await Integration.findOne({
-      organization: req.user.organization._id,
+      organization: orgId,
       provider: "asana",
     });
+
+    if (integration) {
+      const sanitized =
+        typeof integration.toObject === "function"
+          ? integration.toObject()
+          : { ...integration };
+      delete sanitized.clientSecret;
+      return res.json(sanitized);
+    }
 
     return res.json(integration);
   } catch (err) {
@@ -223,9 +485,18 @@ export const getAsanaIntegration = async (req, res) => {
 
 export const disconnectAsana = async (req, res) => {
   try {
+    const orgId = normalizeId(
+      req.user?.organizationId || req.user?.organization?._id || req.user?.organization,
+    );
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to disconnect Asana",
+      });
+    }
+
     await Integration.findOneAndUpdate(
       {
-        organization: req.user.organization._id,
+        organization: orgId,
         provider: "asana",
       },
       {
@@ -236,6 +507,7 @@ export const disconnectAsana = async (req, res) => {
         accountId: null,
         email: null,
         workspaceName: null,
+        clientSecret: null,
       },
     );
 
@@ -384,8 +656,7 @@ export const importAsanaProjects = async (req, res) => {
           {
             data: {
               resource: asanaProject.gid,
-              target: `${process.env.BACKEND_URL}/api/integrations/asana/webhook`,
-             
+              target: `${process.env.BACKEND_URL}/api/integrations/asana/webhook?integrationId=${integration._id}`,
             },
           },
           {

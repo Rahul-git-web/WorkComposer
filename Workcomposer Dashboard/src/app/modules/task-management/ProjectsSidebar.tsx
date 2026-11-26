@@ -80,7 +80,19 @@ export default function ReportsSidebar({
 
 
     useEffect(() => {
-        fetchProjects();
+        let mounted = true;
+        API.get("/projects")
+            .then((res) => {
+                if (mounted) {
+                    setProjects(res.data || []);
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+            });
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const filteredProjects = projects.filter((project) =>
@@ -117,15 +129,17 @@ export default function ReportsSidebar({
                     onChange={(e) =>
                         setProjectSearch(e.target.value)
                     }
-                    className="mb-4 w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-700"></input>
+                    className="mb-4 w-full rounded-md bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-300 dark:border-gray-700" />
             </div>
 
             <nav className="flex flex-1 flex-col mt-2">
                 <div className="space-y-1 max-h-[400px]">
 
-                    {filteredProjects.map((project) => (
+                    {filteredProjects.map((project) => {
+                        const projectId = project._id || project.id;
+                        return (
                         <div
-                            key={project._id}
+                            key={projectId}
                             className="relative"
                         >
                             <div
@@ -137,12 +151,12 @@ export default function ReportsSidebar({
                                 }}
                                 className={`py-2 group flex items-center justify-between cursor-pointer px-3 transition-all duration-200 ease-in-out ${currentProject === project.name
                                     ? "bg-gradient-to-r from-indigo-900/70 to-gray-800 shadow-md text-white border-l-3 border-indigo-500"
-                                    : "text-gray-300 hover:bg-gray-800/50"
+                                    : "text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-gray-800/50"
                                     }`}
                             >
                                 <span className="flex items-center gap-x-2">
                                     <div className="flex-shrink-0 flex items-center justify-center w-8 h-8">
-                                        <FolderClosed className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110 duration-150 text-indigo-300" />
+                                        <FolderClosed className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110 duration-150 text-indigo-500 dark:text-indigo-300" />
                                     </div>
 
                                     <span className="text-sm font-bold">
@@ -157,23 +171,23 @@ export default function ReportsSidebar({
                                                 e.stopPropagation();
 
                                                 setOpenProjectMenu(
-                                                    openProjectMenu === project._id
+                                                    openProjectMenu === projectId
                                                         ? null
-                                                        : project._id
+                                                        : projectId
                                                 );
                                             }}
                                             type="button"
-                                            className="cursor-pointer p-1 hover:bg-gray-700 rounded-md"
+                                            className="cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
                                             title="Project options"
                                             aria-label="Project options"
                                         >
-                                            <EllipsisVertical className="h-5 w-5 text-gray-400 hover:text-white" />
+                                            <EllipsisVertical className="h-5 w-5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white" />
                                         </button>
 
-                                        {openProjectMenu === project._id && (
+                                        {openProjectMenu === projectId && (
                                             <div
                                                 role="menu"
-                                                className="absolute right-0 mt-1 w-32 origin-top-right bg-gray-800 border border-gray-700 rounded-md shadow-lg py-1 z-20"
+                                                className="absolute right-0 mt-1 w-32 origin-top-right bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 z-20"
                                             >
                                                 <button
                                                     onClick={() => {
@@ -181,7 +195,7 @@ export default function ReportsSidebar({
                                                         setShowEditProjectModal(true);
                                                         setOpenProjectMenu(null);
                                                     }}
-                                                    className="flex items-center w-full px-3 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-600"
+                                                    className="flex items-center w-full px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:rounded-md"
                                                     role="menuitem"
                                                 >
                                                     <Pencil className="h-5 w-5 mr-2" />
@@ -197,7 +211,7 @@ export default function ReportsSidebar({
                                                         setShowDeleteProjectModal(true);
                                                         setOpenProjectMenu(null);
                                                     }}
-                                                    className="flex items-center w-full px-3 py-2 text-sm font-semibold text-red-400 hover:bg-gray-600"
+                                                    className="flex items-center w-full px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 hover:rounded-md"
                                                     role="menuitem"
                                                 >
                                                     <HiOutlineTrash className="h-5 w-5 mr-2" />
@@ -209,7 +223,8 @@ export default function ReportsSidebar({
                                 )}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
 
                 </div>
             </nav>

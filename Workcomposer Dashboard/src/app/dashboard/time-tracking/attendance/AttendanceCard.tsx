@@ -14,7 +14,12 @@ import { useAppTimezone } from "@/hooks/useAppTimezone";
 import {
     getTimePartsInTimezone,
     formatTimeInTimezone,
+    formatDateForApi,
 } from "@/utils/appTimezone";
+import {
+    getTimelineSegmentsForDay,
+    clampSessionsToDay,
+} from "@/utils/attendanceTimeline";
 
 type Props = {
     reportRange: {
@@ -31,6 +36,7 @@ type Props = {
         startTime: string;
         finishTime: string;
         sessionsCount: number;
+        timezone?: string;
 
         sessions: {
             startTime: string;
@@ -79,146 +85,53 @@ export default function AttendanceCard({
     const isSingleDay =
         reportRange.type === "Day" ||
         reportRange.type === "Yesterday" ||
-        reportRange.type === "Today";
-
-
-    const getTimelineSegments = (
-        sessions: {
-            startTime: string;
-            endTime: string;
-            duration: number;
-            type: "work" | "break" | "not-tracked";
-        }[]
-    ) => {
-        return sessions.map((session) => {
-            const start = new Date(session.startTime);
-            const end = new Date(session.endTime);
-
-            const { hour: startHour, minute: startMinute } =
-                getTimePartsInTimezone(start, timezone);
-
-            const { hour: endHour, minute: endMinute } =
-                getTimePartsInTimezone(end, timezone);
-
-            const startMinutes = startHour * 60 + startMinute;
-            const endMinutes = endHour * 60 + endMinute;
-
-            return {
-                left: (startMinutes / 1440) * 100,
-                width: ((endMinutes - startMinutes) / 1440) * 100,
-                type: session.type,
-                duration: session.duration || 0,
-
-                startTime: session.startTime,
-                endTime: session.endTime,
-                start: formatTimeInTimezone(start, timezone),
-                end: formatTimeInTimezone(end, timezone),
-            };
-        });
-    };
-
-    const buildTimeline = (
-        sessions: {
-            startTime: string;
-            endTime: string;
-            duration?: number;
-            type: "work" | "break" | "not-tracked";
-        }[]
-    ) => {
-        if (!sessions?.length) return [];
-
-        const sortedSessions = [...sessions].sort(
-            (a, b) =>
-                new Date(a.startTime).getTime() -
-                new Date(b.startTime).getTime()
-        );
-
-        const timeline: {
-            startTime: string;
-            endTime: string;
-            duration: number;
-            type: "work" | "break" | "not-tracked";
-        }[] = [];
-
-        for (let i = 0; i < sortedSessions.length; i++) {
-            const current = sortedSessions[i];
-
-            if (!current) continue;
-
-            timeline.push({
-                ...current,
-                duration: current.duration ?? 0,
-            });
-
-            const next = sortedSessions[i + 1];
-
-            if (next) {
-                const currentEnd = new Date(current.endTime);
-                const nextStart = new Date(next.startTime);
-
-                const gapMinutes =
-                    (nextStart.getTime() - currentEnd.getTime()) /
-                    (1000 * 60);
-
-                if (gapMinutes > 0) {
-                    timeline.push({
-                        type: "not-tracked",
-                        startTime: current.endTime,
-                        endTime: next.startTime,
-                        duration: 0,
-                    });
-                }
-            }
-        }
-
-        return timeline;
-    };
+        reportRange.type === "Today" ||
+        (Boolean(reportRange.startDate && reportRange.endDate) &&
+            formatDateForApi(reportRange.startDate, timezone) ===
+                formatDateForApi(reportRange.endDate, timezone));
 
     const buildThirtyMinuteBuckets = (
         sessions: {
             startTime: string;
             endTime: string;
-            duration: number;
+            duration?: number;
             type: "work" | "break" | "not-tracked";
-        }[] = []
+        }[] = [],
+        dayDate?: string | Date,
+        effectiveTimezone?: string
     ) => {
+        const tz = effectiveTimezone || timezone;
+        const daySessions = dayDate
+            ? clampSessionsToDay(sessions as any, dayDate, tz)
+            : sessions;
 
         const buckets = [];
 
         for (let i = 0; i < 48; i++) {
-
             const bucketStart = i * 30;
             const bucketEnd = bucketStart + 30;
 
             let workMinutes = 0;
             let breakMinutes = 0;
 
-            sessions.forEach((session) => {
-
+            daySessions.forEach((session) => {
+                if (!session || !session.startTime) return;
                 const start = new Date(session.startTime);
-                const end = new Date(session.endTime);
+                const end = session.endTime ? new Date(session.endTime) : new Date();
 
                 const { hour: startHour, minute: startMinute } =
-                    getTimePartsInTimezone(start, timezone);
+                    getTimePartsInTimezone(start, tz);
 
                 const { hour: endHour, minute: endMinute } =
-                    getTimePartsInTimezone(end, timezone);
+                    getTimePartsInTimezone(end, tz);
 
                 const startMinutes = startHour * 60 + startMinute;
                 const endMinutes = endHour * 60 + endMinute;
 
-                const overlapStart = Math.max(
-                    bucketStart,
-                    startMinutes
-                );
+                const overlapStart = Math.max(bucketStart, startMinutes);
+                const overlapEnd = Math.min(bucketEnd, endMinutes);
 
-                const overlapEnd = Math.min(
-                    bucketEnd,
-                    endMinutes
-                );
-
-                const overlap =
-                    Math.max(0, overlapEnd - overlapStart);
+                const overlap = Math.max(0, overlapEnd - overlapStart);
 
                 if (session.type === "work") {
                     workMinutes += overlap;
@@ -230,7 +143,6 @@ export default function AttendanceCard({
             });
 
             if (workMinutes > 0 || breakMinutes > 0) {
-
                 buckets.push({
                     bucketStart,
                     bucketEnd,
@@ -253,9 +165,10 @@ export default function AttendanceCard({
     const openDetailsModal = async (
         userId: string,
         startTime: string,
-        endTime: string
+        endTime?: string | null
     ) => {
         try {
+            const resolvedEndTime = endTime || new Date().toISOString();
 
             const { data } = await API.get(
                 "/activity/session-details",
@@ -263,7 +176,7 @@ export default function AttendanceCard({
                     params: {
                         userId,
                         startTime,
-                        endTime,
+                        endTime: resolvedEndTime,
                     },
                 }
             );
@@ -279,23 +192,24 @@ export default function AttendanceCard({
 
     const handleExportOverview = async () => {
         try {
+            const startDate = formatDateForApi(reportRange.startDate, timezone);
+            const endDate = formatDateForApi(reportRange.endDate, timezone);
+            const userIds = (selectedUsers || [])
+                .map((user: any) => user?._id || user?.id)
+                .filter(Boolean);
+            const teamIds = (selectedTeams || [])
+                .map((team: any) =>
+                    typeof team === "object" ? team?._id || team?.id : team
+                )
+                .filter(Boolean);
 
             await API.post(
                 "/reports/attendance-overview",
                 {
-                    startDate: reportRange.startDate
-                        .toISOString()
-                        .split("T")[0],
-
-                    endDate: reportRange.endDate
-                        .toISOString()
-                        .split("T")[0],
-
-                    selectedUsers: selectedUsers.map(
-                        (user) => user._id
-                    ),
-
-                    selectedTeams,
+                    startDate,
+                    endDate,
+                    selectedUsers: userIds,
+                    selectedTeams: teamIds,
                 }
             );
 
@@ -310,23 +224,24 @@ export default function AttendanceCard({
 
     const handleExportDetailed = async () => {
         try {
+            const startDate = formatDateForApi(reportRange.startDate, timezone);
+            const endDate = formatDateForApi(reportRange.endDate, timezone);
+            const userIds = (selectedUsers || [])
+                .map((user: any) => user?._id || user?.id)
+                .filter(Boolean);
+            const teamIds = (selectedTeams || [])
+                .map((team: any) =>
+                    typeof team === "object" ? team?._id || team?.id : team
+                )
+                .filter(Boolean);
 
             await API.post(
                 "/reports/attendance-detailed",
                 {
-                    startDate: reportRange.startDate
-                        .toISOString()
-                        .split("T")[0],
-
-                    endDate: reportRange.endDate
-                        .toISOString()
-                        .split("T")[0],
-
-                    selectedUsers: selectedUsers.map(
-                        (user) => user._id
-                    ),
-
-                    selectedTeams,
+                    startDate,
+                    endDate,
+                    selectedUsers: userIds,
+                    selectedTeams: teamIds,
                 }
             );
 
@@ -341,16 +256,16 @@ export default function AttendanceCard({
 
     return (
         <>
-            <div className="min-h-[calc(100vh-250px)] rounded-b-lg bg-white shadow-sm border-l border-r border-b border-gray-200">
-                <div className="divide-y divide-gray-200 overflow-hidden bg-white shadow-sm rounded-lg">
-                    <div className="px-3 py-2 sm:px-5 bg-white shadow-sm border-b border-gray-200">
+            <div className="min-h-[calc(100vh-250px)] rounded-b-lg bg-white dark:bg-[#0F172A] shadow-sm border-l border-r border-b border-gray-200 dark:border-[#22324D]">
+                <div className="divide-y divide-gray-200 dark:divide-[#22324D] overflow-hidden bg-white dark:bg-[#0F172A] shadow-sm rounded-lg">
+                    <div className="px-3 py-2 sm:px-5 bg-white dark:bg-[#0F172A] shadow-sm border-b border-gray-200 dark:border-[#22324D]">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <h2 className="text-lg font-bold text-gray-800">Attendance</h2>
+                            <h2 className="text-lg font-bold text-gray-800 dark:text-white">Attendance</h2>
                             <div className="flex items-center gap-2">
                                 <button
                                     title="Export Detailed report"
                                     onClick={handleExportDetailed}
-                                    className="inline-flex cursor-pointer items-center font-semibold px-4 py-2 text-sm font-medium rounded-md shadow-sm focus:outline-none transition border border-indigo-600 text-indigo-600 hover:bg-indigo-50">
+                                    className="inline-flex cursor-pointer items-center font-semibold px-4 py-2 text-sm font-medium rounded-md shadow-sm focus:outline-none transition border border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40">
                                     <FiDownload className="w-5 h-5 mr-2" />
                                     Export Detailed
                                 </button>
@@ -370,8 +285,8 @@ export default function AttendanceCard({
 
                         <div>
                             {showBanner && (
-                                <div data-test="no-activity-banner" className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-center sm:flex sm:items-center sm:justify-between sm:gap-4 sm:text-left">
-                                    <p className="text-sm text-gray-700">
+                                <div data-test="no-activity-banner" className="mb-4 rounded-lg border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/60 dark:bg-indigo-950/30 px-4 py-3 text-center sm:flex sm:items-center sm:justify-between sm:gap-4 sm:text-left">
+                                    <p className="text-sm text-gray-700 dark:text-gray-300">
                                         <span className="font-semibold">Not seeing your team&#39;s attendance?{" "}</span>
                                         They may have tracked on other days.
                                     </p>
@@ -397,6 +312,8 @@ export default function AttendanceCard({
                                         0
                                     );
 
+                                const userTimezone = user.timezone || timezone;
+
                                 const sortedSessions = [...filteredSessions].sort(
                                     (a, b) =>
                                         new Date(a.startTime).getTime() -
@@ -408,15 +325,18 @@ export default function AttendanceCard({
                                 const lastSession =
                                     sortedSessions[sortedSessions.length - 1];
 
-                                const timeline = buildTimeline(filteredSessions);
-
-                                const segments = getTimelineSegments(timeline);
+                                const targetDay = reportRange.startDate;
+                                const segments = getTimelineSegmentsForDay(
+                                    filteredSessions,
+                                    targetDay,
+                                    userTimezone
+                                );
 
                                 return (
 
                                     <div
                                         key={user._id}
-                                        className="p-3 mb-4 relative border-b border-gray-100">
+                                        className="p-3 mb-4 relative border-b border-gray-100 dark:border-gray-800">
                                         <div className="flex flex-col md:flex-row gap-2 items-start md:items-center rounded-lg p-1 -m-1">
                                             <div className="relative flex-shrink-0 mx-auto md:mx-0 mb-2 md:mb-0 flex-1 min-w-0 w-full md:w-1/3">
                                                 <span className="flex items-center">
@@ -444,7 +364,7 @@ export default function AttendanceCard({
                                                         user={user}
                                                         className="ml-3 truncate max-w-xs text-left"
                                                     >
-                                                        <h3 className="text-blue-700 font-semibold text-lg cursor-pointer transition-colors hover:text-indigo-600 truncate">
+                                                        <h3 className="text-blue-700 dark:text-indigo-400 font-semibold text-lg cursor-pointer transition-colors hover:text-indigo-600 dark:hover:text-indigo-300 truncate">
                                                             {" "}{user.name}
                                                         </h3>
                                                     </UserProfileTrigger>
@@ -457,9 +377,9 @@ export default function AttendanceCard({
                                                         <div className="w-full">
                                                             <div className="flex items-center">
                                                                 <LuClock3 className="w-4 h-4 mr-1 text-indigo-600" />
-                                                                <div className="text-xs font-medium text-gray-700 uppercase">Work</div>
+                                                                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Work</div>
                                                             </div>
-                                                            <div className="text-blue-600 font-bold text-sm ml-5">{formatDuration(workSeconds)}</div>
+                                                            <div className="text-blue-600 dark:text-indigo-400 font-bold text-sm ml-5">{formatDuration(workSeconds)}</div>
                                                         </div>
                                                     </div>
 
@@ -467,7 +387,7 @@ export default function AttendanceCard({
                                                         <div className="w-full">
                                                             <div className="flex items-center">
                                                                 <IoIosPause className="w-4 h-4 mr-1 text-orange-500" />
-                                                                <div className="text-xs font-medium text-gray-700 uppercase">Break</div>
+                                                                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Break</div>
                                                             </div>
                                                             <div className="text-orange-600 font-bold text-sm ml-5">{formatDuration(breakSeconds)}</div>
                                                         </div>
@@ -476,17 +396,17 @@ export default function AttendanceCard({
                                                     <div className="flex items-center p-1 flex-1 min-w-[90px]">
                                                         <div className="w-full">
                                                             <div className="flex items-center">
-                                                                <div className="text-xs font-medium text-gray-700 uppercase">Start</div>
+                                                                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Start</div>
                                                             </div>
-                                                            <div className="text-gray-600 font-bold text-sm">
+                                                            <div className="text-gray-600 dark:text-gray-400 font-bold text-sm">
                                                                 {
                                                                     isSingleDay
-                                                                        ? firstSession
+                                                                        ? user.startTime || (firstSession
                                                                             ? formatTimeInTimezone(
                                                                                 new Date(firstSession.startTime),
-                                                                                timezone
+                                                                                userTimezone
                                                                             )
-                                                                            : "Not started"
+                                                                            : "Not started")
                                                                         : "Not started"
                                                                 }
                                                             </div>
@@ -496,17 +416,17 @@ export default function AttendanceCard({
                                                     <div className="flex items-center p-1 flex-1 min-w-[90px]">
                                                         <div className="w-full">
                                                             <div className="flex items-center">
-                                                                <div className="text-xs font-medium text-gray-700 uppercase">Finish</div>
+                                                                <div className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Finish</div>
                                                             </div>
-                                                            <div className="text-gray-600 font-bold text-sm">
+                                                            <div className="text-gray-600 dark:text-gray-400 font-bold text-sm">
                                                                 {
                                                                     isSingleDay
-                                                                        ? lastSession
+                                                                        ? user.finishTime || (lastSession && lastSession.endTime
                                                                             ? formatTimeInTimezone(
                                                                                 new Date(lastSession.endTime),
-                                                                                timezone
+                                                                                userTimezone
                                                                             )
-                                                                            : "Not finished"
+                                                                            : (lastSession ? "Active" : "Not finished"))
                                                                         : "Not finished"
                                                                 }
                                                             </div>
@@ -518,8 +438,8 @@ export default function AttendanceCard({
 
                                         {isSingleDay && (
                                             <div className="mt-2">
-                                                <h4 className="text-sm font-medium text-gray-500 mb-1.5 tracking-wide">Activity Timeline</h4>
-                                                <div className="relative h-8 rounded-sm border border-gray-100 bg-gray-100 hover:bg-gray-200">
+                                                <h4 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1.5 tracking-wide">Activity Timeline</h4>
+                                                <div className="relative h-8 rounded-sm border border-gray-100 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700">
 
                                                     {segments.map((segment, index) => (
                                                         <div
@@ -547,7 +467,7 @@ export default function AttendanceCard({
                                                                     ? "bg-green-400"
                                                                     : segment.type === "break"
                                                                         ? "bg-orange-500"
-                                                                        : "bg-gray-300"
+                                                                        : "bg-gray-300 dark:bg-gray-600"
                                                                     }`}
                                                             />
 
@@ -574,24 +494,24 @@ export default function AttendanceCard({
 
                                                 <div className="timeline-labels flex justify-between mt-1.5 px-1">
                                                     <div className="flex flex-col items-center">
-                                                        <div className="h-1 w-[1px] bg-gray-200 mb-1"></div>
-                                                        <span className="text-xs font-medium text-gray-600">12 AM</span>
+                                                        <div className="h-1 w-[1px] bg-gray-200 dark:bg-gray-700 mb-1"></div>
+                                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">12 AM</span>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <div className="h-1 w-[1px] bg-gray-200 mb-1"></div>
-                                                        <span className="text-xs font-medium text-gray-600">6 AM</span>
+                                                        <div className="h-1 w-[1px] bg-gray-200 dark:bg-gray-700 mb-1"></div>
+                                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">6 AM</span>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <div className="h-1 w-[1px] bg-gray-200 mb-1"></div>
-                                                        <span className="text-xs font-medium text-gray-600">12 PM</span>
+                                                        <div className="h-1 w-[1px] bg-gray-200 dark:bg-gray-700 mb-1"></div>
+                                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">12 PM</span>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <div className="h-1 w-[1px] bg-gray-200 mb-1"></div>
-                                                        <span className="text-xs font-medium text-gray-600">6 PM</span>
+                                                        <div className="h-1 w-[1px] bg-gray-200 dark:bg-gray-700 mb-1"></div>
+                                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">6 PM</span>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <div className="h-1 w-[1px] bg-gray-200 mb-1"> </div>
-                                                        <span className="text-xs font-medium text-gray-600">12 AM</span>
+                                                        <div className="h-1 w-[1px] bg-gray-200 dark:bg-gray-700 mb-1"> </div>
+                                                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">12 AM</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -602,7 +522,9 @@ export default function AttendanceCard({
                                                 {user.dailyData?.map((day) => {
 
                                                     const dayBuckets = buildThirtyMinuteBuckets(
-                                                        day.sessions || []
+                                                        day.sessions || [],
+                                                        day.date,
+                                                        userTimezone
                                                     );
 
                                                     const workMinutes =
@@ -627,33 +549,33 @@ export default function AttendanceCard({
                                                     return (
                                                         <div
                                                             key={day.date}
-                                                            className="min-w-[380px] rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm"
+                                                            className="min-w-[380px] rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1E293B] px-3 py-3 shadow-sm"
                                                         >
                                                             <div className="flex items-center gap-2">
                                                                 <div
                                                                     className={`w-3 h-3 rounded-full ${activityColor}`}
                                                                 />
-                                                                <h3 className="font-semibold text-sm">
+                                                                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
                                                                     {new Date(day.date).toLocaleDateString("en-US", {
                                                                         month: "short",
                                                                         day: "2-digit",
-                                                                        timeZone: timezone,
+                                                                        timeZone: userTimezone,
                                                                     })}
                                                                 </h3>
                                                             </div>
 
                                                             <div className="flex items-center justify-between mt-3">
 
-                                                                <div className="text-sm text-slate-700">
+                                                                <div className="text-sm text-slate-700 dark:text-slate-300">
                                                                     Work: {day.workTime}
                                                                 </div>
 
-                                                                <div className="text-sm text-slate-700">
+                                                                <div className="text-sm text-slate-700 dark:text-slate-300">
                                                                     Break: {day.breakTime}
                                                                 </div>
                                                             </div>
                                                             <div className="mt-3">
-                                                                <div className="relative h-3 bg-slate-200">
+                                                                <div className="relative h-3 bg-slate-200 dark:bg-slate-700 rounded-sm overflow-hidden">
 
                                                                     {dayBuckets.map((bucket, index) => {
 
@@ -722,7 +644,7 @@ export default function AttendanceCard({
                                                                                 />
 
                                                                                 <div className="hidden group-hover:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-50">
-                                                                                    <div className="flex gap-1 bg-slate-800 text-white px-2.5 py-1.5 rounded-lg text-xs shadow-lg whitespace-nowrap">
+                                                                                    <div className="flex gap-1 bg-slate-800 dark:bg-slate-700 border border-transparent dark:border-slate-600 text-white px-2.5 py-1.5 rounded-lg text-xs shadow-lg whitespace-nowrap">
                                                                                         <div className="font-medium">
                                                                                             {startLabel} - {endLabel} |
                                                                                         </div>
@@ -754,7 +676,7 @@ export default function AttendanceCard({
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex justify-between text-xs text-slate-500 mt-2">
+                                                            <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-2">
                                                                 <span>12:00AM</span>
                                                                 <span>9:00AM</span>
                                                                 <span>6:00PM</span>

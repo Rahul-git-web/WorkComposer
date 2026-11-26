@@ -2,6 +2,12 @@ import Project from "../models/project.model.js";
 import Task from "../models/task.model.js";
 import User from "../models/user.model.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
+import { runTransaction } from "../db/transaction.js";
+import {
+  auditProjectCreated,
+  auditProjectUpdated,
+  auditProjectDeleted,
+} from "../utils/auditService.js";
 
 // CREATE PROJECT
 export const createProject = async (req, res) => {
@@ -29,10 +35,11 @@ if (!canManageProjects) {
 
     res.status(201).json(project);
   } catch (err) {
-    console.error(err);
+    console.error("CREATE PROJECT ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to create project",
+      error: "Failed to create project",
     });
   }
 };
@@ -46,42 +53,6 @@ export const getProjects = async (req, res) => {
     const canManageProjects = await hasPermission(
       req.user,
       "manage_projects",
-    );
-
-    /*
-     * Make sure the Default Project exists.
-     */
-    let defaultProject = await Project.findOne({
-      name: "Default Project",
-      organization: organizationId,
-    });
-
-    if (!defaultProject) {
-      defaultProject = await Project.create({
-        name: "Default Project",
-        organization: organizationId,
-        createdBy: req.user._id,
-      });
-    }
-
-    /*
-     * Move tasks without a project into the
-     * organization's Default Project.
-     *
-     * IMPORTANT:
-     * Only update tasks belonging to this organization.
-     */
-    await Task.updateMany(
-      {
-        organization: organizationId,
-        $or: [
-          { project: null },
-          { project: { $exists: false } },
-        ],
-      },
-      {
-        project: defaultProject._id,
-      },
     );
 
     /*
@@ -166,7 +137,8 @@ export const getProjects = async (req, res) => {
     console.error("GET PROJECTS ERROR:", err);
 
     return res.status(500).json({
-      message: err.message,
+      message: "Failed to fetch projects",
+      error: "Failed to fetch projects",
     });
   }
 };
@@ -181,9 +153,33 @@ export const updateProject = async (req, res) => {
         message: "You do not have permission to update projects.",
       });
     }
+
+    const callerOrgId = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!callerOrgId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context",
+      });
+    }
+
+    const existingProject = await Project.findOne({
+      _id: req.params.id,
+      organization: callerOrgId,
+    });
+
+    if (!existingProject) {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+
+    // Strip client-supplied organization identifiers to prevent tenant migration
+    const updatePayload = { ...req.body };
+    delete updatePayload.organization;
+    delete updatePayload.organizationId;
+
     const updatedProject = await Project.findByIdAndUpdate(
-      req.params.id,
-      req.body,
+      existingProject._id,
+      updatePayload,
       {
         new: true,
       },
@@ -191,10 +187,11 @@ export const updateProject = async (req, res) => {
 
     res.status(200).json(updatedProject);
   } catch (err) {
-    console.error(err);
+    console.error("UPDATE PROJECT ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to update project",
+      error: "Failed to update project",
     });
   }
 };
@@ -209,7 +206,18 @@ export const deleteProject = async (req, res) => {
         message: "You do not have permission to delete projects.",
       });
     }
-    const project = await Project.findById(req.params.id);
+
+    const callerOrgId = (req.user?.organization?._id || req.user?.organizationId || req.user?.organization)?.toString();
+    if (!callerOrgId) {
+      return res.status(401).json({
+        message: "Unauthorized: Missing organization context",
+      });
+    }
+
+    const project = await Project.findOne({
+      _id: req.params.id,
+      organization: callerOrgId,
+    });
 
     if (!project) {
       return res.status(404).json({
@@ -225,20 +233,96 @@ export const deleteProject = async (req, res) => {
     }
 
     // DELETE TASKS OF PROJECT
-    await Task.deleteMany({
-      project: project._id,
-    });
+    await runTransaction(async () => {
+      const currentProject = await Project.findOne({
+        _id: project._id || project.id,
+        organization: callerOrgId,
+      });
 
-    await Project.findByIdAndDelete(req.params.id);
+      if (!currentProject) {
+        const notFound = new Error("Project not found");
+        notFound.statusCode = 404;
+        throw notFound;
+      }
+
+      await Task.deleteMany({
+        project: currentProject._id || currentProject.id,
+        organization: callerOrgId,
+      });
+
+      await Project.findByIdAndDelete(currentProject._id || currentProject.id);
+    });
 
     res.status(200).json({
       message: "Project deleted successfully",
     });
   } catch (err) {
-    console.error(err);
+    if (err.statusCode === 404 || err.name === "NotFoundError" || err.code === "P2025") {
+      return res.status(404).json({
+        message: "Project not found",
+      });
+    }
+    if (err.statusCode === 400) {
+      return res.status(400).json({
+        message: err.message,
+      });
+    }
+    console.error("DELETE PROJECT ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to delete project",
+      error: "Failed to delete project",
     });
   }
+};
+
+/**
+ * Explicit, authorized initialization and repair workflow for default project creation
+ * and orphan-task adoption (SEC20-F04 remediation).
+ *
+ * Must be invoked explicitly by authorized administrative or tenant-setup
+ * operations rather than implicitly as a read-endpoint side effect.
+ *
+ * Runs atomically inside runTransaction to guarantee that multi-step PostgreSQL writes
+ * succeed or rollback completely.
+ */
+export const initializeDefaultProject = async ({ organizationId, userId }) => {
+  if (!organizationId) {
+    const err = new Error("Missing organizationId context for default project initialization");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return await runTransaction(async () => {
+    let defaultProject = await Project.findOne({
+      name: "Default Project",
+      organization: organizationId,
+    });
+
+    if (!defaultProject) {
+      defaultProject = await Project.create({
+        name: "Default Project",
+        organization: organizationId,
+        createdBy: userId,
+      });
+    }
+
+    const updateResult = await Task.updateMany(
+      {
+        organization: organizationId,
+        $or: [
+          { project: null },
+          { project: { $exists: false } },
+        ],
+      },
+      {
+        project: defaultProject._id,
+      },
+    );
+
+    return {
+      defaultProject,
+      adoptedTaskCount: updateResult?.modifiedCount ?? updateResult?.count ?? 0,
+    };
+  });
 };

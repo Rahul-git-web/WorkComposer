@@ -51,7 +51,6 @@ router.delete(
 router.get(
   "/check-break-mode",
   protect,
-  requirePermission("manage_settings"),
   checkBreakMode,
 );
 

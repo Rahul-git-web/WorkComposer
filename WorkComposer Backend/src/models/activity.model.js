@@ -37,10 +37,29 @@ const activitySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    idempotencyKey: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    eventTimestamp: {
+      type: Date,
+    },
+
+    telemetry: {
+      type: mongoose.Schema.Types.Mixed,
+    },
   },
   {
     timestamps: true,
   },
 );
 
-export default mongoose.model("Activity", activitySchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { activityRepository } from "../db/repositories/activity.repository.js";
+
+const _Model = mongoose.model("Activity", activitySchema);
+export default createModelProxy(_Model, () => activityRepository);

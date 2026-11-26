@@ -408,6 +408,15 @@ export default function Subscription() {
                     </div>
 
                     <button
+                        type="button"
+                        onClick={() => {
+                            window.open(
+                                "mailto:sales@workcomposer.com?subject=WorkComposer%20Enterprise%20Plan%20Inquiry",
+                                "_blank",
+                                "noopener,noreferrer"
+                            );
+                            toast.success("Opening Enterprise sales inquiry...");
+                        }}
                         className="mt-8 w-full rounded-xl bg-blue-600 py-1.5 font-semibold text-white transition hover:bg-blue-700"
                     >
                         Contact Sales

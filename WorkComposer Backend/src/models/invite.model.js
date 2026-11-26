@@ -54,4 +54,9 @@ const inviteSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("Invite", inviteSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { inviteRepository } from "../db/repositories/invite.repository.js";
+
+const _Model = mongoose.model("Invite", inviteSchema);
+export default createModelProxy(_Model, () => inviteRepository);

@@ -44,8 +44,29 @@ export default function AuthenticatedProviders({
     };
 
     useEffect(() => {
-        refreshUser();
-    }, []);
+        let mounted = true;
+        API.get("/auth/me")
+            .then((res) => {
+                if (mounted) {
+                    setUser(res.data);
+                    const organizationId =
+                        res.data.organization?._id ||
+                        res.data.organization;
+                    if (organizationId) {
+                        socket.emit("joinOrganization", organizationId);
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error("FAILED TO LOAD AUTH USER:", error);
+                if (mounted) {
+                    router.replace("/authenticate/login");
+                }
+            });
+        return () => {
+            mounted = false;
+        };
+    }, [router]);
 
     if (!user) {
         return null;

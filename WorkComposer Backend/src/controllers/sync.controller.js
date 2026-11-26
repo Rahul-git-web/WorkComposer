@@ -14,8 +14,10 @@ export const getSyncStatus = async (req, res) => {
 
     res.json(sync);
   } catch (err) {
+    console.error("GET SYNC STATUS ERROR:", err);
     res.status(500).json({
-      message: err.message,
+      message: "Failed to get sync status",
+      error: "Failed to get sync status",
     });
   }
 };

@@ -1,40 +1,24 @@
 import express from "express";
-import Timer from "../models/timer.model.js";
+import { protect } from "../middleware/auth.middleware.js";
+import {
+  getActiveTimer,
+  getActiveTimerByUser,
+  startTimer,
+  stopTimer,
+} from "../controllers/timer.controller.js";
 
 const router = express.Router();
 
-// GET ACTIVE TIMER
-router.get("/active", async (req, res) => {
-  try {
-    const timer = await Timer.findOne({
-      status: "running",
-    })
-      .populate("project", "name")
-      .populate("task", "title");
+// Require authentication for all timer operations
+router.use(protect);
 
-    res.status(200).json(timer);
-  } catch (err) {
-    res.status(500).json({
-      message: err.message,
-    });
-  }
-});
+// Active timer query
+router.get("/active", getActiveTimer);
+router.get("/active/:userId", getActiveTimerByUser);
 
-router.get("/active/:userId", async (req, res) => {
-  try {
-    const timer = await Timer.findOne({
-      user: req.params.userId,
-      status: "running",
-    })
-      .populate("project", "name")
-      .populate("task", "title");
-
-    res.json(timer);
-  } catch (err) {
-    res.status(500).json({
-      message: err.message,
-    });
-  }
-});
+// Timer mutation lifecycle
+router.post("/start", startTimer);
+router.post("/stop", stopTimer);
+router.post("/:id/stop", stopTimer);
 
 export default router;

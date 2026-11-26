@@ -1,4 +1,6 @@
-export default function resolveTrackingSettings(organization, user) {
+export default function resolveTrackingSettings(organization, user, organizationRecord = null) {
+  const orgNotifications =
+    organization?.notifications ?? organizationRecord?.notifications;
   return {
     tracking: {
       trackingMode:
@@ -115,32 +117,32 @@ export default function resolveTrackingSettings(organization, user) {
     notifications: {
       shiftStarted:
         user?.notificationSettings?.shiftStarted ??
-        organization?.notifications?.shiftStarted ??
+        orgNotifications?.shiftStarted ??
         true,
 
       shiftEndingSoon:
         user?.notificationSettings?.shiftEndingSoon ??
-        organization?.notifications?.shiftEndingSoon ??
+        orgNotifications?.shiftEndingSoon ??
         true,
 
       breakStarted:
         user?.notificationSettings?.breakStarted ??
-        organization?.notifications?.breakStarted ??
+        orgNotifications?.breakStarted ??
         true,
 
       breakEnded:
         user?.notificationSettings?.breakEnded ??
-        organization?.notifications?.breakEnded ??
+        orgNotifications?.breakEnded ??
         true,
 
       dailyTargetReached:
         user?.notificationSettings?.dailyTargetReached ??
-        organization?.notifications?.dailyTargetReached ??
+        orgNotifications?.dailyTargetReached ??
         true,
 
       overtimeStarted:
         user?.notificationSettings?.overtimeStarted ??
-        organization?.notifications?.overtimeStarted ??
+        orgNotifications?.overtimeStarted ??
         true,
     },
   };

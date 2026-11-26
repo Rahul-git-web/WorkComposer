@@ -5,13 +5,13 @@ type Props = {
 };
 
 const weekDays = [
-    { label: "Mon", value: 0 },
-    { label: "Tue", value: 1 },
-    { label: "Wed", value: 2 },
-    { label: "Thu", value: 3 },
-    { label: "Fri", value: 4 },
-    { label: "Sat", value: 5 },
-    { label: "Sun", value: 6 },
+    { label: "Mon", value: 1 },
+    { label: "Tue", value: 2 },
+    { label: "Wed", value: 3 },
+    { label: "Thu", value: 4 },
+    { label: "Fri", value: 5 },
+    { label: "Sat", value: 6 },
+    { label: "Sun", value: 0 },
 ];
 
 export default function WeekdaySettingRow({
@@ -42,7 +42,7 @@ onToggle(updated);
                         }}
                         className={`rounded-md px-1.5 py-1 text-sm font-medium transition ${active
                             ? "bg-indigo-600 text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            : "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-slate-700"
                             }`}
                     >
                         {day.label}

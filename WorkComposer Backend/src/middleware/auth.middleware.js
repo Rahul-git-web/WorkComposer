@@ -29,6 +29,12 @@ export const protect = async (req, res, next) => {
       });
     }
 
+    if (user.isArchived) {
+      return res.status(401).json({
+        message: "Account is archived. Please contact your organization administrator.",
+      });
+    }
+
     req.user = user;
 
     next();

@@ -205,22 +205,22 @@ export default function ConfigureShiftScheduleModal({
     return (
         <>
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                <div className="flex h-[92vh] w-[900px] flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+                <div className="flex h-[92vh] w-[900px] flex-col overflow-hidden rounded-lg bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] shadow-2xl">
 
                     {/* Header */}
-                    <div className="flex items-start justify-between bg-gray-200 border-b px-8 py-6">
+                    <div className="flex items-start justify-between bg-gray-100 dark:bg-[#1E293B] border-b border-gray-200 dark:border-gray-800 px-8 py-6">
 
                         <div>
-                            <h2 className="text-lg font-semibold text-gray-900">
+                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                                 Configure Shift Settings Per User
                             </h2>
 
-                            <p className="mt-2 text-sm text-gray-500">
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Configure shift schedules for individual users in your organization.
                             </p>
                         </div>
 
-                        <div className="rounded-full bg-indigo-100 px-4 py-2 text-xs font-bold text-indigo-700">
+                        <div className="rounded-full bg-indigo-100 dark:bg-indigo-950/60 px-4 py-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                             {customSettingsCount} user{customSettingsCount !== 1 ? "s" : ""} with custom settings
                         </div>
 
@@ -233,7 +233,7 @@ export default function ConfigureShiftScheduleModal({
 
                             {/* Search */}
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
+                                <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
                                     Search Users
                                 </label>
 
@@ -253,11 +253,11 @@ export default function ConfigureShiftScheduleModal({
                                             setCurrentPage(1);
                                         }}
                                         placeholder="Search by name or select from dropdown..."
-                                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
                                     />
 
                                     {dropdownOpen && (
-                                        <div className="absolute z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                                        <div className="absolute z-50 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E293B] shadow-lg">
 
                                             {dropdownUsers.map((user: any) => (
                                                 <button
@@ -274,7 +274,7 @@ export default function ConfigureShiftScheduleModal({
 
                                                         setCurrentPage(1);
                                                     }}
-                                                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                                                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-slate-800"
                                                 >
                                                     {user?.avatar ? (
                                                         <img
@@ -289,11 +289,11 @@ export default function ConfigureShiftScheduleModal({
                                                     )}
 
                                                     <div>
-                                                        <p className="text-sm font-medium text-gray-900">
+                                                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                                                             {user.firstName} {user.lastName}
                                                         </p>
 
-                                                        <p className="text-xs text-gray-500 capitalize">
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                                                             {user.role}
                                                         </p>
                                                     </div>
@@ -301,7 +301,7 @@ export default function ConfigureShiftScheduleModal({
                                             ))}
 
                                             {dropdownUsers.length === 0 && (
-                                                <div className="px-4 py-6 text-center text-sm text-gray-500">
+                                                <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                                                     No users found
                                                 </div>
                                             )}
@@ -327,8 +327,8 @@ export default function ConfigureShiftScheduleModal({
                                                 setCurrentPage(1);
                                             }}
                                             className={`rounded-lg px-6 py-2 text-sm font-medium transition ${filter === "all"
-                                                ? "bg-indigo-100 text-indigo-700"
-                                                : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                                ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
+                                                : "border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
                                                 }`}
                                         >
                                             All Users
@@ -340,8 +340,8 @@ export default function ConfigureShiftScheduleModal({
                                                 setCurrentPage(1);
                                             }}
                                             className={`rounded-lg px-6 py-2 text-sm font-medium transition ${filter === "custom"
-                                                ? "bg-indigo-100 text-indigo-700"
-                                                : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                                ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
+                                                : "border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
                                                 }`}
                                         >
                                             Custom Settings
@@ -353,8 +353,8 @@ export default function ConfigureShiftScheduleModal({
                                                 setCurrentPage(1);
                                             }}
                                             className={`rounded-lg px-6 py-2 text-sm font-medium transition ${filter === "default"
-                                                ? "bg-indigo-100 text-indigo-700"
-                                                : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                                                ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300"
+                                                : "border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
                                                 }`}
                                         >
                                             Default Settings
@@ -363,7 +363,7 @@ export default function ConfigureShiftScheduleModal({
                                         {hasActiveFilters && (
                                             <button
                                                 onClick={clearFilters}
-                                                className="rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
+                                                className="rounded-lg bg-red-50 dark:bg-red-950/40 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"
                                             >
                                                 ✕
                                                 <span className="ml-2">
@@ -375,9 +375,9 @@ export default function ConfigureShiftScheduleModal({
                                     </div>
 
                                     {filter !== "all" && (
-                                        <p className="text-sm text-gray-600">
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
                                             Filtered by:{" "}
-                                            <span className="font-semibold text-indigo-600">
+                                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
                                                 {filter === "custom"
                                                     ? "Custom Settings"
                                                     : "Default Settings"}
@@ -388,23 +388,23 @@ export default function ConfigureShiftScheduleModal({
 
                                 {/* Users List */}
 
-                                <div className="overflow-hidden rounded-xl border border-gray-200">
+                                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
 
                                     {loadingUsers ? (
-                                        <div className="p-8 text-center text-gray-500">
+                                        <div className="p-8 text-center text-gray-500 dark:text-gray-400">
                                             Loading users...
                                         </div>
                                     ) : filteredUsers.length === 0 ? (
 
                                         <div className="flex h-[320px] flex-col items-center justify-center">
 
-                                            <HiOutlineUsers className="h-12 w-12 text-gray-600" />
+                                            <HiOutlineUsers className="h-12 w-12 text-gray-600 dark:text-gray-400" />
 
-                                            <h3 className="mt-2 text-md font-semibold text-gray-900">
+                                            <h3 className="mt-2 text-md font-semibold text-gray-900 dark:text-white">
                                                 No users found
                                             </h3>
 
-                                            <p className="mt-1 text-center text-sm text-gray-500">
+                                            <p className="mt-1 text-center text-sm text-gray-500 dark:text-gray-400">
                                                 Try adjusting your search or clear filters.
                                             </p>
 
@@ -515,11 +515,11 @@ export default function ConfigureShiftScheduleModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="flex justify-end border-t px-8 py-5">
+                        <div className="flex justify-end border-t border-gray-200 dark:border-gray-800 px-8 py-5">
 
                             <button
                                 onClick={onClose}
-                                className="rounded-lg border border-gray-300 px-6 py-2 text-sm text-indigo-700 font-semibold hover:bg-gray-50"
+                                className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 px-6 py-2 text-sm text-indigo-700 dark:text-indigo-300 font-semibold hover:bg-gray-50 dark:hover:bg-slate-700"
                             >
                                 Close
                             </button>

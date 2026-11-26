@@ -19,24 +19,6 @@ export default function ApiLogs() {
     );
 
 
-    if (loading) {
-        return (
-            <div className="flex h-72 items-center justify-center">
-                <p className="text-gray-500">Loading...</p>
-            </div>
-        );
-    }
-
-    if (!logs.length) {
-        return (
-            <div className="flex h-72 items-center justify-center">
-                <p className="text-lg text-gray-500">
-                    You have no API Logs yet.
-                </p>
-            </div>
-        );
-    }
-
     const startItem =
         pagination.total === 0
             ? 0
@@ -75,35 +57,48 @@ export default function ApiLogs() {
                 />
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-                <table className="min-w-full">
-                    <thead className="bg-gray-50 border-b">
-                        <tr>
-                            <th className="px-6 py-4 text-left text-sm font-semibold">
-                                API Key
-                            </th>
+            {loading ? (
+                <div className="flex h-72 items-center justify-center">
+                    <p className="text-gray-500">Loading...</p>
+                </div>
+            ) : !logs.length ? (
+                <div className="flex h-72 items-center justify-center rounded-xl border border-gray-200 bg-white">
+                    <p className="text-lg text-gray-500">
+                        You have no API Logs yet.
+                    </p>
+                </div>
+            ) : (
+                <>
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
+                        <table className="min-w-full">
+                            <thead className="bg-gray-50 border-b">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold">
+                                        API Key
+                                    </th>
 
-                            <th className="px-6 py-4 text-left text-sm font-semibold">
-                                Method
-                            </th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold">
+                                        Method
+                                    </th>
 
-                            <th className="px-6 py-4 text-left text-sm font-semibold">
-                                Endpoint
-                            </th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold">
+                                        Endpoint
+                                    </th>
 
-                            <th className="px-6 py-4 text-left text-sm font-semibold">
-                                Status
-                            </th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold">
+                                        Status
+                                    </th>
 
-                            <th className="px-6 py-4 text-left text-sm font-semibold">
-                                Response
-                            </th>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold">
+                                        Response
+                                    </th>
 
-                            <th className="px-6 py-4 text-left text-sm font-semibold">
-                                Time
-                            </th>
-                        </tr>
-                    </thead>
+                                    <th className="px-6 py-4 text-left text-sm font-semibold">
+                                        Time
+                                    </th>
+                                </tr>
+                            </thead>
+
 
                     <tbody>
                         {logs.map((log) => (
@@ -203,6 +198,8 @@ export default function ApiLogs() {
                     </button>
                 </div>
             </div>
+            </>
+          )}
         </div>
     );
 }

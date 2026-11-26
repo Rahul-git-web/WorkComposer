@@ -81,4 +81,7 @@ const Notification = mongoose.model(
   notificationSchema,
 );
 
-export default Notification;
+import { createModelProxy } from "../db/modelProxy.js";
+import { notificationRepository } from "../db/repositories/notification.repository.js";
+
+export default createModelProxy(Notification, () => notificationRepository);

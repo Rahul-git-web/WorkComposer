@@ -49,11 +49,14 @@ export default function ProjectTrackingContent({
                         endDate,
                         teams: selectedTeams
                             .map((team: any) =>
-                                typeof team === "object" ? team._id : team
+                                typeof team === "object" ? team?._id || team?.id : team
                             )
                             .filter(Boolean)
                             .join(","),
-                        users: selectedUsers.map((u: any) => u._id).join(","),
+                        users: selectedUsers
+                            .map((u: any) => u?._id || u?.id)
+                            .filter(Boolean)
+                            .join(","),
                         sortBy,
                         order,
                     },
@@ -105,6 +108,9 @@ export default function ProjectTrackingContent({
                 <ProjectTrackingCard
                     trackingData={trackingData}
                     reportRange={reportRange}
+                    selectedUsers={selectedUsers}
+                    selectedTeams={selectedTeams}
+                    timezone={timezone}
                 />
             )}
         </>

@@ -106,8 +106,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   onAutoStopTracking: (callback) => {
-    const listener = () => {
-      callback();
+    const listener = (_, data) => {
+      callback(data);
     };
 
     ipcRenderer.on("auto-stop-tracking", listener);
@@ -225,6 +225,20 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
     return () => {
       ipcRenderer.removeListener("integration-oauth-result", listener);
+    };
+  },
+
+  onOpenSettings: (callback) => {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+
+    const listener = () => callback();
+
+    ipcRenderer.on("open-settings", listener);
+
+    return () => {
+      ipcRenderer.removeListener("open-settings", listener);
     };
   },
 });

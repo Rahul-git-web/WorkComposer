@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import API from "@/api";
 import SettingsLoading from "@/components/settings/SettingsLoading";
 import toast from "react-hot-toast";
+import { useDashboard } from "@/context/DashboardContext";
 
 export default function RolesPage() {
+    const { refreshUser } = useDashboard();
+    const [saving, setSaving] = useState(false);
 
     const [loading, setLoading] = useState(true);
     const [roles, setRoles] = useState<any[]>([]);
@@ -80,9 +83,11 @@ export default function RolesPage() {
         onChange: () => void;
     }) => (
         <button
+            type="button"
+            disabled={saving}
             onClick={onChange}
-            className={`relative h-6 w-11 rounded-full transition-colors duration-300 ${checked ? "bg-indigo-600" : "bg-gray-300"
-                }`}
+            className={`relative h-6 w-11 rounded-full transition-colors duration-300 ${checked ? "bg-indigo-600" : "bg-gray-300 dark:bg-gray-700"
+                } ${saving ? "opacity-60 cursor-not-allowed" : ""}`}
         >
             <span
                 className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-300 ${checked ? "translate-x-5" : ""
@@ -94,9 +99,12 @@ export default function RolesPage() {
     const updateRole = async (
         updatedPermissions = permissions,
         updatedReportAccess = reportAccess,
-        updatedScreenshotAccess = screenshotAccess
+        updatedScreenshotAccess = screenshotAccess,
+        previousPermissions?: typeof permissions,
+        previousReportAccess?: string,
+        previousScreenshotAccess?: string
     ) => {
-        if (!selectedRole) return;
+        if (!selectedRole || saving) return;
 
         const permissionsArray = [];
 
@@ -116,7 +124,9 @@ export default function RolesPage() {
             permissionsArray.push("manage_tasks");
 
         try {
-            const { data } = await API.put(`/roles/${selectedRole._id}`, {
+            setSaving(true);
+            const roleId = selectedRole?._id || selectedRole?.id;
+            const { data } = await API.put(`/roles/${roleId}`, {
                 permissions: permissionsArray,
                 reportAccess: updatedReportAccess,
                 screenshotAccess: updatedScreenshotAccess,
@@ -132,9 +142,10 @@ export default function RolesPage() {
                 permissionCount: activeCount,
             });
 
+            const updatedRoleId = data.role?._id || data.role?.id;
             setRoles((prev: any[]) =>
                 prev.map((role) =>
-                    role._id === data.role._id
+                    (role._id || role.id) === updatedRoleId
                         ? {
                             ...role,
                             permissions: data.role.permissions,
@@ -145,15 +156,42 @@ export default function RolesPage() {
                         : role
                 )
             );
+            await refreshUser();
             toast.success("Role privileges updated.");
 
         } catch (err: any) {
             console.error("ROLE UPDATE ERROR:", err);
 
+            // Revert optimistic updates on failure
+            if (previousPermissions) {
+                setPermissions(previousPermissions);
+            } else if (selectedRole) {
+                const perms = selectedRole.permissions || [];
+                setPermissions({
+                    manageBilling: perms.includes("manage_billing"),
+                    manageSettings: perms.includes("manage_settings"),
+                    manageUsers: perms.includes("manage_users"),
+                    manageProjects: perms.includes("manage_projects"),
+                    manageTasks: perms.includes("manage_tasks"),
+                });
+            }
+            if (previousReportAccess) {
+                setReportAccess(previousReportAccess);
+            } else if (selectedRole) {
+                setReportAccess(selectedRole.reportAccess || "none");
+            }
+            if (previousScreenshotAccess) {
+                setScreenshotAccess(previousScreenshotAccess);
+            } else if (selectedRole) {
+                setScreenshotAccess(selectedRole.screenshotAccess || "none");
+            }
+
             toast.error(
                 err.response?.data?.message ||
                 "Failed to update role privileges."
             );
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -171,32 +209,32 @@ export default function RolesPage() {
             {/* Header */}
 
             <div className="mb-8">
-                <h1 className="text-2xl font-semibold text-gray-800">
+                <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">
                     Roles & Privileges
                 </h1>
 
-                <p className="mt-2 text-gray-600">
+                <p className="mt-2 text-gray-600 dark:text-gray-400">
                     Manage user roles and configure access privileges for your organization
                 </p>
             </div>
 
             {/* Main Card */}
 
-            <div className="h-[calc(100vh-180px)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="h-[calc(100vh-180px)] overflow-hidden rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
 
                 <div className="grid h-full grid-cols-12">
 
                     {/* Left Panel */}
 
-                    <div className="col-span-3 border-r border-gray-200 bg-white">
+                    <div className="col-span-3 border-r border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A]">
 
-                        <div className="p-4 border-b border-gray-100">
+                        <div className="p-4 border-b border-gray-100 dark:border-gray-800">
 
-                            <h2 className="text-xl font-bold text-gray-900">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                                 Roles
                             </h2>
 
-                            <p className="mt-2 text-sm text-gray-500">
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                 Manage user roles and privileges
                             </p>
 
@@ -209,10 +247,11 @@ export default function RolesPage() {
                                 .map((role: any) => (
 
                                     <div
-                                        key={role._id}
+                                        key={role._id || role.id}
                                         onClick={async () => {
                                             try {
-                                                const { data } = await API.get(`/roles/${role._id}`);
+                                                const rId = role._id || role.id;
+                                                const { data } = await API.get(`/roles/${rId}`);
                                                 setSelectedRole(data);
                                             } catch (err: any) {
                                                 console.error("ROLE DETAILS FETCH ERROR:", err);
@@ -223,17 +262,17 @@ export default function RolesPage() {
                                                 );
                                             }
                                         }}
-                                        className={`cursor-pointer rounded-xl p-3 transition ${selectedRole?._id === role._id
-                                            ? "border-2 border-indigo-500 bg-indigo-50"
-                                            : "border border-gray-200 hover:border-gray-300"
+                                        className={`cursor-pointer rounded-xl p-3 transition ${(selectedRole?._id || selectedRole?.id) === (role._id || role.id)
+                                            ? "border-2 border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40"
+                                            : "border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                                             }`}
                                     >
 
-                                        <h3 className="text-md font-semibold text-gray-900">
+                                        <h3 className="text-md font-semibold text-gray-900 dark:text-white">
                                             {role.name}
                                         </h3>
 
-                                        <div className="mt-1 flex gap-4 text-sm text-gray-500">
+                                        <div className="mt-1 flex gap-4 text-sm text-gray-500 dark:text-gray-400">
                                             <span>👥 {role.userCount} users</span>
                                             <span>🛡️ {role.permissionCount} active</span>
                                         </div>
@@ -250,13 +289,13 @@ export default function RolesPage() {
 
                     <div className="col-span-9 flex min-h-0 flex-col">
 
-                        <div className="border-b border-gray-200 bg-white px-8 py-4">
+                        <div className="border-b border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] px-8 py-4">
 
-                            <h2 className="text-lg font-bold text-gray-900">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                                 {selectedRole?.name || "Role"}
                             </h2>
 
-                            <div className="mt-1 flex items-center text-sm gap-4 text-gray-500">
+                            <div className="mt-1 flex items-center text-sm gap-4 text-gray-500 dark:text-gray-400">
 
                                 <div className="flex items-center gap-2">
                                     <span>👥</span>
@@ -278,9 +317,9 @@ export default function RolesPage() {
 
                         </div>
 
-                        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-8 py-4">
+                        <div className="flex items-center justify-between border-b border-gray-200 dark:border-[#22324D] bg-gray-50 dark:bg-[#1E293B] px-8 py-4">
 
-                            <h3 className="text-md font-semibold text-gray-900">
+                            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
                                 Privileges
                             </h3>
 
@@ -290,7 +329,7 @@ export default function RolesPage() {
                                     onClick={() => setActiveTab("all")}
                                     className={`rounded-lg px-4 py-2 ${activeTab === "all"
                                         ? "bg-indigo-600 text-white"
-                                        : "bg-white text-gray-600"
+                                        : "bg-white dark:bg-[#0F172A] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
                                         }`}
                                 >
                                     All
@@ -300,7 +339,7 @@ export default function RolesPage() {
                                     onClick={() => setActiveTab("data")}
                                     className={`rounded-lg px-4 py-2 ${activeTab === "data"
                                         ? "bg-indigo-600 text-white"
-                                        : "bg-white text-gray-600"
+                                        : "bg-white dark:bg-[#0F172A] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
                                         }`}
                                 >
                                     Data Access
@@ -310,7 +349,7 @@ export default function RolesPage() {
                                     onClick={() => setActiveTab("admin")}
                                     className={`rounded-lg px-4 py-2 ${activeTab === "admin"
                                         ? "bg-indigo-600 text-white"
-                                        : "bg-white text-gray-600"
+                                        : "bg-white dark:bg-[#0F172A] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
                                         }`}
                                 >
                                     Administration
@@ -320,7 +359,7 @@ export default function RolesPage() {
                                     onClick={() => setActiveTab("project")}
                                     className={`rounded-lg px-4 py-2 ${activeTab === "project"
                                         ? "bg-indigo-600 text-white"
-                                        : "bg-white text-gray-600"
+                                        : "bg-white dark:bg-[#0F172A] text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
                                         }`}
                                 >
                                     Project Management
@@ -337,7 +376,7 @@ export default function RolesPage() {
 
                                 {(activeTab === "all" || activeTab === "data") && (
 
-                                    <div className="rounded-2xl border border-gray-200 bg-white">
+                                    <div className="rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A]">
 
                                         {/* Header */}
 
@@ -345,7 +384,7 @@ export default function RolesPage() {
 
                                             <div>
 
-                                                <h3 className="text-md font-semibold text-gray-900">
+                                                <h3 className="text-md font-semibold text-gray-900 dark:text-white">
                                                     Data Access
                                                 </h3>
 
@@ -363,11 +402,11 @@ export default function RolesPage() {
 
                                                 <div>
 
-                                                    <p className="font-medium text-gray-900">
+                                                    <p className="font-medium text-gray-900 dark:text-white">
                                                         Reports
                                                     </p>
 
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                                         Choose which reports this role can access.
                                                     </p>
 
@@ -376,12 +415,13 @@ export default function RolesPage() {
                                                 <select
                                                     value={reportAccess}
                                                     onChange={(e) => {
+                                                        const prev = reportAccess;
                                                         const value = e.target.value;
 
                                                         setReportAccess(value);
-                                                        updateRole(permissions, value, screenshotAccess);
+                                                        updateRole(permissions, value, screenshotAccess, permissions, prev, screenshotAccess);
                                                     }}
-                                                    className="w-56 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                                                    className="w-56 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-3 py-2 text-sm"
                                                 >
                                                     <option value="none">No Access</option>
                                                     <option value="own">Only Own Reports</option>
@@ -401,11 +441,11 @@ export default function RolesPage() {
 
                                                 <div>
 
-                                                    <p className="font-medium text-gray-900">
+                                                    <p className="font-medium text-gray-900 dark:text-white">
                                                         View Screenshots
                                                     </p>
 
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                                         Control which user screenshots this role can view.
                                                     </p>
 
@@ -414,12 +454,13 @@ export default function RolesPage() {
                                                 <select
                                                     value={screenshotAccess}
                                                     onChange={(e) => {
+                                                        const prev = screenshotAccess;
                                                         const value = e.target.value;
 
                                                         setScreenshotAccess(value);
-                                                        updateRole(permissions, reportAccess, value);
+                                                        updateRole(permissions, reportAccess, value, permissions, reportAccess, prev);
                                                     }}
-                                                    className="w-60 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                                                    className="w-60 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-3 py-2 text-sm"
                                                 >
                                                     <option value="none">No Access</option>
                                                     <option value="own">Only Own Screenshots</option>
@@ -472,13 +513,14 @@ export default function RolesPage() {
                                                 <Toggle
                                                     checked={permissions.manageBilling}
                                                     onChange={() => {
+                                                        const prev = { ...permissions };
                                                         const updated = {
                                                             ...permissions,
                                                             manageBilling: !permissions.manageBilling,
                                                         };
 
                                                         setPermissions(updated);
-                                                        updateRole(updated);
+                                                        updateRole(updated, reportAccess, screenshotAccess, prev);
                                                     }}
                                                 />
 
@@ -503,13 +545,14 @@ export default function RolesPage() {
                                                 <Toggle
                                                     checked={permissions.manageSettings}
                                                     onChange={() => {
+                                                        const prev = { ...permissions };
                                                         const updated = {
                                                             ...permissions,
                                                             manageSettings: !permissions.manageSettings,
                                                         };
 
                                                         setPermissions(updated);
-                                                        updateRole(updated);
+                                                        updateRole(updated, reportAccess, screenshotAccess, prev);
                                                     }}
                                                 />
 
@@ -534,13 +577,14 @@ export default function RolesPage() {
                                                 <Toggle
                                                     checked={permissions.manageUsers}
                                                     onChange={() => {
+                                                        const prev = { ...permissions };
                                                         const updated = {
                                                             ...permissions,
                                                             manageUsers: !permissions.manageUsers,
                                                         };
 
                                                         setPermissions(updated);
-                                                        updateRole(updated);
+                                                        updateRole(updated, reportAccess, screenshotAccess, prev);
                                                     }}
                                                 />
 
@@ -582,13 +626,14 @@ export default function RolesPage() {
                                                 <Toggle
                                                     checked={permissions.manageProjects}
                                                     onChange={() => {
+                                                        const prev = { ...permissions };
                                                         const updated = {
                                                             ...permissions,
                                                             manageProjects: !permissions.manageProjects,
                                                         };
 
                                                         setPermissions(updated);
-                                                        updateRole(updated);
+                                                        updateRole(updated, reportAccess, screenshotAccess, prev);
                                                     }}
                                                 />
 
@@ -611,13 +656,14 @@ export default function RolesPage() {
                                                 <Toggle
                                                     checked={permissions.manageTasks}
                                                     onChange={() => {
+                                                        const prev = { ...permissions };
                                                         const updated = {
                                                             ...permissions,
                                                             manageTasks: !permissions.manageTasks,
                                                         };
 
                                                         setPermissions(updated);
-                                                        updateRole(updated);
+                                                        updateRole(updated, reportAccess, screenshotAccess, prev);
                                                     }}
                                                 />
 

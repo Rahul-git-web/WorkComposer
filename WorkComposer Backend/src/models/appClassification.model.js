@@ -61,4 +61,9 @@ appClassificationSchema.index(
   },
 );
 
-export default mongoose.model("AppClassification", appClassificationSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { appClassificationRepository } from "../db/repositories/appClassification.repository.js";
+
+const _Model = mongoose.model("AppClassification", appClassificationSchema);
+export default createModelProxy(_Model, () => appClassificationRepository);

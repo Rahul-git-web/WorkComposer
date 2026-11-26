@@ -37,6 +37,22 @@ export default function NewAppConfigurationModal({
     const [userSearch, setUserSearch] = useState("");
     const [selectedTeamFilter, setSelectedTeamFilter] = useState("all");
     const [loadingUsers, setLoadingUsers] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    const resetForm = () => {
+        setAppName("");
+        setClassification("productive");
+        setPreventBreakMode(false);
+        setDisableIdleCalculation(false);
+        setKeepTrackingLowActivity(true);
+        setSelectedTeams([]);
+        setSelectedUsers([]);
+        setTeamSearch("");
+        setUserSearch("");
+        setSelectedTeamFilter("all");
+        setActiveTab("details");
+        setExclusionTab("teams");
+    };
 
     useEffect(() => {
         if (!open) return;
@@ -55,7 +71,12 @@ export default function NewAppConfigurationModal({
     }, [open, onClose]);
 
     useEffect(() => {
-        if (!editingApp) return;
+        if (!open) return;
+
+        if (!editingApp) {
+            resetForm();
+            return;
+        }
 
         setAppName(editingApp.appName || "");
         setClassification(editingApp.productivity || "productive");
@@ -83,7 +104,7 @@ export default function NewAppConfigurationModal({
                 typeof user === "string" ? user : user._id
             )
         );
-    }, [editingApp]);
+    }, [open, editingApp]);
 
     const fetchTeams = async () => {
         try {
@@ -96,12 +117,15 @@ export default function NewAppConfigurationModal({
     };
 
     const handleCreate = async () => {
+        if (saving) return;
+
         if (!appName.trim()) {
             toast.error("Application name is required.");
             return;
         }
 
         try {
+            setSaving(true);
             const payload = {
                 appName: appName.trim(),
                 productivity: classification,
@@ -129,19 +153,7 @@ export default function NewAppConfigurationModal({
 
             await onSuccess();
 
-            setAppName("");
-            setClassification("productive");
-            setPreventBreakMode(false);
-            setDisableIdleCalculation(false);
-            setKeepTrackingLowActivity(true);
-
-            setSelectedTeams([]);
-            setSelectedUsers([]);
-            setTeamSearch("");
-            setUserSearch("");
-            setSelectedTeamFilter("all");
-            setActiveTab("details");
-            setExclusionTab("teams");
+            resetForm();
 
             onClose();
         } catch (error: any) {
@@ -149,6 +161,8 @@ export default function NewAppConfigurationModal({
                 error?.response?.data?.message ||
                 `Failed to ${editingApp ? "update" : "create"} app configuration.`
             );
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -259,18 +273,18 @@ export default function NewAppConfigurationModal({
             onClick={onClose}
         >
             <div
-                className="bg-white w-full max-w-4xl h-[91vh] rounded-lg shadow-2xl overflow-hidden"
+                className="bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] w-full max-w-4xl h-[91vh] rounded-lg shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex flex-col h-full">
 
                     {/* Header */}
                     <div className="px-6 pt-6 pb-5">
-                        <h1 className="text-2xl font-bold text-gray-900">
-                            New App Configuration
+                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                            {editingApp ? "Edit App Configuration" : "New App Configuration"}
                         </h1>
 
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             Define app tracking rules and manage exclusion permissions
                         </p>
                     </div>
@@ -279,13 +293,13 @@ export default function NewAppConfigurationModal({
                     <div className="flex flex-1 overflow-hidden">
 
                         {/* Left Sidebar */}
-                        <div className="w-64 border-r border-gray-300 bg-gray-50 p-4">
+                        <div className="w-64 border-r border-gray-300 dark:border-gray-800 bg-gray-50 dark:bg-[#1E293B] p-4">
 
                             <button
                                 onClick={() => setActiveTab("details")}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition ${activeTab === "details"
-                                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                    : "text-gray-700 hover:bg-white"
+                                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                    : "text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-[#0F172A]"
                                     }`}
                             >
 
@@ -296,7 +310,7 @@ export default function NewAppConfigurationModal({
                                         App Details
                                     </p>
 
-                                    <p className="text-xs text-indigo-600">
+                                    <p className="text-xs text-indigo-600 dark:text-indigo-400">
                                         Configure tracking
                                     </p>
                                 </div>
@@ -306,8 +320,8 @@ export default function NewAppConfigurationModal({
                             <button
                                 onClick={() => setActiveTab("exclusions")}
                                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mt-2 transition ${activeTab === "exclusions"
-                                    ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                    : "text-gray-700 hover:bg-white"
+                                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                    : "text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-[#0F172A]"
                                     }`}
                             >
 
@@ -337,7 +351,7 @@ export default function NewAppConfigurationModal({
                                         {/* Application Name */}
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                                                 Application or Website Name{" "}
                                                 <span className="text-red-700">*</span>
                                             </label>
@@ -347,10 +361,10 @@ export default function NewAppConfigurationModal({
                                                 value={appName}
                                                 onChange={(e) => setAppName(e.target.value)}
                                                 placeholder="Enter app or website name (e.g., Chrome, firefox.com, Slack)"
-                                                className="w-full h-9 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                             />
 
-                                            <p className="text-xs text-gray-500 mt-1">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                 Provide the exact name of the application or website domain to track
                                             </p>
                                         </div>
@@ -358,14 +372,14 @@ export default function NewAppConfigurationModal({
                                         {/* Classification */}
 
                                         <div className="mt-4">
-                                            <label className="block text-sm font-medium text-gray-900 mb-2">
+                                            <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
                                                 Classification
                                             </label>
 
                                             <select
                                                 value={classification}
                                                 onChange={(e) => setClassification(e.target.value)}
-                                                className="w-full h-9 rounded-lg border border-gray-300 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                             >
                                                 <option value="productive">
                                                     Productive
@@ -384,26 +398,26 @@ export default function NewAppConfigurationModal({
                                                 </option>
                                             </select>
 
-                                            <p className="text-xs text-gray-500 mt-1">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                 Choose how this application should be classified in productivity reports
                                             </p>
                                         </div>
 
                                         {classification === "productive" && (
                                             <>
-                                                <div className="mt-6 rounded-md bg-gray-100 px-4 py-2.5">
+                                                <div className="mt-6 rounded-md bg-gray-100 dark:bg-slate-800 px-4 py-2.5">
                                                     <div className="inline-flex justify-center items-center">
-                                                        <LuCircleCheck className="w-3.5 h-3.5 mr-2 text-green-700" />
-                                                        <p className="text-sm text-gray-700">
+                                                        <LuCircleCheck className="w-3.5 h-3.5 mr-2 text-green-700 dark:text-green-400" />
+                                                        <p className="text-sm text-gray-700 dark:text-gray-200">
                                                             Keep tracking work time even with low activity.
                                                         </p>
                                                     </div>
                                                 </div>
 
-                                                <div className="mt-4 rounded-lg border border-gray-200 bg-green-50 px-4 py-2.5">
+                                                <div className="mt-4 rounded-lg border border-gray-200 dark:border-green-900/40 bg-green-50 dark:bg-green-950/30 px-4 py-2.5">
                                                     <div className="inline-flex">
-                                                        <BsInfoCircle className="w-3 h-3 text-green-700 mt-0.5 mr-2" />
-                                                        <p className="text-xs text-green-700">
+                                                        <BsInfoCircle className="w-3 h-3 text-green-700 dark:text-green-400 mt-0.5 mr-2" />
+                                                        <p className="text-xs text-green-700 dark:text-green-400">
                                                             This app will be categorized as{" "}
                                                             <span className="font-semibold capitalize">
                                                                 {classification}
@@ -415,26 +429,26 @@ export default function NewAppConfigurationModal({
 
                                                 <div
                                                     onClick={() => setPreventBreakMode(!preventBreakMode)}
-                                                    className={`mt-6 cursor-pointer rounded-xl border border-indigo-500 p-3 transition-all ${preventBreakMode
-                                                        ? "border-indigo-500 bg-indigo-50"
-                                                        : "border-gray-200 hover:border-indigo-300"
+                                                    className={`mt-6 cursor-pointer rounded-xl border p-3 transition-all ${preventBreakMode
+                                                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40"
+                                                        : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500"
                                                         }`}
                                                 >
                                                     <div className="flex items-start gap-4">
                                                         <div className="mt-1">
                                                             {preventBreakMode ? (
-                                                                <CheckCircle2 className="w-5 h-5 text-indigo-600" />
+                                                                <CheckCircle2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                                             ) : (
-                                                                <div className="w-3 h-3 rounded border border-gray-300" />
+                                                                <div className="w-3 h-3 rounded border border-gray-300 dark:border-gray-600" />
                                                             )}
                                                         </div>
 
                                                         <div>
-                                                            <h3 className="font-semibold text-gray-900">
+                                                            <h3 className="font-semibold text-gray-900 dark:text-white">
                                                                 Prevent break mode
                                                             </h3>
 
-                                                            <p className="text-xs text-gray-500">
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                                                 Keep tracking when the user is idle with this app in the
                                                                 foreground (e.g. video conferencing, training videos,
                                                                 webinars).
@@ -446,25 +460,25 @@ export default function NewAppConfigurationModal({
                                                 <div
                                                     onClick={() => setDisableIdleCalculation(!disableIdleCalculation)}
                                                     className={`mt-4 cursor-pointer rounded-xl border p-3 transition-all ${disableIdleCalculation
-                                                        ? "border-indigo-500 bg-indigo-50"
-                                                        : "border-gray-200 hover:border-indigo-300"
+                                                        ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40"
+                                                        : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500"
                                                         }`}
                                                 >
                                                     <div className="flex items-start gap-4">
                                                         <div className="mt-1">
                                                             {disableIdleCalculation ? (
-                                                                <CheckCircle2 className="w-5 h-5 text-indigo-600" />
+                                                                <CheckCircle2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                                             ) : (
-                                                                <div className="w-3 h-3 rounded border border-gray-300" />
+                                                                <div className="w-3 h-3 rounded border border-gray-300 dark:border-gray-600" />
                                                             )}
                                                         </div>
 
                                                         <div>
-                                                            <h3 className="font-semibold text-gray-900">
+                                                            <h3 className="font-semibold text-gray-900 dark:text-white">
                                                                 Disable idle time calculation
                                                             </h3>
 
-                                                            <p className="text-xs text-gray-500">
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                                                 Show higher activity percentage even during idle periods
                                                                 (e.g. reading documents, reviewing reports).
                                                             </p>
@@ -476,11 +490,11 @@ export default function NewAppConfigurationModal({
                                         )}
 
                                         {classification === "neutral" && (
-                                            <div className="mt-6 rounded-md bg-gray-100 px-4 py-3">
+                                            <div className="mt-6 rounded-md bg-gray-100 dark:bg-slate-800 px-4 py-3">
                                                 <div className="inline-flex items-start">
-                                                    <BsInfoCircle className="w-3.5 h-3.5 mt-0.5 mr-2 text-gray-500" />
+                                                    <BsInfoCircle className="w-3.5 h-3.5 mt-0.5 mr-2 text-gray-500 dark:text-gray-400" />
 
-                                                    <p className="text-sm text-gray-700">
+                                                    <p className="text-sm text-gray-700 dark:text-gray-200">
                                                         Tracked but excluded from productivity score — neither productive nor unproductive.
                                                     </p>
                                                 </div>
@@ -488,11 +502,11 @@ export default function NewAppConfigurationModal({
                                         )}
 
                                         {classification === "unproductive" && (
-                                            <div className="mt-6 rounded-md bg-gray-100 px-4 py-2.5">
+                                            <div className="mt-6 rounded-md bg-gray-100 dark:bg-slate-800 px-4 py-2.5">
                                                 <div className="inline-flex items-center">
-                                                    <TiWarningOutline className="w-3.5 h-3.5 mr-2 text-orange-800" />
+                                                    <TiWarningOutline className="w-3.5 h-3.5 mr-2 text-orange-800 dark:text-orange-400" />
 
-                                                    <p className="text-sm text-gray-700">
+                                                    <p className="text-sm text-gray-700 dark:text-gray-200">
                                                         Log under unproductive time in the Productivity report
                                                     </p>
                                                 </div>
@@ -500,11 +514,11 @@ export default function NewAppConfigurationModal({
                                         )}
 
                                         {classification === "blacklisted" && (
-                                            <div className="mt-6 rounded-md bg-red-50 border border-red-200 px-4 py-3">
+                                            <div className="mt-6 rounded-md bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 px-4 py-3">
                                                 <div className="inline-flex items-center">
-                                                    <PiUmbrellaDuotone className="w-4 h-4 mr-2 text-red-800" />
+                                                    <PiUmbrellaDuotone className="w-4 h-4 mr-2 text-red-800 dark:text-red-400" />
 
-                                                    <p className="text-sm text-gray-700">
+                                                    <p className="text-sm text-gray-700 dark:text-gray-200">
                                                         Stop tracking when using this application
                                                     </p>
                                                 </div>
@@ -516,17 +530,17 @@ export default function NewAppConfigurationModal({
                                 {activeTab === "exclusions" && (
                                     <div className="w-full px-2">
 
-                                        <h2 className="text-sm font-semibold text-gray-900">
-                                            Exclusions <span className="font-semibold text-gray-900">(Optional)</span>
+                                        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                            Exclusions <span className="font-semibold text-gray-900 dark:text-gray-300">(Optional)</span>
                                         </h2>
 
-                                        <div className="mt-6 border-b border-gray-200 flex">
+                                        <div className="mt-6 border-b border-gray-200 dark:border-gray-800 flex">
 
                                             <button
                                                 onClick={() => setExclusionTab("teams")}
                                                 className={`flex items-center text-sm gap-2 px-2 pb-3 mr-8 border-b-2 transition ${exclusionTab === "teams"
-                                                    ? "border-blue-600 text-blue-600"
-                                                    : "border-transparent text-gray-600 hover:text-gray-900"
+                                                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                                                    : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                                     }`}
                                             >
                                                 <Users className="w-5 h-5" />
@@ -539,8 +553,8 @@ export default function NewAppConfigurationModal({
                                             <button
                                                 onClick={() => setExclusionTab("users")}
                                                 className={`flex items-center text-sm gap-2 px-2 pb-3 border-b-2 transition ${exclusionTab === "users"
-                                                    ? "border-blue-600 text-blue-600"
-                                                    : "border-transparent text-gray-600 hover:text-gray-900"
+                                                    ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                                                    : "border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                                     }`}
                                             >
                                                 <User className="w-5 h-5" />
@@ -569,27 +583,27 @@ export default function NewAppConfigurationModal({
 
                                                 <div className="mt-6">
 
-                                                    <label className="block text-sm font-semibold text-gray-600 mb-1">
+                                                    <label className="block text-sm font-semibold text-gray-600 dark:text-gray-300 mb-1">
                                                         Search Teams
                                                     </label>
 
                                                     <div className="relative">
 
-                                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-600" />
+                                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-600 dark:text-gray-400" />
 
                                                         <input
                                                             type="text"
                                                             value={teamSearch}
                                                             onChange={(e) => setTeamSearch(e.target.value)}
                                                             placeholder="Search teams..."
-                                                            className="w-full h-10 rounded-md border border-gray-300 pl-12 pr-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                            className="w-full h-10 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white pl-12 pr-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                         />
 
                                                     </div>
 
                                                 </div>
 
-                                                <div className="mt-5 mb-3 flex items-center justify-between text-sm text-gray-500">
+                                                <div className="mt-5 mb-3 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                                                     <span>
                                                         {selectedTeams.length} selected
                                                     </span>
@@ -599,10 +613,10 @@ export default function NewAppConfigurationModal({
                                                     </span>
                                                 </div>
 
-                                                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+                                                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F172A]">
 
                                                     {/* Header */}
-                                                    <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-5 py-3">
+                                                    <div className="flex items-center gap-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1E293B] px-5 py-3">
 
                                                         <input
                                                             type="checkbox"
@@ -611,7 +625,7 @@ export default function NewAppConfigurationModal({
                                                             className="h-3.5 w-3.5 rounded border-gray-300"
                                                         />
 
-                                                        <span className="text-sm font-medium text-gray-800">
+                                                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                                                             Select all {filteredTeams.length} on this page
                                                         </span>
 
@@ -621,7 +635,7 @@ export default function NewAppConfigurationModal({
                                                     {filteredTeams.map((team: any) => (
                                                         <div
                                                             key={team._id}
-                                                            className="flex items-center gap-3 border-b border-gray-100 px-5 py-4 last:border-b-0 hover:bg-gray-50 transition-colors"
+                                                            className="flex items-center gap-3 border-b border-gray-100 dark:border-gray-800 px-5 py-4 last:border-b-0 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
                                                         >
                                                             <input
                                                                 type="checkbox"
@@ -643,7 +657,7 @@ export default function NewAppConfigurationModal({
                                                             />
 
                                                             <div className="flex flex-col">
-                                                                <span className="text-sm font-medium text-gray-900">
+                                                                <span className="text-sm font-medium text-gray-900 dark:text-white">
                                                                     {team.name}
                                                                 </span>
                                                             </div>
@@ -651,7 +665,7 @@ export default function NewAppConfigurationModal({
                                                     ))}
 
                                                     {filteredTeams.length === 0 && (
-                                                        <div className="py-10 text-center text-sm text-gray-500">
+                                                        <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                                                             No teams found.
                                                         </div>
                                                     )}
@@ -674,7 +688,7 @@ export default function NewAppConfigurationModal({
                                                 <div className="mt-5 grid grid-cols-2 gap-4">
 
                                                     <div>
-                                                        <label className="mb-1 block text-sm font-semibold text-gray-600">
+                                                        <label className="mb-1 block text-sm font-semibold text-gray-600 dark:text-gray-300">
                                                             Search Users
                                                         </label>
 
@@ -686,7 +700,7 @@ export default function NewAppConfigurationModal({
                                                                 value={userSearch}
                                                                 onChange={(e) => setUserSearch(e.target.value)}
                                                                 placeholder="Search by name or email..."
-                                                                className="h-10 w-full rounded-md border border-gray-300 pl-12 pr-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                                className="h-10 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white pl-12 pr-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                                             />
 
                                                         </div>
@@ -694,14 +708,14 @@ export default function NewAppConfigurationModal({
 
                                                     <div>
 
-                                                        <label className="mb-1 block text-sm font-semibold text-gray-600">
+                                                        <label className="mb-1 block text-sm font-semibold text-gray-600 dark:text-gray-300">
                                                             Filter by Team
                                                         </label>
 
                                                         <select
                                                             value={selectedTeamFilter}
                                                             onChange={(e) => setSelectedTeamFilter(e.target.value)}
-                                                            className="h-10 w-full rounded-md border border-gray-300 px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                            className="h-10 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                                         >
                                                             <option value="all">All Teams</option>
 
@@ -718,7 +732,7 @@ export default function NewAppConfigurationModal({
 
                                                 </div>
 
-                                                <div className="mt-6 mb-3 flex items-center justify-between text-sm text-gray-500">
+                                                <div className="mt-6 mb-3 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                                                     <span>
                                                         {selectedUsers.length} selected
                                                     </span>
@@ -727,11 +741,11 @@ export default function NewAppConfigurationModal({
                                                         Total: {filteredUsers.length} users
                                                     </span>
                                                 </div>
-                                                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                                                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0F172A]">
 
 
                                                     {/* Header */}
-                                                    <div className="flex items-center border-b border-gray-200 bg-gray-50 px-5 py-3">
+                                                    <div className="flex items-center border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1E293B] px-5 py-3">
 
                                                         <div className="w-12">
                                                             <input
@@ -742,11 +756,11 @@ export default function NewAppConfigurationModal({
                                                             />
                                                         </div>
 
-                                                        <div className="flex-1 text-sm font-semibold text-gray-700">
+                                                        <div className="flex-1 text-sm font-semibold text-gray-700 dark:text-gray-200">
                                                             User
                                                         </div>
 
-                                                        <div className="w-56 text-sm font-semibold text-gray-700">
+                                                        <div className="w-56 text-sm font-semibold text-gray-700 dark:text-gray-200">
                                                             Team
                                                         </div>
 
@@ -754,11 +768,11 @@ export default function NewAppConfigurationModal({
 
                                                     {/* Rows */}
                                                     {loadingUsers ? (
-                                                        <div className="py-10 text-center text-sm text-gray-500">
+                                                        <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                                                             Loading users...
                                                         </div>
                                                     ) : filteredUsers.length === 0 ? (
-                                                        <div className="py-10 text-center text-sm text-gray-500">
+                                                        <div className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                                                             No users found.
                                                         </div>
                                                     ) : (
@@ -772,7 +786,7 @@ export default function NewAppConfigurationModal({
                                                                             : [...prev, user._id]
                                                                     );
                                                                 }}
-                                                                className="flex cursor-pointer items-center border-b border-gray-100 px-5 py-4 transition hover:bg-gray-50 last:border-b-0"
+                                                                className="flex cursor-pointer items-center border-b border-gray-100 dark:border-gray-800 px-5 py-4 transition hover:bg-gray-50 dark:hover:bg-slate-800/50 last:border-b-0"
                                                             >
                                                                 <div className="w-12">
                                                                     <input
@@ -804,23 +818,23 @@ export default function NewAppConfigurationModal({
                                                                             className="h-10 w-10 rounded-full object-cover"
                                                                         />
                                                                     ) : (
-                                                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 font-semibold text-blue-700">
+                                                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-950/60 font-semibold text-blue-700 dark:text-blue-300">
                                                                             {`${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`}
                                                                         </div>
                                                                     )}
                                                                     <div>
-                                                                        <p className="font-medium text-gray-900">
+                                                                        <p className="font-medium text-gray-900 dark:text-white">
                                                                             {user.firstName} {user.lastName}
                                                                         </p>
 
-                                                                        <p className="text-sm text-gray-500">
+                                                                        <p className="text-sm text-gray-500 dark:text-gray-400">
                                                                             {user.email}
                                                                         </p>
                                                                     </div>
 
                                                                 </div>
 
-                                                                <div className="w-56 text-sm text-gray-600">
+                                                                <div className="w-56 text-sm text-gray-600 dark:text-gray-400">
                                                                     {user.team?.name || "-"}
                                                                 </div>
                                                             </div>
@@ -839,17 +853,22 @@ export default function NewAppConfigurationModal({
                     </div>
 
                     {/* Footer */}
-                    <div className="border-t border-gray-200 px-8 py-5 flex justify-end bg-white">
+                    <div className="border-t border-gray-200 dark:border-gray-800 px-8 py-5 flex justify-end bg-white dark:bg-[#0F172A]">
                         <button
+                            type="button"
                             onClick={handleCreate}
-                            disabled={!appName.trim()}
-                            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${appName.trim()
+                            disabled={!appName.trim() || saving}
+                            className={`flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-medium transition-all ${appName.trim() && !saving
                                 ? "bg-indigo-600 text-white hover:bg-indigo-700"
                                 : "bg-indigo-200 text-white cursor-not-allowed"
                                 }`}
                         >
                             <Check className="w-4 h-4" />
-                            {editingApp ? "Update App Configuration" : "Create App Application"}
+                            {saving
+                                ? "Saving..."
+                                : editingApp
+                                ? "Update App Configuration"
+                                : "Create App Configuration"}
                         </button>
                     </div>
 

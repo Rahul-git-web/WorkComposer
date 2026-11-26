@@ -172,13 +172,13 @@ export default function ScreenshotModal({
                         onClick={(e) =>
                             e.stopPropagation()
                         }
-                        className="w-full max-w-7xl transform overflow-hidden rounded-lg bg-white shadow-xl transition-all"
+                        className="w-full max-w-7xl transform overflow-hidden rounded-lg bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 shadow-xl transition-all"
                     >
                         {/* ================================================= */}
                         {/* MODAL HEADER */}
                         {/* ================================================= */}
 
-                        <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+                        <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3">
                             <div className="flex items-center">
                                 <div className="flex items-center">
                                     {user.avatar?.trim() ? (
@@ -194,7 +194,7 @@ export default function ScreenshotModal({
                                             className="mr-2.5 h-8 w-8 rounded-full object-cover shadow-sm"
                                         />
                                     ) : (
-                                        <div className="mr-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-green-200 font-semibold text-green-700">
+                                        <div className="mr-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-green-200 dark:bg-green-900/40 font-semibold text-green-700 dark:text-green-300">
                                             {user.firstName
                                                 ?.charAt(
                                                     0
@@ -204,7 +204,7 @@ export default function ScreenshotModal({
                                         </div>
                                     )}
 
-                                    <h3 className="text-base font-semibold text-gray-800">
+                                    <h3 className="text-base font-semibold text-gray-800 dark:text-white">
                                         {user.email}&apos;s
                                         Screenshots
                                     </h3>
@@ -214,7 +214,7 @@ export default function ScreenshotModal({
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700"
+                                className="rounded-full p-1.5 text-gray-500 dark:text-slate-400 transition-colors hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
                                 aria-label="Close dialog"
                             >
                                 <X className="h-5 w-5" />
@@ -326,11 +326,11 @@ export default function ScreenshotModal({
                                                     {/* HOUR CONTROL BAR                         */}
                                                     {/* ========================================= */}
 
-                                                    <div className="relative flex min-h-[56px] items-center justify-between rounded-t-lg border border-gray-200 bg-white px-3 shadow-sm">
+                                                    <div className="relative flex min-h-[56px] items-center justify-between rounded-t-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/90 px-3 shadow-sm">
                                                         {/* TIME + DATE */}
 
-                                                        <div className="flex items-center rounded-md bg-indigo-50 px-3 py-1.5">
-                                                            <span className="text-sm font-semibold text-indigo-700">
+                                                        <div className="flex items-center rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-transparent dark:border-indigo-800/40 px-3 py-1.5">
+                                                            <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                                                                 {hourActiveScreenshot
                                                                     ? new Date(
                                                                         hourActiveScreenshot.capturedAt
@@ -344,7 +344,7 @@ export default function ScreenshotModal({
                                                                     : "--"}
                                                             </span>
 
-                                                            <span className="ml-1.5 text-xs font-medium text-indigo-500">
+                                                            <span className="ml-1.5 text-xs font-medium text-indigo-500 dark:text-indigo-400">
                                                                 {hourActiveScreenshot
                                                                     ? new Date(
                                                                         hourActiveScreenshot.capturedAt
@@ -378,8 +378,8 @@ export default function ScreenshotModal({
                                                                     isFirst
                                                                 }
                                                                 className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 ${isFirst
-                                                                    ? "cursor-not-allowed bg-gray-100 text-gray-300"
-                                                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                                                                    ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 text-gray-300 dark:text-slate-600"
+                                                                    : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600 hover:text-gray-800 dark:hover:text-white"
                                                                     }`}
                                                                 aria-label={`Previous screenshot for ${hour}`}
                                                             >
@@ -419,8 +419,8 @@ export default function ScreenshotModal({
                                                                                         } of ${screenshots.length
                                                                                         } for ${hour}`}
                                                                                     className={`h-1.5 rounded-full transition-all duration-200 ${isActive
-                                                                                        ? "w-6 bg-indigo-600"
-                                                                                        : "w-1.5 bg-gray-300 hover:bg-gray-400"
+                                                                                        ? "w-6 bg-indigo-600 dark:bg-indigo-500"
+                                                                                        : "w-1.5 bg-gray-300 dark:bg-slate-600 hover:bg-gray-400 dark:hover:bg-slate-500"
                                                                                         }`}
                                                                                 />
                                                                             );
@@ -429,7 +429,7 @@ export default function ScreenshotModal({
 
                                                                 {screenshots.length >
                                                                     12 && (
-                                                                        <span className="ml-1 text-[10px] text-gray-400">
+                                                                        <span className="ml-1 text-[10px] text-gray-400 dark:text-slate-400">
                                                                             +
                                                                             {screenshots.length -
                                                                                 12}
@@ -439,7 +439,7 @@ export default function ScreenshotModal({
 
                                                             {/* MOBILE COUNT */}
 
-                                                            <span className="text-[10px] font-medium text-gray-400 sm:hidden">
+                                                            <span className="text-[10px] font-medium text-gray-400 dark:text-slate-400 sm:hidden">
                                                                 {hourIndex +
                                                                     1}
                                                                 /
@@ -462,8 +462,8 @@ export default function ScreenshotModal({
                                                                     isLast
                                                                 }
                                                                 className={`flex h-8 w-8 items-center justify-center rounded-full transition-all duration-200 ${isLast
-                                                                    ? "cursor-not-allowed bg-gray-100 text-gray-300"
-                                                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                                                                    ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 text-gray-300 dark:text-slate-600"
+                                                                    : "bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-200 hover:bg-gray-200 dark:hover:bg-slate-600 hover:text-gray-800 dark:hover:text-white"
                                                                     }`}
                                                                 aria-label={`Next screenshot for ${hour}`}
                                                             >
@@ -476,7 +476,7 @@ export default function ScreenshotModal({
                                                     {/* HOUR PROGRESS BAR                       */}
                                                     {/* ========================================= */}
 
-                                                    <div className="h-1 w-full bg-gray-100">
+                                                    <div className="h-1 w-full bg-gray-100 dark:bg-slate-700">
                                                         <div
                                                             className="h-full bg-indigo-500 transition-all duration-200"
                                                             style={{
@@ -497,7 +497,7 @@ export default function ScreenshotModal({
                                                     {/* SCREENSHOT ROW                          */}
                                                     {/* ========================================= */}
 
-                                                    <div className="rounded-b-lg border border-t-0 border-gray-200 bg-white px-2 pb-3 pt-3 shadow-sm">
+                                                    <div className="rounded-b-lg border border-t-0 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/60 px-2 pb-3 pt-3 shadow-sm">
                                                         {/*
                                                             IMPORTANT:
 
@@ -582,8 +582,8 @@ export default function ScreenshotModal({
                                                                                         );
                                                                                     }}
                                                                                     className={`cursor-pointer overflow-hidden rounded-md border shadow-sm transition-all duration-200 ${isSelected
-                                                                                        ? "border-indigo-300 shadow-md"
-                                                                                        : "border-gray-200 hover:border-gray-300 hover:shadow-md"
+                                                                                        ? "border-indigo-400 dark:border-indigo-500 shadow-md ring-2 ring-indigo-500/20"
+                                                                                        : "border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 hover:shadow-md"
                                                                                         }`}
                                                                                 >
                                                                                     {/* SCREENSHOT */}
@@ -605,11 +605,11 @@ export default function ScreenshotModal({
 
                                                                                     {/* SCREENSHOT INFO */}
 
-                                                                                    <div className="border-t border-gray-100 bg-white p-2.5">
+                                                                                    <div className="border-t border-gray-100 dark:border-slate-700/60 bg-white dark:bg-slate-900/60 p-2.5">
                                                                                         <div className="mb-1 flex items-center justify-between">
                                                                                             {/* TIME */}
 
-                                                                                            <div className="text-xs font-medium text-gray-700">
+                                                                                            <div className="text-xs font-medium text-gray-700 dark:text-slate-300">
                                                                                                 {new Date(
                                                                                                     screenshot.capturedAt
                                                                                                 ).toLocaleTimeString(
@@ -651,7 +651,7 @@ export default function ScreenshotModal({
 
                                                                                         {/* ACTIVITY BAR */}
 
-                                                                                        <div className="h-1 overflow-hidden rounded-full bg-gray-200">
+                                                                                        <div className="h-1 overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
                                                                                             <div
                                                                                                 className="h-full rounded-full"
                                                                                                 style={{
@@ -706,8 +706,8 @@ export default function ScreenshotModal({
                                                                             } for ${hour}`}
                                                                         className={`h-1.5 rounded-full transition-all duration-200 ${index ===
                                                                             hourIndex
-                                                                            ? "w-6 bg-indigo-600"
-                                                                            : "w-1.5 bg-gray-300 hover:bg-gray-400"
+                                                                            ? "w-6 bg-indigo-600 dark:bg-indigo-500"
+                                                                            : "w-1.5 bg-gray-300 dark:bg-slate-600 hover:bg-gray-400 dark:hover:bg-slate-500"
                                                                             }`}
                                                                     />
                                                                 )
@@ -715,7 +715,7 @@ export default function ScreenshotModal({
 
                                                         {screenshots.length >
                                                             12 && (
-                                                                <span className="ml-1 text-[10px] text-gray-400">
+                                                                <span className="ml-1 text-[10px] text-gray-400 dark:text-slate-400">
                                                                     +
                                                                     {screenshots.length -
                                                                         12}

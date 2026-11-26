@@ -40,20 +40,20 @@ const MailVerifyContent = () => {
       >
         <div className="flex w-full flex-col items-center space-y-4 sm:items-end"></div>
       </div>
-      <div className="flex min-h-full flex-col justify-center py-8 sm:py-10 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white">
+      <div className="relative flex min-h-full flex-col justify-center py-8 sm:py-10 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white dark:from-slate-900 dark:to-[#090F1D] transition-colors duration-200">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex items-center justify-center space-x-4">
             <Image src={logo} alt="WorkComposer" width={120} />
             <div className="flex-1">
-              <h2 className="text-2xl font-bold leading-7 text-gray-900">
+              <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white">
                 Verify Your Account
               </h2>
-              <p className="text-base text-gray-600 mt-0.5">
+              <p className="text-base text-gray-600 dark:text-gray-400 mt-0.5">
                 Check your email & click the link to activate your account.
               </p>
 
               {email && (
-                <p className="text-sm mt-2">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                   Sent to: <strong>{email}</strong>
                 </p>
               )}
@@ -62,15 +62,15 @@ const MailVerifyContent = () => {
         </div>
 
         <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-120">
-          <div className="bg-white px-6 py-8 sm:py-10 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100 transition-all duration-300 hover:shadow-xl relative overflow-hidden">
+          <div className="bg-white dark:bg-[#0F172A] px-6 py-8 sm:py-10 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100 dark:border-[#22324D] transition-all duration-300 hover:shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-indigo-600"></div>
 
-            <div className="my-4 animate-fadeIn">
+            <div className="my-4 animate-fadeIn flex justify-center">
               <Image src={mailVerify} alt="Mail-verify" width={150} />
             </div>
 
             {message && (
-              <div className="text-center text-sm text-green-600 mb-3">
+              <div className="text-center text-sm text-green-600 dark:text-green-400 mb-3">
                 {message}
               </div>
             )}
@@ -85,7 +85,7 @@ const MailVerifyContent = () => {
               </button>
               <a
                 href="#"
-                className="inline-flex justify-center rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-all duration-200"
+                className="inline-flex justify-center rounded-lg bg-white dark:bg-[#1E293B] border border-gray-300 dark:border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-[#273549] transition-all duration-200"
               >
                 Contact Support
               </a>
@@ -93,16 +93,16 @@ const MailVerifyContent = () => {
           </div>
 
           <div className="mt-6 text-center animate-fadeIn">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               <button
                 onClick={() => router.push("/authenticate/login")}
-                className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors duration-200 inline-flex items-center group"
+                className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors duration-200 inline-flex items-center group"
               >
                 Return to sign in
                 <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform duration-200" />
               </button>
             </p>
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {" "}
               © 2026 WorkComposer. All rights reserved.{" "}
             </p>

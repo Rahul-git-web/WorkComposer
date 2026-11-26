@@ -9,8 +9,8 @@ export const apiLogger = (req, res, next) => {
       if (!req.apiKey || !req.organization) return;
 
       await ApiLog.create({
-        organization: req.organization._id,
-        apiKey: req.apiKey._id,
+        organization: req.organization._id || req.organization.id,
+        apiKey: req.apiKey._id || req.apiKey.id,
 
         endpoint: req.originalUrl,
         method: req.method,

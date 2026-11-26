@@ -795,7 +795,7 @@ async function trackAppUsage() {
       task: currentTaskId,
     });
 
-    await axios.post(
+    const { data: usageResult } = await axios.post(
       `${API_BASE_URL}/usage/track`,
       {
         appName: activeApp.appName,
@@ -811,6 +811,28 @@ async function trackAppUsage() {
         },
       },
     );
+
+    if (usageResult?.reason === "blacklisted") {
+      devLog("BLACKLISTED APP DETECTED - STOPPING TRACKING:", activeApp.appName);
+
+      try {
+        if (Notification && Notification.isSupported()) {
+          new Notification({
+            title: "Tracking Stopped",
+            body: `"${activeApp.appName || "Application"}" is blacklisted by your organization.`,
+          }).show();
+        }
+      } catch {}
+
+      stopTracking({ isBreak: false });
+
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("auto-stop-tracking", {
+          reason: "blacklisted",
+          appName: activeApp.appName || "",
+        });
+      }
+    }
   } catch (err) {
     logError(err, "APP USAGE TRACKING");
   }
@@ -855,6 +877,13 @@ async function loadTrackingSettings() {
   try {
     if (!authToken) return false;
 
+    const prevTrackingMode = trackingSettings?.tracking?.trackingMode;
+    const prevCaptureEnabled = trackingSettings?.screenCapture?.enabled;
+    const prevScreenshotFrequency =
+      trackingSettings?.screenCapture?.screenshotFrequency;
+    const prevRandomizeFrequency =
+      trackingSettings?.screenCapture?.randomizeFrequency;
+
     const { data } = await axios.get(
       `${API_BASE_URL}/time-tracking/settings/effective`,
       {
@@ -868,6 +897,14 @@ async function loadTrackingSettings() {
 
     devLog("EFFECTIVE SETTINGS:", trackingSettings);
 
+    try {
+      app.setLoginItemSettings({
+        openAtLogin: Boolean(trackingSettings?.tracking?.startTrackingOnBoot),
+      });
+    } catch (loginErr) {
+      devLog("LOGIN ITEM SYNC ERROR:", loginErr?.message || loginErr);
+    }
+
     updateTrackingBarVisibility();
 
     if (
@@ -877,6 +914,29 @@ async function loadTrackingSettings() {
     ) {
       devLog("HIDING MAIN WINDOW (SILENT MODE)");
       mainWindow.hide();
+    } else if (
+      prevTrackingMode === "silent" &&
+      trackingSettings?.tracking?.trackingMode !== "silent" &&
+      mainWindow &&
+      !mainWindow.isDestroyed()
+    ) {
+      devLog("SHOWING MAIN WINDOW (LEFT SILENT MODE)");
+      mainWindow.show();
+    }
+
+    const captureChanged =
+      prevCaptureEnabled !== data?.screenCapture?.enabled ||
+      prevScreenshotFrequency !== data?.screenCapture?.screenshotFrequency ||
+      prevRandomizeFrequency !== data?.screenCapture?.randomizeFrequency;
+
+    if (isTracking && captureChanged) {
+      if (screenshotInterval) {
+        clearTimeout(screenshotInterval);
+        screenshotInterval = null;
+      }
+      if (data?.screenCapture?.enabled) {
+        startScreenshotInterval();
+      }
     }
 
     return true;
@@ -903,6 +963,7 @@ function updateTrackingBarVisibility() {
       break;
 
     case "hidden":
+    case "never":
       trackingBar.hide();
       break;
 
@@ -1503,7 +1564,11 @@ async function checkInternet() {
     devLog("NO INTERNET - REQUESTING TRACKING STOP");
 
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("auto-stop-tracking");
+      mainWindow.webContents.send("auto-stop-tracking", {
+        reason: "offline",
+      });
+    } else {
+      stopTracking({ isBreak: false });
     }
 
     return;
@@ -2114,6 +2179,8 @@ function createTrackingBar() {
       Math.round((width - barWidth) / 2),
       height - barHeight - 20,
     );
+
+    updateTrackingBarVisibility();
   });
 }
 
@@ -2162,9 +2229,13 @@ function createIdleWindow() {
 }
 
 function createWindow() {
+  const isSilentMode =
+    trackingSettings?.tracking?.trackingMode === "silent";
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    show: !isSilentMode,
     autoHideMenuBar: false,
 
     icon: path.join(__dirname, "../assets/workcomposer.ico"),
@@ -2616,6 +2687,7 @@ app.whenReady().then(async () => {
   }
   createAppMenu();
   createTrackingBar();
+  updateTrackingBarVisibility();
   createIdleWindow();
 
   setInterval(() => {

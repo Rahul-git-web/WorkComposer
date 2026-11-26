@@ -1,6 +1,11 @@
 import ApiKey from "../models/apiKey.model.js";
 import { generateApiKey as generateApiKeyValue } from "../utils/generateApiKey.js";
 import { hashApiKey } from "../utils/hashApiKey.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
+import {
+  auditApiKeyGenerated,
+  auditApiKeyDeleted,
+} from "../utils/auditService.js";
 
 export const generateApiKey = async (req, res) => {
   try {
@@ -12,9 +17,9 @@ export const generateApiKey = async (req, res) => {
       });
     }
 
-   const organization = req.user.organization;
+    const orgId = normalizeId(req.user?.organizationId || req.user?.organization?._id || req.user?.organization);
 
-    if (!organization) {
+    if (!orgId) {
       return res.status(400).json({
         message: "Organization not found.",
       });
@@ -30,17 +35,17 @@ export const generateApiKey = async (req, res) => {
     const keyPreview = `${apiKey.substring(0, 8)}****************`;
 
     const newApiKey = await ApiKey.create({
-      organization: organization._id,
+      organization: orgId,
       name: name.trim(),
       keyHash,
       keyPreview,
-      createdBy: req.user._id,
+      createdBy: normalizeId(req.user._id || req.user.id),
     });
 
     return res.status(201).json({
       message: "API Key generated successfully.",
       apiKey: {
-        id: newApiKey._id,
+        id: newApiKey._id || newApiKey.id,
         name: newApiKey.name,
         key: apiKey,
         keyPreview: newApiKey.keyPreview,
@@ -59,24 +64,29 @@ export const generateApiKey = async (req, res) => {
 
 export const getApiKeys = async (req, res) => {
   try {
-    const organization = req.user.organization;
+    const orgId = normalizeId(req.user?.organizationId || req.user?.organization?._id || req.user?.organization);
+
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization not found.",
+      });
+    }
 
     const apiKeys = await ApiKey.find({
-      organization: organization._id,
+      organization: orgId,
       isActive: true,
     })
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 });
 
-    const formattedKeys = apiKeys.map((key) => ({
-      id: key._id,
+    const formattedKeys = (apiKeys || []).map((key) => ({
+      id: key._id || key.id,
       name: key.name,
       generatedBy: key.createdBy?.name || key.createdBy?.email,
       createdAt: key.createdAt,
       lastUsedAt: key.lastUsedAt,
       maskedKey: key.keyPreview,
     }));
-
 
     return res.status(200).json({
       apiKeys: formattedKeys,
@@ -100,9 +110,17 @@ export const updateApiKey = async (req, res) => {
       });
     }
 
+    const orgId = normalizeId(req.user?.organizationId || req.user?.organization?._id || req.user?.organization);
+
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization not found.",
+      });
+    }
+
     const apiKey = await ApiKey.findOne({
       _id: req.params.id,
-      organization: req.user.organization,
+      organization: orgId,
       isActive: true,
     });
 
@@ -131,9 +149,17 @@ export const updateApiKey = async (req, res) => {
 
 export const deleteApiKey = async (req, res) => {
   try {
+    const orgId = normalizeId(req.user?.organizationId || req.user?.organization?._id || req.user?.organization);
+
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization not found.",
+      });
+    }
+
     const apiKey = await ApiKey.findOne({
       _id: req.params.id,
-      organization: req.user.organization,
+      organization: orgId,
       isActive: true,
     });
 
@@ -159,3 +185,4 @@ export const deleteApiKey = async (req, res) => {
     });
   }
 };
+

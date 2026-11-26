@@ -222,7 +222,7 @@ const ProductivityCard = ({
                                 : `${user._id}-${current}-${app.name}`
                         );
                     }}
-                    className="p-1 rounded border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                    className="p-1 rounded border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-500 dark:text-slate-300 hover:text-gray-700 dark:hover:text-white transition-colors"
                 >
                     <VscKebabVertical className="h-4 w-4" />
                 </button>
@@ -231,20 +231,20 @@ const ProductivityCard = ({
                     createPortal(
                         <div
                             ref={portalMenuRef}
-                            className="fixed z-[9999] w-48 rounded-lg bg-white shadow-xl border border-gray-200"
+                            className="fixed z-[9999] w-48 rounded-lg bg-white dark:bg-slate-800 shadow-xl border border-gray-200 dark:border-slate-700 py-1"
                             style={{
                                 left: menuPosition.x - 190,
                                 top: menuPosition.y + 6,
                             }}
                         >
-                            <div className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide border-b border-gray-100">
+                            <div className="px-3 py-1.5 text-xs font-medium text-gray-400 dark:text-slate-400 uppercase tracking-wide border-b border-gray-100 dark:border-slate-700/60">
                                 Move To
                             </div>
 
                             {current !== "productive" && (
                                 <button
                                     onClick={() => classifyApp(app.name, "productive")}
-                                    className="w-full flex items-center text-sm gap-3 px-3 py-2 hover:bg-gray-50 text-left"
+                                    className="w-full flex items-center text-sm gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-200 text-left transition-colors"
                                 >
                                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
                                     Productive
@@ -254,7 +254,7 @@ const ProductivityCard = ({
                             {current !== "neutral" && (
                                 <button
                                     onClick={() => classifyApp(app.name, "neutral")}
-                                    className="w-full flex items-center text-sm gap-3 px-3 py-2 hover:bg-gray-50 text-left"
+                                    className="w-full flex items-center text-sm gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-200 text-left transition-colors"
                                 >
                                     <span className="w-2 h-2 rounded-full bg-gray-500"></span>
                                     Neutral
@@ -264,7 +264,7 @@ const ProductivityCard = ({
                             {current !== "unproductive" && (
                                 <button
                                     onClick={() => classifyApp(app.name, "unproductive")}
-                                    className="w-full flex items-center text-sm gap-3 px-3 py-2 hover:bg-gray-50 text-left"
+                                    className="w-full flex items-center text-sm gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700/50 text-gray-700 dark:text-slate-200 text-left transition-colors"
                                 >
                                     <span className="w-2 h-2 rounded-full bg-red-500"></span>
                                     Unproductive
@@ -280,42 +280,42 @@ const ProductivityCard = ({
     return (
         <>
             {loading ? (
-                <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-200 bg-white">
+                <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A]">
                     <div className="flex flex-col items-center justify-center">
                         <div className="relative h-12 w-12">
-                            <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+                            <div className="absolute inset-0 rounded-full border-4 border-gray-100 dark:border-slate-800" />
 
                             <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-indigo-600 border-r-indigo-400" />
 
-                            <div className="absolute inset-2 rounded-full bg-white" />
+                            <div className="absolute inset-2 rounded-full bg-white dark:bg-slate-900" />
 
                             <div className="absolute inset-[14px] animate-pulse rounded-full bg-indigo-600" />
                         </div>
 
-                        <p className="mt-4 text-sm font-semibold text-gray-700">
+                        <p className="mt-4 text-sm font-semibold text-gray-700 dark:text-slate-200">
                             Fetching content...
                         </p>
 
-                        <p className="mt-1 text-xs text-gray-400">
+                        <p className="mt-1 text-xs text-gray-400 dark:text-slate-400">
                             Please wait while we update the productivity
                         </p>
                     </div>
                 </div>
             ) : (
 
-                <div className="min-h-[calc(100vh-250px)] rounded-b-lg bg-white shadow-sm border-l border-r border-b border-gray-200">
-                    <div className="overflow-hidden bg-gray-50 divide-y divide-gray-200">
-                        <div className="px-3 py-2 sm:px-5 bg-white shadow-sm border-b border-gray-200">
+                <div className="min-h-[calc(100vh-250px)] rounded-b-lg bg-white dark:bg-[#0F172A] shadow-sm border-l border-r border-b border-gray-200 dark:border-[#22324D]">
+                    <div className="overflow-hidden bg-gray-50 dark:bg-[#090F1D] divide-y divide-gray-200 dark:divide-[#22324D]">
+                        <div className="px-3 py-2 sm:px-5 bg-white dark:bg-[#0F172A] shadow-sm border-b border-gray-200 dark:border-[#22324D]">
                             <div className="flex items-center justify-between gap-2">
-                                <h2 className="text-lg font-bold text-gray-800 flex-shrink-0">Productivity</h2>
+                                <h2 className="text-lg font-bold text-gray-800 dark:text-white flex-shrink-0">Productivity</h2>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <button
                                         type="button"
                                         title="Configure"
                                         onClick={() => {
-                                            if (isDesktop && desktop) {
-                                                desktop.setActivePage("settings");
-                                                desktop.setActiveSetting?.("productivity");
+                                            if (desktop || (isDesktop && desktop)) {
+                                                desktop?.setActivePage("settings");
+                                                desktop?.setActiveSetting?.("productivity");
                                                 return;
                                             }
 
@@ -323,7 +323,7 @@ const ProductivityCard = ({
                                                 "/dashboard/settings/time-tracking/productivity"
                                             );
                                         }}
-                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#1E293B] border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-[#273549] transition-colors shadow-sm cursor-pointer"
                                     >
                                         <FiSettings className="h-4 w-4" />
                                         Configure
@@ -353,9 +353,9 @@ const ProductivityCard = ({
                                     return (
                                         <div
                                             key={user._id}
-                                            className="bg-white rounded-xl border border-gray-200 overflow-visible shadow-sm hover:shadow-md transition-shadow"
+                                            className="bg-white dark:bg-[#0F172A] rounded-xl border border-gray-200 dark:border-[#22324D] overflow-visible shadow-sm hover:shadow-md transition-shadow"
                                         >
-                                            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+                                            <div className="px-6 py-4 border-b border-gray-200 dark:border-[#22324D] bg-gradient-to-r from-gray-50 to-white dark:from-[#1E293B] dark:to-[#0F172A]">
                                                 <div className="flex items-center justify-between gap-6">
                                                     <div className="flex items-center gap-4">
                                                         <span className="flex items-center">
@@ -396,8 +396,8 @@ const ProductivityCard = ({
                                                                 className="ml-3 text-left"
                                                             >
                                                                 <div className="cursor-pointer">
-                                                                    <h3 className="text-base font-semibold text-gray-900 hover:text-blue-600 transition-colors">{user.name}</h3>
-                                                                    <p className="text-sm text-gray-500 mt-0.5"> Total Tracked: {user.totalTracked} </p>
+                                                                    <h3 className="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors">{user.name}</h3>
+                                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5"> Total Tracked: {user.totalTracked} </p>
                                                                 </div>
                                                             </UserProfileTrigger>
                                                         </span>
@@ -437,23 +437,23 @@ const ProductivityCard = ({
 
                                                         <div className="flex gap-6">
                                                             <div className="text-center min-w-[80px]">
-                                                                <div className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide"> Productive </div>
+                                                                <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1 uppercase tracking-wide"> Productive </div>
                                                                 <div className="text-lg font-bold text-green-600 transition-all duration-500">{user.productivePercent}%</div>
-                                                                <div className="text-xs text-gray-500 mt-1">
+                                                                <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                                                     {user.productiveTime}
                                                                 </div>
                                                             </div>
                                                             <div className="text-center min-w-[80px]">
-                                                                <div className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide"> Neutral </div>
-                                                                <div className="text-lg font-bold text-gray-600">{user.neutralPercent}%</div>
-                                                                <div className="text-xs text-gray-500 mt-1">
+                                                                <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1 uppercase tracking-wide"> Neutral </div>
+                                                                <div className="text-lg font-bold text-gray-600 dark:text-slate-200">{user.neutralPercent}%</div>
+                                                                <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                                                     {user.neutralTime}
                                                                 </div>
                                                             </div>
                                                             <div className="text-center min-w-[80px]">
-                                                                <div className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide"> Unproductive </div>
+                                                                <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1 uppercase tracking-wide"> Unproductive </div>
                                                                 <div className="text-lg font-bold text-red-600">{user.unproductivePercent}%</div>
-                                                                <div className="text-xs text-gray-500 mt-1">
+                                                                <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                                                     {user.unproductiveTime}
                                                                 </div>
                                                             </div>
@@ -462,15 +462,15 @@ const ProductivityCard = ({
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-3 divide-x divide-gray-200 overflow-visible">
-                                                <div className="bg-white">
-                                                    <div className="px-5 py-2 bg-green-50 border-b border-green-100">
+                                            <div className="grid grid-cols-3 divide-x divide-gray-200 dark:divide-[#22324D] overflow-visible">
+                                                <div className="bg-white dark:bg-[#0F172A]">
+                                                    <div className="px-5 py-2 bg-green-50 dark:bg-green-950/40 border-b border-green-100 dark:border-green-900/50">
                                                         <div className="flex items-center justify-between">
-                                                            <h4 className="text-xs font-semibold text-green-700 uppercase tracking-wide"> Productive </h4>
-                                                            <span className="text-xs font-semibold text-green-700 bg-green-100 px-2.5 py-1 rounded-md">{user.productiveApps.length}</span>
+                                                            <h4 className="text-xs font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide"> Productive </h4>
+                                                            <span className="text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/60 px-2.5 py-1 rounded-md">{user.productiveApps.length}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="divide-y divide-gray-100 max-h-[180px] overflow-y-auto scrollable-column">
+                                                    <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[180px] overflow-y-auto scrollable-column">
                                                         {user.productiveApps.length === 0 ? (
                                                             <div className="px-5 py-8 text-center text-sm text-gray-400">
                                                                 No productive apps
@@ -479,14 +479,14 @@ const ProductivityCard = ({
                                                             user.productiveApps.map((app: any, index: number) => (
                                                                 <div
                                                                     key={index}
-                                                                    className={`px-5 py-2.5 group relative hover:bg-gray-50 transition-all duration-700 ${movingApp?.name === app.name
-                                                                        ? "opacity-50 scale-[0.98] bg-green-50"
+                                                                    className={`px-5 py-2.5 group relative hover:bg-gray-50 dark:hover:bg-[#1E293B]/70 transition-all duration-700 ${movingApp?.name === app.name
+                                                                        ? "opacity-50 scale-[0.98] bg-green-50 dark:bg-green-950/40"
                                                                         : "opacity-100 scale-100"
                                                                         }`}
                                                                     title={`${app.name} - ${app.time}`}
                                                                 >
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                                                        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-400">
                                                                             <FaDesktop className="w-5 h-5 rounded" />
                                                                         </div>
 
@@ -497,11 +497,11 @@ const ProductivityCard = ({
                                                                                     : ""
                                                                                     }`}
                                                                             >
-                                                                                <span className="font-medium">
+                                                                                <span className="font-medium text-gray-900 dark:text-gray-200">
                                                                                     {app.name}
                                                                                 </span>
 
-                                                                                <span className="text-gray-500">
+                                                                                <span className="text-gray-500 dark:text-gray-400">
                                                                                     {" - "}
                                                                                     {app.time}
                                                                                 </span>
@@ -509,7 +509,7 @@ const ProductivityCard = ({
 
                                                                             {movingApp?.name === app.name && (
                                                                                 <div className="mt-1 flex items-center gap-2">
-                                                                                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                                                                    <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/60 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
                                                                                         → Moved to {movingApp?.target}
                                                                                     </span>
 
@@ -526,14 +526,14 @@ const ProductivityCard = ({
                                                     </div>
                                                 </div>
 
-                                                <div className="bg-white">
-                                                    <div className="px-5 py-2 bg-gray-100 border-b border-gray-200">
+                                                <div className="bg-white dark:bg-[#0F172A]">
+                                                    <div className="px-5 py-2 bg-gray-100 dark:bg-[#1E293B] border-b border-gray-200 dark:border-gray-700">
                                                         <div className="flex items-center justify-between">
-                                                            <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide"> Neutral </h4>
-                                                            <span className="text-xs font-semibold text-gray-700 bg-gray-200 px-2.5 py-1 rounded-md">{user.neutralApps.length}</span>
+                                                            <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide"> Neutral </h4>
+                                                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 px-2.5 py-1 rounded-md">{user.neutralApps.length}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="divide-y divide-gray-100 max-h-[180px] overflow-y-auto scrollable-column">
+                                                    <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[180px] overflow-y-auto scrollable-column">
                                                         {user.neutralApps.length === 0 ? (
                                                             <div className="px-5 py-8 text-center text-sm text-gray-400">
                                                                 No neutral apps
@@ -542,14 +542,14 @@ const ProductivityCard = ({
                                                             user.neutralApps.map((app: any, index: number) => (
                                                                 <div
                                                                     key={index}
-                                                                    className={`px-5 py-2.5 group relative hover:bg-gray-50 transition-all duration-700 ${movingApp?.name === app.name
-                                                                        ? "opacity-50 scale-[0.98] bg-green-50"
+                                                                    className={`px-5 py-2.5 group relative hover:bg-gray-50 dark:hover:bg-[#1E293B]/70 transition-all duration-700 ${movingApp?.name === app.name
+                                                                        ? "opacity-50 scale-[0.98] bg-green-50 dark:bg-green-950/40"
                                                                         : "opacity-100 scale-100"
                                                                         }`}
                                                                     title={`${app.name} - ${app.time}`}
                                                                 >
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                                                        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-400">
                                                                             <FaDesktop className="w-5 h-5 rounded" />
                                                                         </div>
 

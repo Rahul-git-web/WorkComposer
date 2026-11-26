@@ -5,7 +5,7 @@ import {
     Pencil,
     Trash2,
 } from 'lucide-react';
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import API from "@/api";
 import toast from 'react-hot-toast';
@@ -23,7 +23,16 @@ const ProductivityPage = () => {
         total: 0,
     });
 
-    const [applications, setApplications] = useState([]);
+    const [applications, setApplications] = useState<any[]>([]);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [bulkDeleting, setBulkDeleting] = useState(false);
+    const [sortConfig, setSortConfig] = useState<{
+        key: "appName" | "productivity" | null;
+        direction: "asc" | "desc";
+    }>({
+        key: null,
+        direction: "asc",
+    });
     const [search, setSearch] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
     const [showNewAppModal, setShowNewAppModal] = useState(false);
@@ -70,6 +79,7 @@ const ProductivityPage = () => {
             });
 
             setApplications(data.applications);
+            setSelectedIds([]);
             setTotal(data.pagination.total);
             setTotalPages(data.pagination.totalPages);
         } catch (err: any) {
@@ -81,6 +91,45 @@ const ProductivityPage = () => {
             );
         } finally {
             setLoading(false);
+        }
+    };
+
+    const sortedApplications = useMemo(() => {
+        if (!sortConfig.key) return applications;
+        const field = sortConfig.key;
+        const factor = sortConfig.direction === "asc" ? 1 : -1;
+        return [...applications].sort((a, b) =>
+            String(a?.[field] || "").localeCompare(String(b?.[field] || "")) * factor
+        );
+    }, [applications, sortConfig]);
+
+    const handleToggleSort = (key: "appName" | "productivity") => {
+        setSortConfig((prev) => ({
+            key,
+            direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+        }));
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0 || bulkDeleting) return;
+        try {
+            setBulkDeleting(true);
+            await Promise.all(
+                selectedIds.map((id) => API.delete(`/app-classifications/${id}`))
+            );
+            toast.success(
+                `Deleted ${selectedIds.length} app configuration${selectedIds.length === 1 ? "" : "s"}.`
+            );
+            setSelectedIds([]);
+            await fetchApplications();
+            await fetchStats();
+        } catch (err: any) {
+            toast.error(
+                err?.response?.data?.message ||
+                "Failed to delete selected app configurations."
+            );
+        } finally {
+            setBulkDeleting(false);
         }
     };
 
@@ -142,14 +191,14 @@ const ProductivityPage = () => {
         <>
             <div className='py-10 flex-1'>
                 <div className='mx-auto w-full max-w-[1700px] px-4 sm:px-6 lg:px-8'>
-                    <div className='min-h-[calc(100vh-250px)] px-2 sm:px-4 my-2 py-4 rounded-lg bg-white shadow-sm'>
+                    <div className='min-h-[calc(100vh-250px)] px-2 sm:px-4 my-2 py-4 rounded-lg bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] shadow-sm'>
                         <div className='max-w-7xl mx-auto p-6'>
                             <div>
                                 <div className='mb-6'>
                                     <div className='flex items-center justify-between mb-2'>
                                         <div>
-                                            <h1 className='text-2xl font-semibold text-gray-900'>App Tracking Configuration</h1>
-                                            <p className='text-sm text-gray-600 mt-1'>Manage how applications are tracked and categorized</p>
+                                            <h1 className='text-2xl font-semibold text-gray-900 dark:text-white'>App Tracking Configuration</h1>
+                                            <p className='text-sm text-gray-600 dark:text-gray-400 mt-1'>Manage how applications are tracked and categorized</p>
                                         </div>
                                         <div className='flex gap-2'>
                                             <button
@@ -163,37 +212,37 @@ const ProductivityPage = () => {
                                             </button>
                                         </div>
                                     </div>
-                                    <div className='flex gap-4 mt-4 text-sm text-gray-600'>
+                                    <div className='flex gap-4 mt-4 text-sm text-gray-600 dark:text-gray-400'>
                                         <span>
-                                            <span className='font-medium text-gray-900'>
+                                            <span className='font-medium text-gray-900 dark:text-white'>
                                                 {stats.productive}{" "}
                                             </span>
                                             Productive
                                         </span>
                                         <span className='text-gray-400'>•</span>
                                         <span>
-                                            <span className='font-medium text-gray-900'>
+                                            <span className='font-medium text-gray-900 dark:text-white'>
                                                 {stats.neutral}{" "}
                                             </span>
                                             Neutral
                                         </span>
-                                        <span className='font-medium text-gray-900'>•</span>
+                                        <span className='font-medium text-gray-900 dark:text-white'>•</span>
                                         <span>
-                                            <span className='font-medium text-gray-900'>
+                                            <span className='font-medium text-gray-900 dark:text-white'>
                                                 {stats.unproductive}{" "}
                                             </span>
                                             Unproductive
                                         </span>
-                                        <span className='font-medium text-gray-900'>•</span>
+                                        <span className='font-medium text-gray-900 dark:text-white'>•</span>
                                         <span>
-                                            <span className='font-medium text-gray-900'>
+                                            <span className='font-medium text-gray-900 dark:text-white'>
                                                 {stats.blacklisted}{" "}
                                             </span>
                                             Blacklisted
                                         </span>
-                                        <span className='font-medium text-gray-900'>•</span>
+                                        <span className='font-medium text-gray-900 dark:text-white'>•</span>
                                         <span>
-                                            <span className='font-medium text-gray-900'>
+                                            <span className='font-medium text-gray-900 dark:text-white'>
                                                 {stats.total}{" "}
                                             </span>
                                             Total
@@ -201,18 +250,18 @@ const ProductivityPage = () => {
                                     </div>
                                 </div>
 
-                                <div className='bg-white rounded-lg shadow-sm border border-gray-200 mb-4'>
-                                    <div className='p-4 border-b border-gray-200'>
+                                <div className='bg-white dark:bg-[#0F172A] rounded-lg shadow-sm border border-gray-200 dark:border-[#22324D] mb-4'>
+                                    <div className='p-4 border-b border-gray-200 dark:border-gray-800'>
                                         <div className='flex items-center justify-between gap-4'>
-                                            <div className='flex gap-1 bg-gray-100 rounded-lg p-1'>
+                                            <div className='flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-lg p-1'>
                                                 <button
                                                     onClick={() => {
                                                         setSelectedCategory("all");
                                                         setPage(1);
                                                     }}
                                                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${selectedCategory === "all"
-                                                        ? "bg-white text-gray-900 shadow-sm"
-                                                        : "text-gray-600 hover:text-gray-900"
+                                                        ? "bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white shadow-sm"
+                                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                                         }`}
                                                 >
                                                     All Apps
@@ -224,8 +273,8 @@ const ProductivityPage = () => {
                                                         setPage(1);
                                                     }}
                                                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${selectedCategory === "productive"
-                                                        ? "bg-white text-gray-900 shadow-sm"
-                                                        : "text-gray-600 hover:text-gray-900"
+                                                        ? "bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white shadow-sm"
+                                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                                         }`}
                                                 >
                                                     Productive
@@ -237,8 +286,8 @@ const ProductivityPage = () => {
                                                         setPage(1);
                                                     }}
                                                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${selectedCategory === "neutral"
-                                                        ? "bg-white text-gray-900 shadow-sm"
-                                                        : "text-gray-600 hover:text-gray-900"
+                                                        ? "bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white shadow-sm"
+                                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                                         }`}
                                                 >
                                                     Neutral
@@ -250,8 +299,8 @@ const ProductivityPage = () => {
                                                         setPage(1);
                                                     }}
                                                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${selectedCategory === "unproductive"
-                                                        ? "bg-white text-gray-900 shadow-sm"
-                                                        : "text-gray-600 hover:text-gray-900"
+                                                        ? "bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white shadow-sm"
+                                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                                         }`}
                                                 >
                                                     Unproductive
@@ -263,8 +312,8 @@ const ProductivityPage = () => {
                                                         setPage(1);
                                                     }}
                                                     className={`px-4 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${selectedCategory === "blacklisted"
-                                                        ? "bg-white text-gray-900 shadow-sm"
-                                                        : "text-gray-600 hover:text-gray-900"
+                                                        ? "bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white shadow-sm"
+                                                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                                         }`}
                                                 >
                                                     Blacklisted
@@ -282,55 +331,112 @@ const ProductivityPage = () => {
                                                         setSearch(e.target.value);
                                                         setPage(1);
                                                     }}
-                                                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
+                                                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent"
                                                 />
                                             </div>
                                         </div>
+
+                                        {selectedIds.length > 0 && (
+                                            <div className='mt-3 flex items-center justify-between rounded-lg border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/70 dark:bg-indigo-950/30 px-4 py-2 text-sm'>
+                                                <span className='font-medium text-indigo-900 dark:text-indigo-200'>
+                                                    {selectedIds.length} application{selectedIds.length === 1 ? "" : "s"} selected
+                                                </span>
+                                                <button
+                                                    type='button'
+                                                    disabled={bulkDeleting}
+                                                    onClick={handleBulkDelete}
+                                                    className='inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50 cursor-pointer'
+                                                >
+                                                    <Trash2 className='h-3.5 w-3.5' />
+                                                    {bulkDeleting ? "Deleting..." : "Delete Selected"}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className='overflow-x-auto'>
                                         <table className='w-full'>
-                                            <thead className='bg-gray-50 border-b border-gray-200'>
+                                            <thead className='bg-gray-50 dark:bg-[#1E293B] border-b border-gray-200 dark:border-gray-800'>
                                                 <tr>
                                                     <th className='w-12 px-4 py-3'>
-                                                        <input type="checkbox" className='w-4 h-4 rounded border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer' />
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={
+                                                                sortedApplications.length > 0 &&
+                                                                sortedApplications.every((app: any) =>
+                                                                    selectedIds.includes(app._id)
+                                                                )
+                                                            }
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedIds(
+                                                                        sortedApplications.map((app: any) => app._id)
+                                                                    );
+                                                                } else {
+                                                                    setSelectedIds([]);
+                                                                }
+                                                            }}
+                                                            className='w-4 h-4 rounded border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer'
+                                                        />
                                                     </th>
-                                                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider'>
-                                                        <button className='inline-flex items-center gap-1 cursor-pointer hover:text-gray-900 transition-colors'>
+                                                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider'>
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => handleToggleSort("appName")}
+                                                            className='inline-flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors'
+                                                        >
                                                             Application
                                                             <ArrowUpDown className='w-3.5 h-3.5 text-gray-400' />
                                                         </button>
                                                     </th>
 
-                                                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider'>
-                                                        <button className='inline-flex items-center gap-1 cursor-pointer hover:text-gray-900 transition-colors'>
+                                                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider'>
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => handleToggleSort("productivity")}
+                                                            className='inline-flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors'
+                                                        >
                                                             Status
                                                             <ArrowUpDown className='w-3.5 h-3.5 text-gray-400' />
                                                         </button>
                                                     </th>
 
-                                                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider'> Exclusions </th>
-                                                    <th className='w-20 px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider'> Actions </th>
+                                                    <th className='px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider'> Exclusions </th>
+                                                    <th className='w-20 px-4 py-3 text-right text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider'> Actions </th>
                                                 </tr>
                                             </thead>
 
-                                            <tbody className="bg-white divide-y divide-gray-200">
-                                                {applications.length > 0 ? (
-                                                    applications.map((app: any, index: number) => (
+                                            <tbody className="bg-white dark:bg-[#0F172A] divide-y divide-gray-200 dark:divide-gray-800">
+                                                {sortedApplications.length > 0 ? (
+                                                    sortedApplications.map((app: any, index: number) => (
                                                         <tr
                                                             key={app._id}
-                                                            className="hover:bg-gray-50 transition-colors"
+                                                            className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors"
                                                         >
                                                             <td className="px-4 py-4">
                                                                 <input
                                                                     type="checkbox"
+                                                                    checked={selectedIds.includes(app._id)}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) {
+                                                                            setSelectedIds((prev) =>
+                                                                                prev.includes(app._id)
+                                                                                    ? prev
+                                                                                    : [...prev, app._id]
+                                                                            );
+                                                                        } else {
+                                                                            setSelectedIds((prev) =>
+                                                                                prev.filter((id) => id !== app._id)
+                                                                            );
+                                                                        }
+                                                                    }}
                                                                     className="w-4 h-4 rounded border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                                                                 />
                                                             </td>
 
                                                             <td className="px-4 py-4">
                                                                 <div className="flex items-center gap-3">
-                                                                    <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg">
+                                                                    <div className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-slate-800 rounded-lg">
                                                                         <img
                                                                             src={`https://api.workcomposer.com/file/appicon?app=${encodeURIComponent(app.appName)}`}
                                                                             alt={app.appName}
@@ -339,7 +445,7 @@ const ProductivityPage = () => {
                                                                     </div>
 
                                                                     <div>
-                                                                        <div className="text-sm font-medium text-gray-900">
+                                                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
                                                                             {app.appName}
                                                                         </div>
                                                                     </div>
@@ -349,10 +455,10 @@ const ProductivityPage = () => {
                                                                 <span
                                                                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border
         ${app.productivity === "productive"
-                                                                            ? "bg-green-50 text-green-700 border-green-200"
+                                                                            ? "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800"
                                                                             : app.productivity === "unproductive"
-                                                                                ? "bg-red-50 text-red-700 border-red-200"
-                                                                                : "bg-yellow-50 text-yellow-700 border-yellow-200"
+                                                                                ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
+                                                                                : "bg-yellow-50 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800"
                                                                         }`}
                                                                 >
                                                                     <span
@@ -377,7 +483,7 @@ const ProductivityPage = () => {
 
                                                                     if (teamCount === 0 && userCount === 0) {
                                                                         return (
-                                                                            <span className="text-sm text-gray-500">
+                                                                            <span className="text-sm text-gray-500 dark:text-gray-400">
                                                                                 None
                                                                             </span>
                                                                         );
@@ -398,7 +504,7 @@ const ProductivityPage = () => {
                                                                     }
 
                                                                     return (
-                                                                        <span className="text-sm text-gray-900">
+                                                                        <span className="text-sm text-gray-900 dark:text-white">
                                                                             {parts.join(", ")}
                                                                         </span>
                                                                     );
@@ -427,15 +533,15 @@ const ProductivityPage = () => {
 
                                                                         setOpenActionMenu(app._id);
                                                                     }}
-                                                                    className="rounded-md p-2 hover:bg-gray-100 transition"
+                                                                    className="rounded-md p-2 hover:bg-gray-100 dark:hover:bg-slate-800 transition"
                                                                 >
-                                                                    <MoreVertical className="h-4 w-4 text-gray-500" />
+                                                                    <MoreVertical className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                                                                 </button>
 
                                                                 {openActionMenu === app._id &&
                                                                     createPortal(
                                                                         <div
-                                                                            className="fixed w-36 rounded-lg border border-gray-200 bg-white shadow-lg z-[9999]"
+                                                                            className="fixed w-36 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E293B] shadow-lg z-[9999]"
                                                                             style={{
                                                                                 left: menuPosition.x - 144,
                                                                                 top: menuPosition.y,
@@ -447,7 +553,7 @@ const ProductivityPage = () => {
                                                                                     setOpenActionMenu(null);
                                                                                     setShowNewAppModal(true);
                                                                                 }}
-                                                                                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                                                                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800"
                                                                             >
                                                                                 <Pencil className="h-4 w-4" />
                                                                                 Edit
@@ -459,7 +565,7 @@ const ProductivityPage = () => {
                                                                                     setOpenActionMenu(null);
                                                                                     setShowDeleteModal(true);
                                                                                 }}
-                                                                                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                                                                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
                                                                             >
                                                                                 <Trash2 className="h-4 w-4" />
                                                                                 Delete
@@ -477,15 +583,15 @@ const ProductivityPage = () => {
                                                             className="py-20 text-center"
                                                         >
                                                             <div className="flex flex-col items-center">
-                                                                <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center mb-4">
+                                                                <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center mb-4">
                                                                     📱
                                                                 </div>
 
-                                                                <h3 className="text-lg font-medium text-gray-900">
+                                                                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                                                                     No applications found
                                                                 </h3>
 
-                                                                <p className="mt-2 text-sm text-gray-500">
+                                                                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                                                                     Try adjusting your search or filter criteria.
                                                                 </p>
                                                             </div>
@@ -497,8 +603,8 @@ const ProductivityPage = () => {
                                     </div>
 
 
-                                    <div className='px-4 py-3 border-t border-gray-200 flex items-center justify-between'>
-                                        <div className='flex items-center gap-2 text-sm text-gray-600'>
+                                    <div className='px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between'>
+                                        <div className='flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400'>
                                             <span>Rows per page:</span>
                                             <select
                                                 value={limit}
@@ -506,7 +612,7 @@ const ProductivityPage = () => {
                                                     setLimit(Number(e.target.value));
                                                     setPage(1);
                                                 }}
-                                                className="px-2 py-1 border border-gray-200 rounded-md text-sm cursor-pointer"
+                                                className="px-2 py-1 border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md text-sm cursor-pointer"
                                             >
                                                 <option value={10}>10</option>
                                                 <option value={25}>25</option>
@@ -514,7 +620,7 @@ const ProductivityPage = () => {
                                             </select>
                                         </div>
                                         <div className='flex items-center gap-4'>
-                                            <span className="text-sm text-gray-600">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400">
                                                 {total === 0
                                                     ? "0 of 0"
                                                     : `${(page - 1) * limit + 1}-${Math.min(page * limit, total)} of ${total}`}
@@ -523,7 +629,7 @@ const ProductivityPage = () => {
                                                 <button
                                                     disabled={page === 1}
                                                     onClick={() => setPage((p) => p - 1)}
-                                                    className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                    className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                                 >
                                                     <ChevronLeft className="w-4 h-4" />
                                                 </button>
@@ -533,7 +639,7 @@ const ProductivityPage = () => {
                                                 <button
                                                     disabled={page >= totalPages}
                                                     onClick={() => setPage((p) => p + 1)}
-                                                    className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                                    className="p-2 rounded hover:bg-gray-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                                 >
                                                     <ChevronRight className="w-4 h-4" />
                                                 </button>
@@ -554,7 +660,10 @@ const ProductivityPage = () => {
                     setShowNewAppModal(false);
                     setEditingApp(null);
                 }}
-                onSuccess={fetchApplications}
+                onSuccess={async () => {
+                    await fetchApplications();
+                    await fetchStats();
+                }}
             />
 
             <DeleteAppConfigurationModal

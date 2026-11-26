@@ -13,15 +13,17 @@ import {
 } from "lucide-react";
 
 import { createPortal } from "react-dom";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+const emptySubscribe = () => () => { };
 
 import type { UserProfileData } from "@/types/userProfile";
 
 export interface UserProfileModalProps {
-    open: boolean;
-    onClose: () => void;
-    user: UserProfileData | undefined;
-    loading?: boolean;
+  open: boolean;
+  onClose: () => void;
+  user: UserProfileData | undefined;
+  loading?: boolean;
 }
 
 function DetailRow({
@@ -47,7 +49,7 @@ function DetailRow({
         </div>
 
         <div
-          className={`text-[15px] text-gray-800 ${valueClassName}`}
+          className={`text-[15px] text-gray-800 dark:text-gray-100 ${valueClassName}`}
         >
           {value}
         </div>
@@ -62,11 +64,7 @@ export default function UserProfileModal({
   user,
   loading = false,
 }: UserProfileModalProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   if (!mounted || !open) return null;
 
@@ -78,22 +76,22 @@ export default function UserProfileModal({
       onClick={onClose}
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl"
+        className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] text-gray-900 dark:text-white p-8 shadow-2xl transition-colors duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
           <div className="flex min-h-[420px] flex-col items-center justify-center">
             <div className="relative h-12 w-12">
-              <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+              <div className="absolute inset-0 rounded-full border-4 border-gray-100 dark:border-gray-800" />
 
               <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-indigo-600 border-r-indigo-400" />
 
-              <div className="absolute inset-2 rounded-full bg-white" />
+              <div className="absolute inset-2 rounded-full bg-white dark:bg-[#0F172A]" />
 
               <div className="absolute inset-[14px] rounded-full bg-indigo-600" />
             </div>
 
-            <p className="mt-5 text-sm font-semibold text-gray-700">
+            <p className="mt-5 text-sm font-semibold text-gray-700 dark:text-gray-300">
               Loading profile...
             </p>
 
@@ -110,10 +108,10 @@ export default function UserProfileModal({
                   <img
                     src={user.avatarUrl}
                     alt={user.name}
-                    className="h-20 w-20 rounded-full border-2 border-white object-cover shadow"
+                    className="h-20 w-20 rounded-full border-2 border-white dark:border-gray-700 object-cover shadow"
                   />
                 ) : (
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white bg-indigo-500 text-2xl font-semibold text-white shadow">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white dark:border-gray-700 bg-indigo-500 text-2xl font-semibold text-white shadow">
                     {user.firstName?.charAt(0).toUpperCase() ||
                       user.name?.charAt(0).toUpperCase() ||
                       "U"}
@@ -121,19 +119,18 @@ export default function UserProfileModal({
                 )}
 
                 <span
-                  className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white ${
-                    isTracking ? "bg-green-500" : "bg-red-500"
-                  }`}
+                  className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-white dark:border-gray-800 ${isTracking ? "bg-green-500" : "bg-red-500"
+                    }`}
                 />
               </div>
 
-              <h2 className="mt-3 text-xl font-semibold text-gray-900">
+              <h2 className="mt-3 text-xl font-semibold text-gray-900 dark:text-white">
                 {user.name}
               </h2>
 
               <button
                 type="button"
-                className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100"
+                className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
               >
                 <Users className="h-4 w-4" />
                 {user.team}
@@ -143,9 +140,9 @@ export default function UserProfileModal({
             {/* Profile Details */}
             <div className="mt-6">
               <div className="relative flex items-center justify-center">
-                <div className="absolute inset-x-0 top-1/2 h-px bg-gray-200" />
+                <div className="absolute inset-x-0 top-1/2 h-px bg-gray-200 dark:bg-gray-800" />
 
-                <span className="relative bg-white px-3 text-sm font-medium text-gray-500">
+                <span className="relative bg-white dark:bg-[#0F172A] px-3 text-sm font-medium text-gray-500 dark:text-gray-400">
                   Profile Details
                 </span>
               </div>
@@ -175,11 +172,10 @@ export default function UserProfileModal({
                   value={
                     <span className="flex items-center gap-1.5">
                       <span
-                        className={`h-2 w-2 rounded-full ${
-                          isTracking
+                        className={`h-2 w-2 rounded-full ${isTracking
                             ? "bg-green-500"
                             : "bg-red-500"
-                        }`}
+                          }`}
                       />
 
                       <span
@@ -200,9 +196,9 @@ export default function UserProfileModal({
             {/* Technical Details */}
             <div className="mt-6">
               <div className="relative flex items-center justify-center">
-                <div className="absolute inset-x-0 top-1/2 h-px bg-gray-200" />
+                <div className="absolute inset-x-0 top-1/2 h-px bg-gray-200 dark:bg-gray-800" />
 
-                <span className="relative bg-white px-3 text-sm font-medium text-gray-500">
+                <span className="relative bg-white dark:bg-[#0F172A] px-3 text-sm font-medium text-gray-500 dark:text-gray-400">
                   Technical Details
                 </span>
               </div>
@@ -239,7 +235,7 @@ export default function UserProfileModal({
             <button
               type="button"
               onClick={onClose}
-              className="mt-8 w-full rounded-lg bg-indigo-50 py-3 text-sm font-semibold text-indigo-600 transition-colors hover:bg-indigo-100"
+              className="mt-8 w-full rounded-lg bg-indigo-50 dark:bg-indigo-950/60 py-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400 transition-colors hover:bg-indigo-100 dark:hover:bg-indigo-900/60"
             >
               Close
             </button>

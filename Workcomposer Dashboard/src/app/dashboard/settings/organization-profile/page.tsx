@@ -9,14 +9,22 @@ import API from "@/api";
 import toast from "react-hot-toast";
 import DeleteOrganizationPage from "./components/DeleteOrganizationPage";
 import SettingsLoading from "@/components/settings/SettingsLoading";
+import { useUnsavedChangesWarning } from "@/hooks/useUnsavedChangesWarning";
+import { useDashboard } from "@/context/DashboardContext";
 
 
 const OrganizationPage = () => {
+    const { refreshUser } = useDashboard();
 
     const [organization, setOrganization] = useState({
         name: "",
         timezone: "Asia/Kolkata",
         logo: "",
+    });
+
+    const [initialOrg, setInitialOrg] = useState({
+        name: "",
+        timezone: "Asia/Kolkata",
     });
 
     const [timezones, setTimezones] = useState<string[]>([]);
@@ -43,6 +51,11 @@ const OrganizationPage = () => {
                     logo: data.logo || "",
                 });
 
+                setInitialOrg({
+                    name: data.name || "",
+                    timezone: data.timezone || "Asia/Kolkata",
+                });
+
                 setTimezoneSearch(data.timezone || "Asia/Kolkata");
             } catch (err: any) {
                 console.error("ORGANIZATION FETCH ERROR:", err);
@@ -59,6 +72,12 @@ const OrganizationPage = () => {
         fetchOrganization();
     }, []);
 
+    const isDirty = !loading && (
+        organization.name !== initialOrg.name ||
+        organization.timezone !== initialOrg.timezone
+    );
+
+    useUnsavedChangesWarning(isDirty);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -70,6 +89,13 @@ const OrganizationPage = () => {
                 name: organization.name,
                 timezone: organization.timezone,
             });
+
+            setInitialOrg({
+                name: organization.name,
+                timezone: organization.timezone,
+            });
+
+            await refreshUser();
 
             toast.success("Organization updated successfully.");
         } catch (err: any) {
@@ -136,7 +162,7 @@ const OrganizationPage = () => {
                         <div>
                             <h3 className="text-lg font-semibold text-wc-text mb-6">Organization Profile</h3>
                             <div className="text-center mb-2">
-                                <div className="relative inline-flex h-[80px] w-[200px] items-center justify-center overflow-hidden rounded-lg bg-wc-surface-3 border border-gray-200">
+                                <div className="relative inline-flex h-[80px] w-[200px] items-center justify-center overflow-hidden rounded-lg bg-wc-surface-3 border border-gray-200 dark:border-gray-700">
 
                                     {organization.logo ? (
                                         <Image
@@ -147,7 +173,7 @@ const OrganizationPage = () => {
                                             className="object-contain p-2"
                                         />
                                     ) : (
-                                        <div className="flex h-full w-full items-center justify-center bg-gray-100 text-2xl font-bold text-indigo-600">
+                                        <div className="flex h-full w-full items-center justify-center bg-gray-100 dark:bg-gray-800 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                                             {organization.name
                                                 ?.split(" ")
                                                 .map((word) => word[0])
@@ -163,7 +189,7 @@ const OrganizationPage = () => {
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
                                         disabled={uploadingLogo}
-                                        className="inline-flex items-center cursor-pointer text-sm font-medium text-wc-primary-text hover:text-wc-primary"
+                                        className="inline-flex items-center cursor-pointer text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                                     >
                                         <HiMiniPencilSquare className="w-4 h-4 mr-1" />
                                         {uploadingLogo ? "Uploading..." : "Upload Logo"}
@@ -222,6 +248,8 @@ const OrganizationPage = () => {
                                                 ...prev,
                                                 logo: data.logo,
                                             }));
+
+                                            await refreshUser();
 
                                             toast.success("Logo uploaded successfully.");
                                         } catch (err) {
@@ -291,13 +319,13 @@ const OrganizationPage = () => {
                                         </button>
 
                                         {timezoneDropdownOpen && (
-                                            <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border border-gray-200 bg-white shadow-xl">
+                                            <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white shadow-xl">
 
                                                 <div className="max-h-64 overflow-y-auto">
 
                                                     {filteredTimezones.length === 0 ? (
 
-                                                        <div className="px-3 py-2 text-sm text-gray-500">
+                                                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
                                                             No timezone found
                                                         </div>
 
@@ -317,9 +345,9 @@ const OrganizationPage = () => {
 
                                                                     setTimezoneDropdownOpen(false);
                                                                 }}
-                                                                className={`flex w-full items-center justify-between px-3 py-2 text-left hover:bg-indigo-50 ${organization.timezone === timezone
-                                                                    ? "bg-indigo-50"
-                                                                    : ""
+                                                                className={`flex w-full items-center justify-between px-3 py-2 text-left hover:bg-indigo-50 dark:hover:bg-indigo-900/30 ${organization.timezone === timezone
+                                                                    ? "bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-medium"
+                                                                    : "text-gray-900 dark:text-gray-200"
                                                                     }`}
                                                             >
                                                                 <span className="truncate">

@@ -328,6 +328,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
       await sendTrackingNotification({
         user,
         organizationId: orgId,
+        notifications,
         type: "SHIFT_ENDING_SOON",
         title: "Shift ending soon",
         message: `Your scheduled shift ends in ${SHIFT_ENDING_WARNING_MINUTES} minutes.`,
@@ -358,6 +359,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
       await sendTrackingNotification({
         user,
         organizationId: orgId,
+        notifications,
         type: "BREAK_STARTED",
         title: "Scheduled break started",
         message: `${breakName} has started.`,
@@ -375,6 +377,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
       await sendTrackingNotification({
         user,
         organizationId: orgId,
+        notifications,
         type: "BREAK_ENDED",
         title: "Scheduled break ended",
         message: `${breakName} has ended. Tracking can resume.`,
@@ -402,6 +405,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
       await sendTrackingNotification({
         user,
         organizationId: orgId,
+        notifications,
         type: "DAILY_TARGET_REACHED",
         title: "Daily target reached",
         message: "You've reached your scheduled work target for today.",
@@ -435,7 +439,7 @@ const processUserTrackingNotifications = async (user, organizationSettings) => {
     await sendTrackingNotification({
       user,
       organizationId: orgId,
-      type: "OVERTIME_STARTED",
+      notifications,
       title: "Overtime started",
       message: "You've exceeded your scheduled working hours.",
       eventKey: `overtime-started:${today}`,

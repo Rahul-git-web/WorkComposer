@@ -48,7 +48,7 @@ export default function Invoices() {
                         </h3>
 
                         <p className="max-w-sm text-center text-sm text-gray-500">
-                            Your invoices will appear here once they're issued.
+                            Your invoices will appear here once they&apos;re issued.
                         </p>
 
                     </div>

@@ -464,4 +464,7 @@ const userSchema = new mongoose.Schema(
 
 const User = mongoose.model("User", userSchema);
 
-export default User;
+import { createModelProxy } from "../db/modelProxy.js";
+import { userRepository } from "../db/repositories/user.repository.js";
+
+export default createModelProxy(User, () => userRepository);

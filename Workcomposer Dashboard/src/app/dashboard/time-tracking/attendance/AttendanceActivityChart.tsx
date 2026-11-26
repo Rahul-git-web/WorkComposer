@@ -9,6 +9,7 @@ import {
     YAxis,
     Tooltip,
 } from "recharts";
+import { useTheme } from "@/context/ThemeContext";
 
 type Props = {
     data: {
@@ -20,6 +21,8 @@ type Props = {
 export default function ActivityChart({
     data,
 }: Props) {
+    const { effectiveTheme } = useTheme();
+    const isDark = effectiveTheme === "dark";
 
     const chartData = [...data];
 
@@ -46,13 +49,14 @@ export default function ActivityChart({
             >
 
                 <CartesianGrid
+                    stroke={isDark ? "#22324D" : "#E5E7EB"}
                     strokeDasharray="3 3"
                     vertical={false}
                 />
 
                 <XAxis
                     dataKey="time"
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 12, fill: isDark ? "#94A3B8" : "#64748B" }}
                     interval={tickInterval}
                 />
 
@@ -60,14 +64,20 @@ export default function ActivityChart({
                     domain={[0, 100]}
                     ticks={[0, 20, 40, 60, 80, 100]}
                     tickFormatter={(value) => `${value}%`}
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 12, fill: isDark ? "#94A3B8" : "#64748B" }}
                 />
 
                 <Tooltip
                     formatter={(value) => [`${value}%`, "Activity"]}
                     labelFormatter={(label) => `${label}`}
+                    contentStyle={{
+                        backgroundColor: isDark ? "#0F172A" : "#FFFFFF",
+                        border: isDark ? "1px solid #22324D" : "1px solid #E5E7EB",
+                        borderRadius: "8px",
+                        color: isDark ? "#FFFFFF" : "#0F172A",
+                    }}
                     cursor={{
-                        fill: "transparent",
+                        fill: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)",
                     }}
                 />
 

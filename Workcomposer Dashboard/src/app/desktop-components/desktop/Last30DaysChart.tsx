@@ -9,162 +9,169 @@ import {
     Tooltip,
     CartesianGrid,
 } from "recharts";
-
 import CustomTooltip from "./CustomTooltip";
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { CalendarDays, RefreshCw } from "lucide-react";
 import API from "@/api";
+import type { EffectiveTheme } from "./ThemeSelector";
 
-type Props = {
+interface Props {
     refreshKey: number;
     setRefreshing: React.Dispatch<React.SetStateAction<boolean>>;
-};
+    onManualRefresh?: () => void;
+    effectiveTheme?: EffectiveTheme;
+}
 
 export default function Last30DaysChart({
     refreshKey,
     setRefreshing,
+    onManualRefresh,
+    effectiveTheme = "dark",
 }: Props) {
-    type ChartData = {
-        day: string;
-        work: number;
-        break: number;
-    };
-
-    const [data, setData] = useState<ChartData[]>([]);
+    const [data, setData] = useState<{ day: string; work: number; break: number }[]>([]);
+    const [loading, setLoading] = useState(false);
+    const requestCountRef = useRef(0);
 
     useEffect(() => {
+        const requestId = ++requestCountRef.current;
+        setLoading(true);
         const fetchChart = async () => {
             try {
-                const { data } = await API.get(
-                    "/sessions/last-30-days-chart"
-                );
-
-                setData(data);
+                const { data } = await API.get("/sessions/last-30-days-chart");
+                if (requestId === requestCountRef.current && Array.isArray(data)) {
+                    setData(data);
+                }
             } catch (err) {
-                console.error(err);
+                console.error("GET LAST 30 DAYS CHART ERROR:", err);
             } finally {
-                setRefreshing(false);
+                if (requestId === requestCountRef.current) {
+                    setRefreshing(false);
+                    setLoading(false);
+                }
             }
         };
 
         fetchChart();
     }, [refreshKey, setRefreshing]);
 
-    const formatYAxis = (value: number) => {
-        const h = Math.floor(value);
-        const m = Math.round((value - h) * 60);
-
-        return `${h}h ${m}m`;
+    const formatYAxis = (hours: number) => {
+        if (hours === 0) return "0h";
+        return `${Math.round(hours)}h`;
     };
 
     const maxHours = Math.max(
-        ...data.map((d) => d.work + d.break),
+        ...data.map((d) => (Number(d.work) || 0) + (Number(d.break) || 0)),
         1
     );
 
+    const isDark = effectiveTheme === "dark";
+
     return (
-        <div className="relative h-full w-full overflow-hidden rounded-lg">
+        <div
+            className={`relative flex flex-col h-full w-full rounded-2xl border p-4 transition-all duration-300 ${
+                isDark
+                    ? "bg-[#0E172A] border-[#1E293B] shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
+                    : "bg-white border-gray-200 shadow-sm"
+            }`}
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-3">
+                    <div
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                            isDark
+                                ? "bg-cyan-600/20 text-cyan-400 border border-cyan-500/30"
+                                : "bg-cyan-600 text-white"
+                        }`}
+                    >
+                        <CalendarDays className="h-4 w-4" />
+                    </div>
 
-            {/* ================================= */}
-            {/* AMBIENT BACKGROUND */}
-            {/* ================================= */}
+                    <div>
+                        <h3 className={`text-sm font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                            Last 30 Days
+                        </h3>
+                        <p className={`text-[11px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                            Daily breakdown
+                        </p>
+                    </div>
+                </div>
 
-            {/* Blue work-time glow */}
-            <div className="pointer-events-none absolute -left-12 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full bg-blue-500/10 blur-3xl" />
-
-            {/* Amber break-time glow */}
-            <div className="pointer-events-none absolute -right-8 top-0 h-36 w-36 rounded-full bg-amber-500/7 blur-3xl" />
-
-            {/* Bottom subtle blue glow */}
-            <div className="pointer-events-none absolute bottom-0 left-1/2 h-32 w-52 -translate-x-1/2 rounded-full bg-blue-400/5 blur-3xl" />
-
-            {/* Subtle background grid */}
-            <div className="pointer-events-none absolute inset-0 opacity-[0.025] last30-chart-grid" />
-
-            {/* ================================= */}
-            {/* CHART */}
-            {/* ================================= */}
-
-            <div className="relative z-10 h-full w-full">
-                <ResponsiveContainer
-                    width="100%"
-                    height="100%"
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (onManualRefresh) onManualRefresh();
+                        else setRefreshing(true);
+                    }}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                        isDark
+                            ? "text-gray-400 hover:text-white hover:bg-white/5"
+                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                    }`}
+                    title="Refresh 30-day chart"
                 >
-                    <BarChart data={data}>
+                    <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-cyan-400" : ""}`} />
+                </button>
+            </div>
+
+            {/* Chart Area */}
+            <div className="relative z-10 flex-1 w-full min-h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data} barCategoryGap="15%">
                         <CartesianGrid
-                            stroke="#24344F"
-                            strokeDasharray="0"
+                            stroke={isDark ? "#1E293B" : "#E2E8F0"}
+                            strokeDasharray="3 3"
                             vertical={false}
                         />
 
                         <XAxis
                             dataKey="day"
-                            interval={2}
+                            interval={3}
                             tick={{
-                                fill: "#8B95A7",
-                                fontSize: 11,
+                                fill: isDark ? "#64748B" : "#94A3B8",
+                                fontSize: 10,
                             }}
                             axisLine={false}
                             tickLine={false}
                         />
 
                         <YAxis
-                            domain={[
-                                0,
-                                Math.ceil(maxHours),
-                            ]}
+                            domain={[0, Math.ceil(maxHours * 1.15)]}
                             tickFormatter={formatYAxis}
                             tick={{
-                                fill: "#8B95A7",
-                                fontSize: 11,
+                                fill: isDark ? "#64748B" : "#94A3B8",
+                                fontSize: 10,
                             }}
                             axisLine={false}
                             tickLine={false}
-                            width={70}
+                            width={34}
                         />
 
                         <Tooltip
                             cursor={{
-                                fill: "transparent",
+                                fill: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
                             }}
                             content={<CustomTooltip />}
                         />
 
-                        {/* Work */}
+                        {/* Work (Blue) */}
                         <Bar
                             dataKey="work"
-                            stackId="time"
-                            fill="#4EA1FF"
+                            fill="#3B82F6"
+                            stackId="total"
                             radius={[0, 0, 0, 0]}
-                            barSize={11}
                         />
 
-                        {/* Break */}
+                        {/* Break (Orange) */}
                         <Bar
                             dataKey="break"
-                            stackId="time"
-                            fill="#F59E0B"
+                            fill="#F97316"
+                            stackId="total"
                             radius={[3, 3, 0, 0]}
                         />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
-
-            <style jsx>{`
-                .last30-chart-grid {
-                    background-image:
-                        linear-gradient(
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        ),
-                        linear-gradient(
-                            90deg,
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        );
-                    background-size: 24px 24px;
-                }
-            `}</style>
         </div>
     );
 }

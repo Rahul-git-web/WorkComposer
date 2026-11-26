@@ -108,18 +108,18 @@ const DeleteOrganizationPage = ({
                 <div className='mx-auto w-full max-w-[1700px] px-4 sm:px-6 lg:px-8'>
                     <div className='min-h-[calc(100vh-250px)] px-2 sm:px-4 my-2 py-4 rounded-lg bg-wc-surface-2 shadow-sm'>
                         <div className='mx-auto p-6'>
-                            <h2 className='text-lg font-semibold text-gray-900 mb-4'>Delete Your Account</h2>
+                            <h2 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>Delete Your Account</h2>
 
-                            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
-                                <h3 className="font-semibold text-red-700">
+                            <div className="mb-6 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 p-4">
+                                <h3 className="font-semibold text-red-700 dark:text-red-400">
                                     This action cannot be undone.
                                 </h3>
 
-                                <p className="mt-2 text-sm text-red-600">
+                                <p className="mt-2 text-sm text-red-600 dark:text-red-400">
                                     Deleting this organization will permanently remove:
                                 </p>
 
-                                <ul className="mt-3 ml-5 list-disc text-sm text-red-600 space-y-1">
+                                <ul className="mt-3 ml-5 list-disc text-sm text-red-600 dark:text-red-400 space-y-1">
                                     <li>All users</li>
                                     <li>All projects</li>
                                     <li>All tasks</li>
@@ -206,7 +206,7 @@ const DeleteOrganizationPage = ({
                                         value={confirmName}
                                         onChange={(e) => setConfirmName(e.target.value)}
                                         placeholder={organization.name}
-                                        className="w-full rounded-md border border-wc-border px-3 py-2"
+                                        className="w-full rounded-md border border-wc-border bg-wc-surface-2 text-wc-text px-3 py-2"
                                     />
 
                                     <p className="mt-2 text-xs text-wc-text-3">

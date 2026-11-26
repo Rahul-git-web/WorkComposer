@@ -1,88 +1,83 @@
 import cron from "node-cron";
-import Integration from "../models/integration.model.js";
+import {
+  integrationRepository,
+  organizationRepository,
+  userRepository,
+} from "../db/repositories/index.js";
 import { notifyDailySummary } from "./notification.service.js";
-import User from "../models/user.model.js";
+import {
+  resolveUserTimezone,
+  getTodayInTimezone,
+  getDateInTimezone,
+  isValidTimezone,
+  normalizeTimezone,
+  DEFAULT_TIMEZONE,
+} from "../utils/timezone.js";
 
 export const startDailySummaryScheduler = () => {
-  cron.schedule("*/5 * * * *", async () => {
-    console.info("[Scheduler] Running Daily Summary...");
-
+  cron.schedule("*/15 * * * *", async () => {
     try {
-      const integrations = await Integration.find({
+      const integrations = await integrationRepository.find({
         provider: "slack",
         connected: true,
-      }).select("organization lastDailySummarySent");
+      });
 
       for (const integration of integrations) {
         try {
-          const today = new Date();
+          const orgId = integration.organization || integration.organizationId;
+          if (!orgId) continue;
 
-          today.setHours(0, 0, 0, 0);
+          const organization = await organizationRepository.findById(orgId);
+          if (!organization) continue;
 
-          if (
-            integration.lastDailySummarySent &&
-            integration.lastDailySummarySent >= today
-          ) {
-            console.info(
-              `[Scheduler] Daily Summary already sent today for ${integration.organization}`,
-            );
-            continue;
-          }
-
-          const owner = await User.findOne({
-            organization: integration.organization,
+          const owner = await userRepository.findOne({
+            organization: orgId,
             role: "owner",
-          }).select("reportTimezone");
-
-          if (!owner) {
-            console.info(
-              `[Scheduler] No owner found for organization ${integration.organization}`,
-            );
-            continue;
-          }
-
-          const timezone = owner.reportTimezone || "UTC";
-
-          const now = new Date();
-
-          const formatter = new Intl.DateTimeFormat("en-US", {
-            timeZone: timezone,
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
           });
 
-          const [hour, minute] = formatter.format(now).split(":").map(Number);
+          const timezone = owner
+            ? resolveUserTimezone(owner)
+            : (organization.timezone && isValidTimezone(organization.timezone)
+                ? normalizeTimezone(organization.timezone)
+                : DEFAULT_TIMEZONE);
 
-          console.info(
-            `[Scheduler] Org ${integration.organization} | ${timezone} | ${hour}:${minute}`,
+          const today = getTodayInTimezone(timezone);
+
+          if (integration.lastDailySummarySent) {
+            const lastSentDate = getDateInTimezone(
+              integration.lastDailySummarySent,
+              timezone,
+            );
+            if (lastSentDate === today) {
+              continue;
+            }
+          }
+
+          const localHour = parseInt(
+            new Intl.DateTimeFormat("en-US", {
+              timeZone: timezone,
+              hour: "numeric",
+              hour12: false,
+            }).format(new Date()),
+            10,
           );
 
-          if (hour === 20 && minute < 1) {
-            await notifyDailySummary(integration.organization);
+          if (localHour >= 20) {
+            await notifyDailySummary(orgId);
 
-            integration.lastDailySummarySent = new Date();
-            await integration.save();
-
-            console.info(
-              `[Scheduler] Daily Summary sent for ${integration.organization}`,
-            );
-          } else {
-            console.info(
-              `[Scheduler] Skipped ${integration.organization} (not 8:00 PM yet)`,
-            );
+            await integrationRepository.findByIdAndUpdate(integration.id, {
+              lastDailySummarySent: new Date(),
+            });
           }
         } catch (err) {
           console.error(
-            `Failed to send daily summary for organization ${integration.organization}:`,
+            `Failed to evaluate daily summary for integration ${integration.id}:`,
             err.message,
           );
         }
       }
-
     } catch (err) {
-      console.error("[Scheduler] Daily Summary failed:", err);
+      console.error("[Scheduler] Daily Summary scheduler failed:", err);
     }
   });
-
 };

@@ -69,10 +69,13 @@ export default function UsageContent({
                 params: {
                     startDate,
                     endDate,
-                    users: selectedUsers.map((u: any) => u._id).join(","),
+                    users: selectedUsers
+                        .map((u: any) => u?._id || u?.id)
+                        .filter(Boolean)
+                        .join(","),
                     teams: selectedTeams
                         .map((team: any) =>
-                            typeof team === "object" ? team._id : team
+                            typeof team === "object" ? team?._id || team?.id : team
                         )
                         .filter(Boolean)
                         .join(","),
@@ -153,6 +156,9 @@ export default function UsageContent({
                     usageData={usageData}
                     allUsers={allUsers}
                     reportRange={reportRange}
+                    selectedUsers={selectedUsers}
+                    selectedTeams={selectedTeams}
+                    timezone={timezone}
                 />
             )}
         </>

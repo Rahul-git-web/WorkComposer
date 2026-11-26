@@ -1,13 +1,15 @@
 "use client";
 
 import { RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import API from "@/api";
 
 export default function FooterStatusBar() {
     const [isOnline, setIsOnline] = useState(false);
     const [lastSync, setLastSync] = useState<Date | null>(null);
     const [syncing, setSyncing] = useState(false);
+    const [captureStatus, setCaptureStatus] = useState<"NORMAL" | "THROTTLE" | "PAUSE">("NORMAL");
+    const [captureReason, setCaptureReason] = useState<string | null>(null);
 
     useEffect(() => {
         setIsOnline(navigator.onLine);
@@ -24,19 +26,90 @@ export default function FooterStatusBar() {
         };
     }, []);
 
+    useEffect(() => {
+        if (typeof window === "undefined" || !window.electronAPI) return;
+
+        // Check initial queue status if available
+        if (typeof window.electronAPI.getOfflineQueueStatus === "function") {
+            window.electronAPI.getOfflineQueueStatus()
+                .then((status) => {
+                    if (status?.readiness && !status.readiness.ok) {
+                        setCaptureStatus("PAUSE");
+                        setCaptureReason(status.readiness.reason || "OFFLINE_QUEUE_FULL");
+                    }
+                })
+                .catch(() => {});
+        }
+
+        const unsubPause = window.electronAPI.onScreenshotCapturePaused?.((payload) => {
+            setCaptureStatus("PAUSE");
+            setCaptureReason(payload?.reason || "OFFLINE_QUEUE_FULL");
+        });
+
+        const unsubThrottle = window.electronAPI.onScreenshotCaptureThrottled?.(() => {
+            setCaptureStatus((prev) => (prev === "PAUSE" ? "PAUSE" : "THROTTLE"));
+        });
+
+        const unsubResume = window.electronAPI.onScreenshotCaptureResumed?.(() => {
+            setCaptureStatus("NORMAL");
+            setCaptureReason(null);
+        });
+
+        const handleReset = () => {
+            setCaptureStatus("NORMAL");
+            setCaptureReason(null);
+        };
+
+        const unsubSignOut = window.electronAPI.onDeviceSignedOut?.(handleReset);
+        const unsubLogOut = window.electronAPI.onElectronLoggedOut?.(handleReset);
+
+        return () => {
+            if (typeof unsubPause === "function") unsubPause();
+            if (typeof unsubThrottle === "function") unsubThrottle();
+            if (typeof unsubResume === "function") unsubResume();
+            if (typeof unsubSignOut === "function") unsubSignOut();
+            if (typeof unsubLogOut === "function") unsubLogOut();
+        };
+    }, []);
+
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
     const fetchSyncStatus = async () => {
         try {
-            setSyncing(true);
+            if (isMountedRef.current) {
+                setSyncing(true);
+            }
 
             const { data } = await API.get("/sync/status");
 
-            setLastSync(
-                data.lastSync ? new Date(data.lastSync) : null
-            );
-        } catch (err) {
+            if (!isMountedRef.current) return;
+
+            if (data?.lastSync) {
+                const parsed = new Date(data.lastSync);
+                if (!isNaN(parsed.getTime())) {
+                    setLastSync(parsed);
+                }
+            } else if (data && data.lastSync === null) {
+                setLastSync(null);
+            }
+        } catch (err: any) {
+            // Gracefully handle network disconnects or unreachable backend
+            if (!err?.response || err?.code === "ERR_NETWORK") {
+                // Offline or backend unreachable - preserve existing lastSync and avoid repetitive console spam
+                return;
+            }
             console.error(err);
         } finally {
-            setSyncing(false);
+            if (isMountedRef.current) {
+                setSyncing(false);
+            }
         }
     };
 
@@ -62,7 +135,7 @@ export default function FooterStatusBar() {
     };
 
     return (
-        <footer className="fixed bottom-0 left-0 right-0 z-50 h-7 overflow-hidden border-t border-[#22324D] bg-[#111827] text-[12px]">
+        <footer className="fixed bottom-0 left-0 right-0 z-50 h-7 overflow-hidden border-t border-gray-200 dark:border-[#22324D] bg-slate-50 dark:bg-[#111827] text-gray-600 dark:text-gray-300 text-[12px] transition-colors duration-200">
 
             {/* Ambient background effects */}
             <div className="pointer-events-none absolute -left-10 top-1/2 h-16 w-32 -translate-y-1/2 rounded-full bg-green-500/5 blur-2xl" />
@@ -82,7 +155,7 @@ export default function FooterStatusBar() {
 
                     {/* Online / Offline */}
                     <div
-                        className={`flex items-center gap-2 rounded-sm bg-[#16253D] px-2 py-1 transition-all duration-300 ${
+                        className={`flex items-center gap-2 rounded-sm bg-gray-200 dark:bg-[#16253D] px-2 py-1 transition-all duration-300 ${
                             isOnline
                                 ? "hover:shadow-[0_0_14px_rgba(74,222,128,0.3)]"
                                 : "hover:shadow-[0_0_14px_rgba(239,68,68,0.25)]"
@@ -91,24 +164,24 @@ export default function FooterStatusBar() {
                         <span
                             className={`h-2 w-2 rounded-full ${
                                 isOnline
-                                    ? "animate-pulse bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]"
+                                    ? "animate-pulse bg-green-500 dark:bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]"
                                     : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"
                             }`}
                         />
 
-                        <span className="text-white">
+                        <span className="text-gray-800 dark:text-white font-medium">
                             {isOnline ? "Online" : "Offline"}
                         </span>
                     </div>
 
                     {/* Sync status */}
-                    <div className="flex items-center gap-2 font-semibold text-gray-300">
+                    <div className="flex items-center gap-2 font-semibold text-gray-700 dark:text-gray-300">
                         <RefreshCw
                             size={13}
                             className={`transition-all duration-300 ${
                                 syncing
-                                    ? "animate-spin text-blue-400"
-                                    : "text-gray-400"
+                                    ? "animate-spin text-blue-500 dark:text-blue-400"
+                                    : "text-gray-500 dark:text-gray-400"
                             }`}
                         />
 
@@ -116,10 +189,38 @@ export default function FooterStatusBar() {
                             Synced {formatLastSync(lastSync)}
                         </span>
                     </div>
+
+                    {/* Screenshot Capture Safe-Retain Status */}
+                    {captureStatus === "PAUSE" && (
+                        <div
+                            id="footer-capture-paused-badge"
+                            role="status"
+                            className="flex items-center gap-1.5 rounded-sm bg-red-100 dark:bg-red-950/80 px-2 py-1 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-800/60"
+                            title={`Screenshot capture paused: ${
+                                captureReason === "INSUFFICIENT_HOST_STORAGE"
+                                    ? "Host disk space low (< 500 MB reserve)"
+                                    : "Offline queue storage capacity full"
+                            }. Existing screenshots preserved.`}
+                        >
+                            <span className="h-2 w-2 rounded-full bg-red-500 dark:bg-red-400 animate-pulse" />
+                            <span className="font-medium text-[11px]">Capture Paused</span>
+                        </div>
+                    )}
+                    {captureStatus === "THROTTLE" && (
+                        <div
+                            id="footer-capture-throttled-badge"
+                            role="status"
+                            className="flex items-center gap-1.5 rounded-sm bg-amber-100 dark:bg-amber-950/80 px-2 py-1 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60"
+                            title="Screenshot capture throttled: offline storage nearing capacity. Existing screenshots preserved."
+                        >
+                            <span className="h-2 w-2 rounded-full bg-amber-500 dark:bg-amber-400" />
+                            <span className="font-medium text-[11px]">Capture Throttled</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Right */}
-                <div className="text-gray-400">
+                <div className="text-gray-500 dark:text-gray-400">
                     v1.0.0 © 2026 WorkComposer
                 </div>
             </div>

@@ -113,20 +113,20 @@ export default function EditBillingProfileModal({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 dark:bg-black/75 backdrop-blur-sm p-4">
 
-            <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+            <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 shadow-2xl">
 
                 {/* Header */}
 
-                <div className="flex items-center justify-between border-b px-6 py-5">
+                <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 px-6 py-5">
 
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900">
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                             Edit billing information
                         </h2>
 
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                             Update the information shown on your invoices.
                         </p>
                     </div>
@@ -134,7 +134,7 @@ export default function EditBillingProfileModal({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700"
+                        className="rounded-lg p-2 text-gray-500 dark:text-slate-400 transition hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200"
                     >
                         <X className="h-5 w-5" />
                     </button>
@@ -152,7 +152,7 @@ export default function EditBillingProfileModal({
                             {/* Company */}
 
                             <div className="sm:col-span-2">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Company name
                                 </label>
 
@@ -161,14 +161,14 @@ export default function EditBillingProfileModal({
                                     value={formData.companyName}
                                     onChange={handleChange}
                                     placeholder="Company name"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* Contact */}
 
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Contact name
                                 </label>
 
@@ -177,14 +177,14 @@ export default function EditBillingProfileModal({
                                     value={formData.contactName}
                                     onChange={handleChange}
                                     placeholder="Contact name"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* Email */}
 
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Billing email
                                 </label>
 
@@ -194,14 +194,14 @@ export default function EditBillingProfileModal({
                                     value={formData.email}
                                     onChange={handleChange}
                                     placeholder="billing@example.com"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* Address */}
 
                             <div className="sm:col-span-2">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Address
                                 </label>
 
@@ -210,14 +210,14 @@ export default function EditBillingProfileModal({
                                     value={formData.address}
                                     onChange={handleChange}
                                     placeholder="Street address"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* City */}
 
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     City
                                 </label>
 
@@ -226,14 +226,14 @@ export default function EditBillingProfileModal({
                                     value={formData.city}
                                     onChange={handleChange}
                                     placeholder="City"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* State */}
 
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     State
                                 </label>
 
@@ -242,14 +242,14 @@ export default function EditBillingProfileModal({
                                     value={formData.state}
                                     onChange={handleChange}
                                     placeholder="State"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* Postal */}
 
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Postal code
                                 </label>
 
@@ -258,14 +258,14 @@ export default function EditBillingProfileModal({
                                     value={formData.postalCode}
                                     onChange={handleChange}
                                     placeholder="Postal code"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* Country */}
 
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Country
                                 </label>
 
@@ -274,14 +274,14 @@ export default function EditBillingProfileModal({
                                     value={formData.country}
                                     onChange={handleChange}
                                     placeholder="Country"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
                             {/* Tax ID */}
 
                             <div className="sm:col-span-2">
-                                <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300">
                                     Tax ID
                                 </label>
 
@@ -290,7 +290,7 @@ export default function EditBillingProfileModal({
                                     value={formData.taxId}
                                     onChange={handleChange}
                                     placeholder="Tax identification number"
-                                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full rounded-xl border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
                                 />
                             </div>
 
@@ -300,13 +300,13 @@ export default function EditBillingProfileModal({
 
                     {/* Footer */}
 
-                    <div className="flex justify-end gap-3 border-t px-6 py-4">
+                    <div className="flex justify-end gap-3 border-t border-gray-200 dark:border-slate-700 px-6 py-4">
 
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={saving}
-                            className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+                            className="rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-200 transition hover:bg-gray-50 dark:hover:bg-slate-600 disabled:opacity-50"
                         >
                             Cancel
                         </button>

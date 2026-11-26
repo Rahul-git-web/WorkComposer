@@ -133,29 +133,29 @@ const AppUpdatePage = () => {
     return (
         <>
             <div className="px-2">
-                <h2 className="text-lg font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                     App Updates
                 </h2>
 
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     Configure how desktop app updates are managed for your organization.
                 </p>
 
-                <div className="mt-8 rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="mt-8 rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
                     {updateOptions.map((item, index) => (
                         <div
                             key={item.key}
                             className={`flex items-start justify-between px-6 py-6 ${index !== updateOptions.length - 1
-                                ? "border-b border-gray-200"
+                                ? "border-b border-gray-200 dark:border-gray-800"
                                 : ""
                                 }`}
                         >
                             <div className="max-w-xl">
-                                <h3 className="text-sm font-semibold text-gray-900">
+                                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                                     {item.title}
                                 </h3>
 
-                                <p className="mt-1 text-sm text-gray-500">
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                     {item.description}
                                 </p>
 
@@ -174,7 +174,7 @@ const AppUpdatePage = () => {
 
                                             setModalOpen(true);
                                         }}
-                                        className="mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                                        className="mt-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
                                     >
                                         Configure per user
                                     </button>
@@ -188,7 +188,7 @@ const AppUpdatePage = () => {
                                     onClick={() => handleToggle(item.key)}
                                     className={`relative h-7 w-14 rounded-full transition-colors ${settings[item.key]
                                         ? "bg-indigo-600"
-                                        : "bg-gray-300"
+                                        : "bg-gray-300 dark:bg-gray-700"
                                         } ${updatingSetting === item.key
                                             ? "opacity-50 cursor-not-allowed"
                                             : ""
@@ -202,7 +202,7 @@ const AppUpdatePage = () => {
                                     />
                                 </button>
 
-                                <span className="w-8 text-sm text-gray-600">
+                                <span className="w-8 text-sm text-gray-600 dark:text-gray-400">
                                     {settings[item.key] ? "On" : "Off"}
                                 </span>
                             </div>

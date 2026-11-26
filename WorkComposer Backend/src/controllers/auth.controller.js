@@ -269,6 +269,38 @@ export const registerUser = async (req, res) => {
   }
 };
 
+async function triggerTwoFactorChallenge(user) {
+  const organization = await Organization.findById(user.organization);
+  const twoFactorEnabled = organization?.twoFactor?.[user.role] || false;
+
+  if (!twoFactorEnabled) {
+    return false;
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  user.twoFactorCode = otp;
+  user.twoFactorExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+  await user.save();
+  clearOtpFailures(user._id?.toString() || user.id?.toString());
+
+  const html = twoFactorTemplate({
+    firstName: user.firstName,
+    otp,
+  });
+
+  await sendEmail(user.email, "Your WorkComposer verification code", html);
+
+  return true;
+}
+
+function buildOAuthTwoFactorRedirect(email, isDesktop) {
+  return isDesktop
+    ? `workcomposer://login?requiresTwoFactor=true&email=${encodeURIComponent(email)}`
+    : `${process.env.FRONTEND_URL}/authenticate/login?requiresTwoFactor=true&email=${encodeURIComponent(email)}`;
+}
+
 // Login Controller
 
 export const loginUser = async (req, res) => {
@@ -311,26 +343,7 @@ export const loginUser = async (req, res) => {
       });
     }
 
-    const organization = await Organization.findById(user.organization);
-
-    const twoFactorEnabled = organization?.twoFactor?.[user.role] || false;
-
-    if (twoFactorEnabled) {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-      user.twoFactorCode = otp;
-      user.twoFactorExpires = new Date(Date.now() + 10 * 60 * 1000);
-
-      await user.save();
-      clearOtpFailures(user._id?.toString() || user.id?.toString());
-
-      const html = twoFactorTemplate({
-        firstName: user.firstName,
-        otp,
-      });
-
-      await sendEmail(user.email, "Your WorkComposer verification code", html);
-
+    if (await triggerTwoFactorChallenge(user)) {
       return res.status(200).json({
         requiresTwoFactor: true,
         email: user.email,
@@ -941,6 +954,10 @@ export const googleCallback = async (req, res) => {
       return res.redirect(errorTarget);
     }
 
+    if (await triggerTwoFactorChallenge(user)) {
+      return res.redirect(buildOAuthTwoFactorRedirect(user.email, isDesktop));
+    }
+
     const accessToken = generateAccessToken(user._id);
     const refreshToken = generateRefreshToken(user._id);
 
@@ -1079,6 +1096,10 @@ export const microsoftCallback = async (req, res) => {
         ? `workcomposer://login?error=account_archived`
         : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
       return res.redirect(errorTarget);
+    }
+
+    if (await triggerTwoFactorChallenge(user)) {
+      return res.redirect(buildOAuthTwoFactorRedirect(user.email, isDesktop));
     }
 
     const accessToken = generateAccessToken(user._id);
@@ -1236,6 +1257,12 @@ export const appleCallback = async (req, res) => {
         ? `workcomposer://login?error=account_archived`
         : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
       return res.redirect(errorTarget);
+    }
+
+    if (await triggerTwoFactorChallenge(existingUser)) {
+      return res.redirect(
+        buildOAuthTwoFactorRedirect(existingUser.email, isDesktop),
+      );
     }
 
     const accessToken = generateAccessToken(existingUser._id);

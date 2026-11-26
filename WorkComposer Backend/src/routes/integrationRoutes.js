@@ -1,6 +1,7 @@
 import express from "express";
 import {
   connectJira,
+  disconnectJira,
   getJiraProjects,
   getJiraStatus,
   jiraCallback,
@@ -9,6 +10,7 @@ import {
   syncJiraProjects,
 } from "../controllers/jira.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
+import { requirePermission } from "../middleware/permission.middleware.js";
 import {
   asanaCallback,
   asanaWebhook,
@@ -38,7 +40,6 @@ import {
   getBambooHRTimeOff,
   syncBambooHREmployees,
 } from "../controllers/bamboohr.controller.js";
-import { requirePermission } from "../middleware/permission.middleware.js";
 import { verifySlackSignature } from "../middleware/slackSignature.middleware.js";
 import {
   connectKeka,
@@ -49,8 +50,16 @@ import {
   syncKekaEmployees,
 } from "../controllers/keka.controller.js";
 import { getAllIntegrationStatuses } from "../controllers/IntegrationStatus.controller.js";
+import { completeDesktopIntegrationOAuth } from "../utils/desktopIntegrationOAuth.js";
 
 const router = express.Router();
+
+router.post(
+  "/:provider/desktop/complete",
+  protect,
+  requirePermission("manage_settings"),
+  completeDesktopIntegrationOAuth,
+);
 
 // Jira
 router.get(
@@ -60,7 +69,13 @@ router.get(
   connectJira,
 );
 router.get("/jira/callback", jiraCallback);
-router.post("/jira/webhook", requirePermission("manage_settings"), jiraWebhook);
+router.post("/jira/webhook", jiraWebhook);
+router.delete(
+  "/jira",
+  protect,
+  requirePermission("manage_settings"),
+  disconnectJira,
+);
 router.get(
   "/jira/projects",
   protect,
@@ -96,7 +111,6 @@ router.get(
 router.get("/asana/callback", asanaCallback);
 router.post(
   "/asana/webhook",
-  requirePermission("manage_settings"),
   asanaWebhook,
 );
 router.get(
@@ -138,7 +152,12 @@ router.get(
   connectSlack,
 );
 router.get("/slack/callback", slackCallback);
-router.get("/slack", protect, getSlackIntegration);
+router.get(
+  "/slack",
+  protect,
+  requirePermission("manage_settings"),
+  getSlackIntegration,
+);
 router.delete(
   "/slack",
   protect,
@@ -254,6 +273,7 @@ router.get(
 router.get(
   "/status-summary",
   protect,
+  requirePermission("manage_settings"),
   getAllIntegrationStatuses,
 );
 

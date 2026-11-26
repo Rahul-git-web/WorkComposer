@@ -22,21 +22,21 @@ export default function ShiftScheduleEditor({
 
     return (
         <>
-            <div className="grid grid-cols-12 gap-4 border-b bg-gray-50 px-8 py-3">
+            <div className="grid grid-cols-12 gap-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#1E293B] px-8 py-3">
                 <div className="col-span-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         Day
                     </p>
                 </div>
 
                 <div className="col-span-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         Start Time
                     </p>
                 </div>
 
                 <div className="col-span-5">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         End Time
                     </p>
                 </div>
@@ -45,7 +45,7 @@ export default function ShiftScheduleEditor({
             {schedule.map((day: any, index: number) => (
                 <div
                     key={index}
-                    className="border-b border-gray-100 px-8 py-6 last:border-b-0"
+                    className="border-b border-gray-100 dark:border-gray-800 px-8 py-6 last:border-b-0"
                 >
                     <div className="grid grid-cols-12 items-center gap-4">
 
@@ -65,7 +65,7 @@ export default function ShiftScheduleEditor({
                                 }}
                             />
 
-                            <span className="font-medium text-gray-900">
+                            <span className="font-medium text-gray-900 dark:text-white">
                                 {day.day}
                             </span>
                         </div>
@@ -109,17 +109,17 @@ export default function ShiftScheduleEditor({
 
                     </div>
 
-                    <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50/40 p-5">
+                    <div className="mt-5 rounded-lg border border-blue-100 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20 p-5">
 
                         <div className="col-span-3"></div>
                         <div className="mb-3 flex items-center justify-between">
 
                             <div>
-                                <h4 className="text-xs font-semibold text-gray-900">
+                                <h4 className="text-xs font-semibold text-gray-900 dark:text-white">
                                     Break Times
                                 </h4>
 
-                                <p className="mt-2 text-sm font-semibold text-gray-500">
+                                <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
                                     Scheduled breaks:
                                 </p>
                             </div>
@@ -136,8 +136,8 @@ export default function ShiftScheduleEditor({
                                     setBreakModalOpen(true);
                                 }}
                                 className={`text-sm font-medium ${day.enabled
-                                    ? "text-indigo-600 hover:text-indigo-700"
-                                    : "cursor-not-allowed text-gray-400"
+                                    ? "text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                                    : "cursor-not-allowed text-gray-400 dark:text-gray-600"
                                     }`}
                             >
                                 + Schedule a break
@@ -152,14 +152,14 @@ export default function ShiftScheduleEditor({
                                 {day.breaks.map((breakItem: any, breakIndex: number) => (
                                     <div
                                         key={breakIndex}
-                                        className="flex items-center justify-between rounded-lg border border-blue-100 bg-white px-4 py-3 shadow-sm"
+                                        className="flex items-center justify-between rounded-lg border border-blue-100 dark:border-[#22324D] bg-white dark:bg-[#0F172A] px-4 py-3 shadow-sm"
                                     >
                                         <div>
-                                            <p className="text-sm font-semibold text-gray-900">
+                                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
                                                 {breakItem.startTime} - {breakItem.endTime}
                                             </p>
 
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 Scheduled Break
                                             </p>
                                         </div>
@@ -173,7 +173,7 @@ export default function ShiftScheduleEditor({
                                                     setEditingBreak(breakItem);
                                                     setBreakModalOpen(true);
                                                 }}
-                                                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                                                className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
                                             >
                                                 Edit
                                             </button>
@@ -192,7 +192,7 @@ export default function ShiftScheduleEditor({
 
                                                     onChange(updatedSchedule);
                                                 }}
-                                                className="text-sm font-medium text-red-600 hover:text-red-700"
+                                                className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700"
                                             >
                                                 Delete
                                             </button>

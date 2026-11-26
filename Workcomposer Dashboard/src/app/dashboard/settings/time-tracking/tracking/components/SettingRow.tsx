@@ -19,17 +19,17 @@ export default function SettingRow({
 }: Props) {
     return (
         <div
-            className={`flex items-center justify-between px-12 py-6 ${border ? "border-b border-gray-200" : ""
+            className={`flex items-center justify-between px-12 py-6 ${border ? "border-b border-gray-200 dark:border-gray-800" : ""
                 }`}
         >
             {/* Left */}
             <div className="flex-1 pr-12">
-                <h3 className="text-md font-medium text-gray-900">
+                <h3 className="text-md font-medium text-gray-900 dark:text-white">
                     {title}
                 </h3>
 
                 {description && (
-                    <p className="mt-2 text-sm text-gray-500">
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                         {description}
                     </p>
                 )}
@@ -45,7 +45,7 @@ export default function SettingRow({
                     <button
                         type="button"
                         onClick={onConfigure}
-                        className="text-sm font-medium text-indigo-600 hover:underline"
+                        className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
                         Configure per user
                     </button>

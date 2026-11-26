@@ -3,7 +3,7 @@ import API from "@/api";
 import socket from "@/socket/socket";
 
 export default function useEffectiveTrackingSettings() {
-const [settings, setSettings] = useState<any>(null);
+    const [settings, setSettings] = useState<any>(null);
 
     const refresh = async () => {
         const { data } = await API.get(
@@ -14,7 +14,17 @@ const [settings, setSettings] = useState<any>(null);
     };
 
     useEffect(() => {
-        refresh();
+        let mounted = true;
+        API.get("/time-tracking/settings/effective")
+            .then(({ data }) => {
+                if (mounted) {
+                    setSettings(data);
+                }
+            })
+            .catch(() => { });
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     useEffect(() => {

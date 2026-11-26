@@ -42,4 +42,9 @@ const paymentMethodSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("PaymentMethod", paymentMethodSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { paymentMethodRepository } from "../db/repositories/paymentMethod.repository.js";
+
+const _Model = mongoose.model("PaymentMethod", paymentMethodSchema);
+export default createModelProxy(_Model, () => paymentMethodRepository);

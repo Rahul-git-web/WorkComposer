@@ -82,23 +82,23 @@ const ProjectPage = () => {
         <>
             <div className="py-10 flex-1">
                 <div className="mx-auto w-full max-w-[1700px] px-4 sm:px-6 lg:px-8">
-                    <div className="min-h-[calc(100vh-250px)] px-2 sm:px-4 my-2 py-4 rounded-lg bg-white shadow-sm">
+                    <div className="min-h-[calc(100vh-250px)] px-2 sm:px-4 my-2 py-4 rounded-lg bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] shadow-sm">
                         <div className="space-y-8 max-w-7xl mx-auto pb-12">
-                            <div className="border-b border-gray-200 pb-6">
-                                <h3 className="text-2xl font-semibold text-gray-900">
+                            <div className="border-b border-gray-200 dark:border-gray-800 pb-6">
+                                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">
                                     Task Management Settings
                                 </h3>
-                                <p className="mt-1 text-sm text-gray-500">
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                                     Configure project and task management settings for your organization
                                 </p>
                             </div>
 
                             <div className="mb-10">
                                 <table className="min-w-full">
-                                    <tbody className="divide-y divide-gray-200">
+                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                                         <tr>
-                                            <td className="py-5 px-6 text-gray-700">
-                                                <div className="font-medium text-gray-900 text-base">
+                                            <td className="py-5 px-6 text-gray-700 dark:text-gray-300">
+                                                <div className="font-medium text-gray-900 dark:text-white text-base">
                                                     Notify the user via email when a task is assigned
                                                 </div>
                                             </td>
@@ -114,7 +114,7 @@ const ProjectPage = () => {
                                                         }
                                                         className={`relative inline-flex h-6 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${settings.notifyTaskAssignedEmail
                                                             ? "bg-indigo-600"
-                                                            : "bg-gray-300"
+                                                            : "bg-gray-300 dark:bg-gray-700"
                                                             }`}
                                                     >
                                                         <span className="sr-only">Toggle setting</span>
@@ -126,7 +126,7 @@ const ProjectPage = () => {
                                                                 }`}
                                                         />
                                                     </button>
-                                                    <span className="text-sm font-medium text-indigo-600">
+                                                    <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
                                                         {settings.notifyTaskAssignedEmail ? "On" : "Off"}
                                                     </span>
                                                 </div>

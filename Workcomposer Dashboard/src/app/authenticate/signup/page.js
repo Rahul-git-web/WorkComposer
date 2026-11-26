@@ -220,15 +220,15 @@ const FreeTrialFormContent = () => {
         <div className="bg-green-100 text-green-700 p-3 rounded">{success}</div>
       )}
 
-      <div className="flex min-h-full flex-1 flex-col justify-center py-6 sm:py-8 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white">
+      <div className="relative flex min-h-full flex-1 flex-col justify-center py-6 sm:py-8 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white dark:from-slate-900 dark:to-[#090F1D] transition-colors duration-200">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex items-center justify-center space-x-4">
             <Image src={logoW} alt="WorkComposer" className="h-10 w-auto" />
             <div className="flex-1">
-              <h2 className="text-2xl font-bold leading-6 text-gray-900">
+              <h2 className="text-2xl font-bold leading-6 text-gray-900 dark:text-white">
                 Sign up for a FREE trial
               </h2>
-              <p className="text-sm text-gray-600 mt-0.5">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
                 Create your account to get started
               </p>
             </div>
@@ -236,7 +236,7 @@ const FreeTrialFormContent = () => {
         </div>
 
         <div className="mt-4 sm:mx-auto sm:w-full sm:max-w-145">
-          <div className="bg-white px-6 py-6 sm:py-8 shadow-lg sm:rounded-2xl sm:px-12 border border-gray-100 transition-all duration-300 hover:shadow-xl relative overflow-hidden">
+          <div className="bg-white dark:bg-[#0F172A] px-6 py-6 sm:py-8 shadow-lg sm:rounded-2xl sm:px-12 border border-gray-100 dark:border-[#22324D] transition-all duration-300 hover:shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-indigo-600"></div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -257,7 +257,7 @@ const FreeTrialFormContent = () => {
                 <div>
                   <label
                     htmlFor="firstName"
-                    className="block text-sm font-medium leading-6 text-gray-900"
+                    className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                   >
                     First name
                   </label>
@@ -276,7 +276,7 @@ const FreeTrialFormContent = () => {
                       tabIndex={1}
                       value={formData.firstName}
                       onChange={handleChange}
-                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                     />
                   </div>
                 </div>
@@ -284,7 +284,7 @@ const FreeTrialFormContent = () => {
                 <div>
                   <label
                     htmlFor="lastName"
-                    className="block text-sm font-medium leading-6 text-gray-900"
+                    className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                   >
                     Last name
                   </label>
@@ -303,7 +303,7 @@ const FreeTrialFormContent = () => {
                       tabIndex={2}
                       value={formData.lastName}
                       onChange={handleChange}
-                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                     />
                   </div>
                 </div>
@@ -312,7 +312,7 @@ const FreeTrialFormContent = () => {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium leading-6 text-gray-900"
+                  className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                 >
                   Email address
                 </label>
@@ -334,7 +334,7 @@ const FreeTrialFormContent = () => {
                     tabIndex={3}
                     value={formData.email}
                     onChange={handleChange}
-                    className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                    className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -342,7 +342,7 @@ const FreeTrialFormContent = () => {
               <div>
                 <label
                   htmlFor="organization"
-                  className="block text-sm font-medium leading-6 text-gray-900"
+                  className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                 >
                   Organization name
                 </label>
@@ -361,7 +361,7 @@ const FreeTrialFormContent = () => {
                     tabIndex={4}
                     value={formData.organization}
                     onChange={handleChange}
-                    className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                    className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -370,7 +370,7 @@ const FreeTrialFormContent = () => {
                 <div>
                   <label
                     htmlFor="password"
-                    className="block text-sm font-medium leading-6 text-gray-900"
+                    className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                   >
                     Password
                   </label>
@@ -388,12 +388,12 @@ const FreeTrialFormContent = () => {
                       placeholder="••••••••"
                       value={formData.password}
                       onChange={handleChange}
-                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
                       aria-label={
                         showPassword ? "Hide password" : "Show password"
                       }
@@ -411,7 +411,7 @@ const FreeTrialFormContent = () => {
                 <div>
                   <label
                     htmlFor="password2"
-                    className="block text-sm font-medium leading-6 text-gray-900"
+                    className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                   >
                     Confirm password
                   </label>
@@ -429,14 +429,14 @@ const FreeTrialFormContent = () => {
                       placeholder="••••••••"
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                      className="block w-full rounded-lg border-0 py-1.5 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
                       aria-label={
                         showConfirmPassword
                           ? "Hide confirm password"
@@ -454,13 +454,13 @@ const FreeTrialFormContent = () => {
                 </div>
               </div>
 
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 By clicking <strong>Start the free Trial </strong>, you agree to
                 our{" "}
                 <a
                   href="#"
                   target="_blank"
-                  className="text-indigo-600 hover:text-indigo-500"
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
                 >
                   Terms and Conditions{" "}
                 </a>
@@ -468,7 +468,7 @@ const FreeTrialFormContent = () => {
                 <a
                   href="#"
                   target="_blank"
-                  className="text-indigo-600 hover:text-indigo-500"
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500"
                 >
                   Privacy Policy
                 </a>
@@ -492,13 +492,13 @@ const FreeTrialFormContent = () => {
                 </button>
               </div>
 
-              <div className="text-center text-xs text-gray-500">
+              <div className="text-center text-xs text-gray-500 dark:text-gray-400">
                 This site is protected by reCAPTCHA and the Google{" "}
-                <a href="#" className="underline hover:text-gray-700">
+                <a href="#" className="underline hover:text-gray-700 dark:hover:text-gray-300">
                   Privacy Policy{" "}
                 </a>
                 and{" "}
-                <a href="#" className="underline hover:text-gray-700">
+                <a href="#" className="underline hover:text-gray-700 dark:hover:text-gray-300">
                   Terms of Service{" "}
                 </a>
                 apply.
@@ -510,11 +510,11 @@ const FreeTrialFormContent = () => {
                 className="absolute inset-0 flex items-center"
                 aria-hidden="true"
               >
-                <div className="w-full border-t border-gray-200"></div>
+                <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
               </div>
 
               <div className="relative flex justify-center text-sm font-medium">
-                <span className="bg-white px-6 text-gray-500">
+                <span className="bg-white dark:bg-[#0F172A] px-6 text-gray-500 dark:text-gray-400">
                   Or continue with
                 </span>
               </div>
@@ -523,7 +523,7 @@ const FreeTrialFormContent = () => {
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
               <a
                 href={`${process.env.NEXT_PUBLIC_API_URL}/auth/google`}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-800 ring-1 ring-gray-200 hover:bg-gray-800 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white dark:bg-[#1E293B] px-3 py-2 text-sm font-medium text-gray-800 dark:text-gray-200 ring-1 ring-gray-200 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-[#273549] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
                 tabIndex={10}
               >
                 <FcGoogle className="w-5 h-5" aria-hidden="true" />
@@ -535,7 +535,7 @@ const FreeTrialFormContent = () => {
                 onClick={() => {
                   window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/microsoft`;
                 }}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-800 ring-1 ring-gray-200 hover:bg-gray-800 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white dark:bg-[#1E293B] px-3 py-2 text-sm font-medium text-gray-800 dark:text-gray-200 ring-1 ring-gray-200 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-[#273549] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
                 tabIndex={12}
               >
                 <Image src={Microsoft} alt="Microsoft" width={20} />
@@ -547,7 +547,7 @@ const FreeTrialFormContent = () => {
                 onClick={() => {
                   window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/apple`;
                 }}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-800 ring-1 ring-gray-200 hover:bg-gray-800 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-white dark:bg-[#1E293B] px-3 py-2 text-sm font-medium text-gray-800 dark:text-gray-200 ring-1 ring-gray-200 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-[#273549] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
                 tabIndex={12}
               >
                 <FaApple className="w-5 h-5" aria-hidden="true" />
@@ -557,18 +557,18 @@ const FreeTrialFormContent = () => {
           </div>
         </div>
         <div className="mt-4 text-center animate-fadeIn">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Already have an account?{" "}
             <button
               type="button"
               onClick={() => router.push("/authenticate/login")}
-              className="font-semibold text-indigo-600 hover:text-indigo-500 inline-flex items-center group"
+              className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 inline-flex items-center group"
             >
               Sign in
               <ArrowRight className="w-3 h-4 ml-1 group-hover:translate-x-0.5 transition-transform duration-200" />
             </button>
           </p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {" "}
             © 2026 WorkComposer. All rights reserved.{" "}
           </p>

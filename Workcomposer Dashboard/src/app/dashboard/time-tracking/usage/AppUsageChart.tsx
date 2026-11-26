@@ -10,6 +10,7 @@ import {
 } from "chart.js";
 
 import { Bar } from "react-chartjs-2";
+import { useTheme } from "@/context/ThemeContext";
 
 ChartJS.register(
     CategoryScale,
@@ -29,6 +30,8 @@ type Props = {
 export default function AppUsageChart({
     apps,
 }: Props) {
+    const { effectiveTheme } = useTheme();
+    const isDark = effectiveTheme === "dark";
 
     const formatDuration = (seconds: number) => {
         const hours = Math.floor(seconds / 3600);
@@ -71,6 +74,11 @@ export default function AppUsageChart({
             },
 
             tooltip: {
+                backgroundColor: isDark ? "#0F172A" : "#1F2937",
+                titleColor: "#FFFFFF",
+                bodyColor: "#FFFFFF",
+                borderColor: isDark ? "#22324D" : "#E5E7EB",
+                borderWidth: isDark ? 1 : 0,
                 callbacks: {
                     label: (context: any) => {
                         const seconds = context.raw;
@@ -91,8 +99,12 @@ export default function AppUsageChart({
         scales: {
             x: {
                 beginAtZero: true,
+                grid: {
+                    color: isDark ? "#22324D" : "#E5E7EB",
+                },
 
                 ticks: {
+                    color: isDark ? "#94A3B8" : "#64748B",
                     stepSize: 30,
 
                     callback: (value: any) => {
@@ -117,6 +129,9 @@ export default function AppUsageChart({
             y: {
                 grid: {
                     display: false,
+                },
+                ticks: {
+                    color: isDark ? "#94A3B8" : "#64748B",
                 },
             },
         },

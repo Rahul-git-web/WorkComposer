@@ -91,4 +91,9 @@ const manualTimeRequestSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("ManualTimeRequest", manualTimeRequestSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { manualTimeRequestRepository } from "../db/repositories/manualTimeRequest.repository.js";
+
+const _Model = mongoose.model("ManualTimeRequest", manualTimeRequestSchema);
+export default createModelProxy(_Model, () => manualTimeRequestRepository);

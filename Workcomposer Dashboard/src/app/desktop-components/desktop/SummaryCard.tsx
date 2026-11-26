@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { LuCoffee } from "react-icons/lu";
-import { Clock } from "lucide-react";
-import { FiActivity } from "react-icons/fi";
-
+import { useEffect, useState, useRef, useCallback } from "react";
+import { CheckSquare, Coffee, Activity, ListTodo } from "lucide-react";
 import API from "@/api";
+import { useTimer } from "@/context/TimerContext";
+import socket from "@/socket/socket";
+import type { EffectiveTheme } from "./ThemeSelector";
 
-export default function TodaySummaryCard() {
+interface Props {
+    effectiveTheme?: EffectiveTheme;
+}
+
+export default function TodaySummaryCard({ effectiveTheme = "dark" }: Props) {
     const [summary, setSummary] = useState({
         assignedTasks: 0,
         workedTasks: 0,
@@ -17,190 +20,180 @@ export default function TodaySummaryCard() {
         activityPercent: 0,
     });
 
+    const { isTracking, lastStartedAt, lastStoppedAt } = useTimer();
+    const isMountedRef = useRef(true);
+    const requestCountRef = useRef(0);
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     useEffect(() => {
-        const fetchSummary = async () => {
-            try {
-                const { data } = await API.get(
-                    "/sessions/today-task-summary"
-                );
-
-                setSummary(data);
-            } catch (err) {
-                console.error("TODAY SUMMARY ERROR:", err);
-            }
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
         };
-
-        fetchSummary();
-
-        const interval = setInterval(fetchSummary, 30000);
-
-        return () => clearInterval(interval);
     }, []);
 
-    const formatTime = (seconds: number) => {
-        if (seconds < 60) {
-            return `${seconds}s`;
+    const fetchSummary = useCallback(async () => {
+        const requestId = ++requestCountRef.current;
+        try {
+            const { data } = await API.get("/sessions/today-task-summary");
+            if (isMountedRef.current && requestId === requestCountRef.current && data) {
+                setSummary({
+                    assignedTasks: Number(data.assignedTasks) || 0,
+                    workedTasks: Number(data.workedTasks) || 0,
+                    taskWorkSeconds: Number(data.taskWorkSeconds) || 0,
+                    breakSeconds: Number(data.breakSeconds) || 0,
+                    activityPercent: Number(data.activityPercent) || 0,
+                });
+            }
+        } catch (err: any) {
+            // Gracefully handle network disconnects or unreachable backend
+            if (!err?.response || err?.code === "ERR_NETWORK") {
+                // Offline or backend unreachable - preserve existing summary and suppress console spam
+                return;
+            }
+            console.error("TODAY SUMMARY ERROR:", err);
         }
+    }, []);
 
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor(
-            (seconds % 3600) / 60
-        );
+    const debouncedFetchSummary = useCallback(() => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+            fetchSummary();
+        }, 250);
+    }, [fetchSummary]);
 
+    // Initial mount and tracking transitions
+    useEffect(() => {
+        debouncedFetchSummary();
+    }, [lastStartedAt, lastStoppedAt, debouncedFetchSummary]);
+
+    // 60-second heartbeat active only while tracking
+    useEffect(() => {
+        if (!isTracking) return;
+        const interval = setInterval(() => {
+            fetchSummary();
+        }, 60000);
+        return () => clearInterval(interval);
+    }, [isTracking, fetchSummary]);
+
+    // Socket invalidation and reconnect
+    useEffect(() => {
+        const handleUpdate = () => {
+            debouncedFetchSummary();
+        };
+
+        socket.on("session:updated", handleUpdate);
+        socket.on("connect", handleUpdate);
+
+        return () => {
+            socket.off("session:updated", handleUpdate);
+            socket.off("connect", handleUpdate);
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, [debouncedFetchSummary]);
+
+    const formatDuration = (seconds: number) => {
+        const total = Math.max(0, Math.floor(seconds));
+        const hours = Math.floor(total / 3600);
+        const minutes = Math.floor((total % 3600) / 60);
         if (hours > 0) {
             return `${hours}h ${minutes}m`;
         }
-
         return `${minutes}m`;
     };
 
+    const isDark = effectiveTheme === "dark";
+
     return (
-        <div className="relative overflow-hidden rounded-xl">
+        <div
+            className={`relative min-h-[175px] overflow-hidden rounded-2xl border p-5 transition-all duration-300 ${
+                isDark
+                    ? "border-[#1E293B] border-t-2 border-t-purple-500 bg-gradient-to-br from-[#241238] via-[#1B0E2B] to-[#120A1E] shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_0_25px_rgba(168,85,247,0.25)]"
+                    : "border-gray-200 border-t-2 border-t-purple-600 bg-gradient-to-br from-purple-50/70 via-white to-white shadow-sm hover:shadow-md"
+            }`}
+        >
+            {/* Ambient background glow (Dark mode) */}
+            {isDark && (
+                <>
+                    <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-purple-500/15 blur-3xl animate-pulse" />
+                    <div className="pointer-events-none absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-fuchsia-500/10 blur-3xl" />
+                </>
+            )}
 
-            {/* ========================= */}
-            {/* BACKGROUND EFFECT */}
-            {/* ========================= */}
-
-            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-amber-500/20 blur-3xl animate-pulse" />
-
-            <div className="pointer-events-none absolute -bottom-20 -left-12 h-44 w-44 rounded-full bg-yellow-500/10 blur-3xl" />
-
-            <div className="pointer-events-none absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-400/5 blur-2xl today-summary-float" />
-
-            <div className="pointer-events-none absolute inset-0 opacity-[0.035] today-summary-grid" />
-
-            {/* ========================= */}
-            {/* CONTENT */}
-            {/* ========================= */}
-
-            <div className="relative z-10 p-1">
-
-                {/* Heading */}
-                <h2 className="mb-3 px-1 text-sm font-semibold text-white">
-                    TODAY&apos;S SUMMARY
-                </h2>
-
-                {/* ========================= */}
-                {/* TASKS + BREAKS */}
-                {/* ========================= */}
-
-                <div className="grid grid-cols-2 gap-3">
-
-                    {/* TASKS */}
-                    <div className="rounded-xl border border-[#22324D] bg-[#101B2D]/95 p-3 transition-shadow duration-300 hover:shadow-[0_0_18px_rgba(34,197,94,0.25)]">
-
-                        <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3 text-green-500" />
-
-                            <p className="text-xs text-gray-400">
-                                TASKS
-                            </p>
-                        </div>
-
-                        <h2 className="mt-2 text-xl font-bold text-white">
-                            {summary.workedTasks}
-                        </h2>
-
-                        <p className="mt-1 text-[10px] text-gray-500">
-                            {summary.assignedTasks} assigned
-                        </p>
+            <div className="relative z-10 flex flex-col justify-between h-full gap-2.5">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                    <div
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-md ${
+                            isDark
+                                ? "bg-purple-600/20 text-purple-400 border border-purple-500/30 shadow-[0_0_12px_rgba(168,85,247,0.3)]"
+                                : "bg-purple-600 text-white shadow-purple-500/20"
+                        }`}
+                    >
+                        <ListTodo className="h-4 w-4" />
                     </div>
 
-                    {/* BREAKS */}
-                    <div className="rounded-lg border border-[#22324D] bg-[#101B2D]/95 p-3 transition-shadow duration-300 hover:shadow-[0_0_18px_rgba(234,179,8,0.25)]">
-
-                        <div className="flex items-center gap-1">
-                            <LuCoffee className="h-3 w-3 text-yellow-500" />
-
-                            <p className="text-xs text-gray-400">
-                                BREAKS
-                            </p>
-                        </div>
-
-                        <h2 className="mt-2 text-xl font-bold text-white">
-                            {formatTime(summary.breakSeconds)}
-                        </h2>
+                    <div>
+                        <h3
+                            className={`text-[11px] font-bold uppercase tracking-wider ${
+                                isDark ? "text-gray-400" : "text-gray-500"
+                            }`}
+                        >
+                            TODAY&apos;S SUMMARY
+                        </h3>
                     </div>
                 </div>
 
-                {/* ========================= */}
-                {/* ACTIVITY */}
-                {/* ========================= */}
-
-                <div className="mt-4 flex items-center justify-between rounded-lg border border-[#574131] bg-[#3A2B22]/95 p-3 text-xs transition-shadow duration-300 hover:shadow-[0_0_18px_rgba(234,179,8,0.25)]">
-
-                    <div className="flex min-w-0 items-center gap-2">
-                        <FiActivity className="h-3.5 w-3.5 shrink-0 text-yellow-500" />
-
-                        <span className="truncate text-gray-300">
-                            Activity Level
+                {/* Rows: Tasks, Breaks, Activity */}
+                <div className="my-1 space-y-2">
+                    {/* Tasks */}
+                    <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                            <CheckSquare className={`h-3.5 w-3.5 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
+                            <span className={isDark ? "text-gray-300" : "text-gray-600"}>Tasks:</span>
+                        </div>
+                        <span className={`font-mono font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                            {summary.workedTasks} <span className="text-[10px] font-normal text-gray-500">worked</span>
                         </span>
                     </div>
 
-                    <span className="ml-2 shrink-0 text-xs font-bold text-white">
+                    {/* Breaks */}
+                    <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                            <Coffee className={`h-3.5 w-3.5 ${isDark ? "text-amber-400" : "text-amber-600"}`} />
+                            <span className={isDark ? "text-gray-300" : "text-gray-600"}>Breaks:</span>
+                        </div>
+                        <span className={`font-mono font-bold ${isDark ? "text-amber-300" : "text-amber-700"}`}>
+                            {formatDuration(summary.breakSeconds)}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Activity Footer */}
+                <div
+                    className={`mt-auto flex items-center justify-between border-t pt-2.5 text-xs ${
+                        isDark ? "border-[#1E293B]" : "border-gray-100"
+                    }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <Activity className={`h-3.5 w-3.5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
+                        <span className={`text-[11px] font-medium ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                            Activity Level:
+                        </span>
+                    </div>
+                    <span
+                        className={`font-mono font-bold text-xs ${
+                            isDark ? "text-purple-300" : "text-purple-700"
+                        }`}
+                    >
                         {summary.activityPercent}%
                     </span>
                 </div>
-
-                {/* ========================= */}
-                {/* TASK WORK TIME */}
-                {/* ========================= */}
-
-                <div className="mt-2 px-1 text-[10px] text-gray-500">
-                    Task work time:{" "}
-
-                    <span className="text-gray-300">
-                        {formatTime(summary.taskWorkSeconds)}
-                    </span>
-                </div>
             </div>
-
-            {/* ========================= */}
-            {/* ANIMATION */}
-            {/* ========================= */}
-
-            <style jsx>{`
-                .today-summary-float {
-                    animation: todaySummaryFloat 6s ease-in-out infinite;
-                }
-
-                .today-summary-grid {
-                    background-image:
-                        linear-gradient(
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        ),
-                        linear-gradient(
-                            90deg,
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        );
-                    background-size: 24px 24px;
-                }
-
-                @keyframes todaySummaryFloat {
-                    0%,
-                    100% {
-                        transform: translate(
-                            -50%,
-                            -50%
-                        ) scale(1);
-                    }
-
-                    50% {
-                        transform: translate(
-                            -42%,
-                            -58%
-                        ) scale(1.15);
-                    }
-                }
-
-                @media (prefers-reduced-motion: reduce) {
-                    .today-summary-float {
-                        animation: none;
-                    }
-                }
-            `}</style>
         </div>
     );
 }

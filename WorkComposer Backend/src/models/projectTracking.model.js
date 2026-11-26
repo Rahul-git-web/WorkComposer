@@ -45,4 +45,9 @@ const projectTrackingSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("ProjectTracking", projectTrackingSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { projectTrackingRepository } from "../db/repositories/projectTracking.repository.js";
+
+const _Model = mongoose.model("ProjectTracking", projectTrackingSchema);
+export default createModelProxy(_Model, () => projectTrackingRepository);

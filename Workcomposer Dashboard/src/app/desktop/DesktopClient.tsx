@@ -18,6 +18,7 @@ import InboxPage from "../desktop-components/pages/InboxPage";
 import NotificationList from "@/components/notifications/NotificationList";
 import socket from "@/socket/socket";
 import { useRouter } from "next/navigation";
+import { useScreenshotCaptureNotifications } from "@/hooks/useScreenshotCaptureNotifications";
 
 
 function DesktopLayout() {
@@ -28,6 +29,9 @@ function DesktopLayout() {
     } = useDesktop();
 
     const router = useRouter();
+
+    // Safe-Retain screenshot capture notifications (throttled, paused, resumed)
+    useScreenshotCaptureNotifications();
 
     useEffect(() => {
         if (typeof window === "undefined") return;
@@ -42,11 +46,18 @@ function DesktopLayout() {
             router.replace("/authenticate/login");
         });
 
-        return cleanup;
-    }, [router]);
+        const cleanupOpenSettings = (window.electronAPI as any)?.onOpenSettings?.(() => {
+            setActivePage("settings");
+        });
+
+        return () => {
+            cleanup?.();
+            cleanupOpenSettings?.();
+        };
+    }, [router, setActivePage]);
 
     return (
-        <div className="flex min-h-screen bg-[#1d1e1e]">
+        <div className="flex min-h-screen bg-slate-100 dark:bg-[#090F1D] text-gray-900 dark:text-white">
 
             <Sidebar
                 activePage={activePage}
@@ -56,7 +67,7 @@ function DesktopLayout() {
             <TopBar />
 
             <main
-                className={`relative pt-16 pb-7 flex-1 bg-white overflow-auto transition-all duration-300 
+                className={`relative pt-16 pb-7 flex-1 bg-slate-100 dark:bg-[#090F1D] overflow-auto transition-all duration-300 
         ${activePage === "reports" ||
                         activePage === "users" ||
                         activePage === "projects" ||
@@ -69,43 +80,43 @@ function DesktopLayout() {
             >
 
                 {activePage === "dashboard" && (
-                    <div className="bg-[#191937]">
+                    <div className="w-full">
                         <DashboardPage />
                     </div>
                 )}
 
                 {activePage === "reports" && (
-                    <div className="bg-white">
+                    <div className="w-full min-h-full">
                         <ReportsPage />
                     </div>
                 )}
 
                 {activePage === "users" && (
-                    <div className="bg-white">
+                    <div className="w-full min-h-full">
                         <UsersPage />
                     </div>
                 )}
 
                 {activePage === "projects" && (
-                    <div className="bg-white">
+                    <div className="w-full min-h-full">
                         <ProjectsPage />
                     </div>
                 )}
 
                 {activePage === "settings" && (
-                    <div className="bg-white">
+                    <div className="w-full min-h-full">
                         <SettingsPage />
                     </div>
                 )}
 
                 {activePage === "inbox" && (
-                    <div className="bg-white">
+                    <div className="w-full min-h-full">
                         <InboxPage />
                     </div>
                 )}
 
                 {activePage === "notifications" && (
-                    <div className="bg-white">
+                    <div className="w-full min-h-full">
                         <NotificationList />
                     </div>
                 )}
@@ -139,7 +150,25 @@ export default function DesktopPage() {
     };
 
     useEffect(() => {
-        refreshUser();
+        let mounted = true;
+        API.get("/auth/me")
+            .then((res) => {
+                if (!mounted) return;
+                setUser(res.data);
+
+                const organizationId =
+                    res.data.organization?._id || res.data.organization;
+
+                if (organizationId) {
+                    socket.emit("joinOrganization", organizationId);
+                }
+            })
+            .catch((err) => {
+                console.error(err);
+            });
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     useEffect(() => {

@@ -33,4 +33,9 @@ const appUsageSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("AppUsage", appUsageSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { appUsageRepository } from "../db/repositories/appUsage.repository.js";
+
+const _Model = mongoose.model("AppUsage", appUsageSchema);
+export default createModelProxy(_Model, () => appUsageRepository);

@@ -29,53 +29,30 @@ export default function UsageDetailsModal({
     const [logs, setLogs] = useState<any[]>([]);
     const modalRef = useRef<HTMLDivElement | null>(null);
 
-    const fetchLogs = useCallback(async () => {
-
-        if (!user?._id) return;
-
-        try {
-
-            const startDate =
-                reportRange.startDate
-                    .toISOString()
-                    .split("T")[0];
-
-            const endDate =
-                reportRange.endDate
-                    .toISOString()
-                    .split("T")[0];
-
-            const { data } = await API.get(
-                `/usage/details/${user._id}?startDate=${startDate}&endDate=${endDate}`
-            );
-
-            setLogs(data);
-
-        } catch (err) {
-            console.error(err);
-        }
-
-    }, [user, reportRange]);
-
     useEffect(() => {
+        if (!open || !user?._id) return;
+        let mounted = true;
 
-        if (!open) return;
+        const load = () => {
+            const startDate = reportRange.startDate.toISOString().split("T")[0];
+            const endDate = reportRange.endDate.toISOString().split("T")[0];
 
-        fetchLogs();
+            API.get(`/usage/details/${user._id}?startDate=${startDate}&endDate=${endDate}`)
+                .then(({ data }) => {
+                    if (mounted) setLogs(data);
+                })
+                .catch((err) => console.error(err));
+        };
 
-    }, [open, fetchLogs]);
+        load();
 
-    useEffect(() => {
+        const interval = setInterval(load, 10000);
 
-        if (!open) return;
-
-        const interval = setInterval(() => {
-            fetchLogs();
-        }, 10000);
-
-        return () => clearInterval(interval);
-
-    }, [open, fetchLogs]);
+        return () => {
+            mounted = false;
+            clearInterval(interval);
+        };
+    }, [open, user, reportRange]);
 
     useEffect(() => {
 
@@ -195,12 +172,12 @@ export default function UsageDetailsModal({
 
             <div
                 ref={modalRef}
-                className="bg-white w-[95%] max-w-6xl max-h-[90vh] rounded-xl shadow-xl flex flex-col"
+                className="bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 w-[95%] max-w-6xl max-h-[90vh] rounded-xl shadow-xl flex flex-col"
             >
 
-                <div className="flex items-center justify-between p-6 border-b border-gray-300">
-                    <h2 className="flex text-lg font-semibold text-gray-700">
-                        <HiMiniInformationCircle className="h-7 w-7 text-blue-600 mr-4" />
+                <div className="flex items-center justify-between p-6 border-b border-gray-300 dark:border-slate-700">
+                    <h2 className="flex text-lg font-semibold text-gray-700 dark:text-white">
+                        <HiMiniInformationCircle className="h-7 w-7 text-blue-600 dark:text-blue-400 mr-4" />
                         Detailed App Usage Log for{" "}{user?.name}
                     </h2>
 
@@ -215,7 +192,7 @@ export default function UsageDetailsModal({
                         <button
                             onClick={onClose}
                             title="Close modal"
-                            className="rounded-full p-2.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            className="rounded-full p-2.5 text-gray-400 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-600 dark:hover:text-slate-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
                         >
                             <X className="h-6 w-6" />
                         </button>
@@ -228,10 +205,10 @@ export default function UsageDetailsModal({
                     {logs.length === 0 ? (
 
                         <div className="p-8">
-                            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 max-w-2xl mx-auto shadow-sm">
-                                <CiViewColumn className="h-20 w-20 mx-auto text-gray-200 mb-6" />
-                                <h3 className="text-xl font-medium text-gray-800 mb-3">No app usage data available</h3>
-                                <p className="text-sm text-gray-500 max-w-md mx-auto">There is no detailed app usage data for this time period.</p>
+                            <div className="text-center py-20 bg-white dark:bg-slate-900/60 rounded-2xl border border-gray-100 dark:border-slate-700 max-w-2xl mx-auto shadow-sm">
+                                <CiViewColumn className="h-20 w-20 mx-auto text-gray-200 dark:text-slate-700 mb-6" />
+                                <h3 className="text-xl font-medium text-gray-800 dark:text-white mb-3">No app usage data available</h3>
+                                <p className="text-sm text-gray-500 dark:text-slate-400 max-w-md mx-auto">There is no detailed app usage data for this time period.</p>
                             </div>
                         </div>
 
@@ -241,8 +218,8 @@ export default function UsageDetailsModal({
 
                             <table className="w-full text-sm">
 
-                                <thead className="sticky top-0 z-10 bg-gray-50">
-                                    <tr className="text-xs text-gray-500 border-b border-gray-300">
+                                <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900/60">
+                                    <tr className="text-xs text-gray-500 dark:text-slate-400 border-b border-gray-300 dark:border-slate-700">
                                         <th className="px-4 py-3 text-left">
                                             App
                                         </th>
@@ -271,20 +248,20 @@ export default function UsageDetailsModal({
 
                                         <tr
                                             key={log._id}
-                                            className="border-b border-gray-100 hover:bg-gray-50 h-13"
+                                            className="border-b border-gray-100 dark:border-slate-700/60 hover:bg-gray-50 dark:hover:bg-slate-700/40 h-13"
                                         >
 
-                                            <td className="px-4 py-3 w-[220px] whitespace-nowrap font-semibold text-gray-800 align-top">
+                                            <td className="px-4 py-3 w-[220px] whitespace-nowrap font-semibold text-gray-800 dark:text-white align-top">
                                                 {log.appName}
                                             </td>
 
-                                            <td className="px-4 py-3 w-[45%] text-gray-600 align-top">
+                                            <td className="px-4 py-3 w-[45%] text-gray-600 dark:text-slate-300 align-top">
                                                 <div className="break-words">
                                                     {log.windowTitle}
                                                 </div>
                                             </td>
 
-                                            <td className="text-sm">
+                                            <td className="text-sm text-gray-600 dark:text-slate-300">
                                                 {new Date(log.startTime).toLocaleTimeString(
                                                     "en-US",
                                                     {
@@ -295,7 +272,7 @@ export default function UsageDetailsModal({
                                                 )}
                                             </td>
 
-                                            <td>
+                                            <td className="text-sm text-gray-600 dark:text-slate-300">
                                                 {new Date(log.endTime).toLocaleTimeString(
                                                     "en-US",
                                                     {
@@ -306,7 +283,7 @@ export default function UsageDetailsModal({
                                                 )}
                                             </td>
 
-                                            <td className="px-4 py-3 text-gray-600">
+                                            <td className="px-4 py-3 text-gray-600 dark:text-slate-300">
                                                 {formatDuration(log.duration)}
                                             </td>
 

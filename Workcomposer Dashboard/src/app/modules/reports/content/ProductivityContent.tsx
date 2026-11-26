@@ -71,10 +71,13 @@ useEffect(() => {
                 params: {
                     startDate,
                     endDate,
-                    users: selectedUsers.map((u) => u._id).join(","),
+                    users: selectedUsers
+                        .map((u: any) => u?._id || u?.id)
+                        .filter(Boolean)
+                        .join(","),
                     teams: selectedTeams
                         .map((team: any) =>
-                            typeof team === "object" ? team._id : team
+                            typeof team === "object" ? team?._id || team?.id : team
                         )
                         .filter(Boolean)
                         .join(","),
@@ -105,11 +108,22 @@ useEffect(() => {
 
     const generateProductivityReport = async () => {
         try {
+            const startDate = formatDateForApi(reportRange.startDate, timezone);
+            const endDate = formatDateForApi(reportRange.endDate, timezone);
+            const userIds = (selectedUsers || [])
+                .map((u: any) => u?._id || u?.id)
+                .filter(Boolean);
+            const teamIds = (selectedTeams || [])
+                .map((team: any) =>
+                    typeof team === "object" ? team?._id || team?.id : team
+                )
+                .filter(Boolean);
+
             await API.post("/reports/productivity", {
-                startDate: reportRange.startDate,
-                endDate: reportRange.endDate,
-                selectedUsers: selectedUsers.map((u) => u._id),
-                selectedTeams,
+                startDate,
+                endDate,
+                selectedUsers: userIds,
+                selectedTeams: teamIds,
             });
         } catch (err) {
             console.error(err);

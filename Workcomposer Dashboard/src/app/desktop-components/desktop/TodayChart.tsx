@@ -9,87 +9,123 @@ import {
     Tooltip,
     CartesianGrid,
 } from "recharts";
-
 import CustomTooltip from "./CustomTooltip";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Clock3, RefreshCw } from "lucide-react";
 import API from "@/api";
+import type { EffectiveTheme } from "./ThemeSelector";
 
-type Props = {
+interface Props {
     refreshKey: number;
     setRefreshing: React.Dispatch<React.SetStateAction<boolean>>;
-};
+    onManualRefresh?: () => void;
+    effectiveTheme?: EffectiveTheme;
+}
 
 export default function TodayChart({
     refreshKey,
     setRefreshing,
+    onManualRefresh,
+    effectiveTheme = "dark",
 }: Props) {
     const [data, setData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const requestCountRef = useRef(0);
 
     useEffect(() => {
+        const requestId = ++requestCountRef.current;
+        setLoading(true);
         const fetchChart = async () => {
             try {
-                const { data } = await API.get(
-                    "/sessions/today-chart"
-                );
-
-                setData(data);
+                const { data } = await API.get("/sessions/today-chart");
+                if (requestId === requestCountRef.current && Array.isArray(data)) {
+                    setData(data);
+                }
             } catch (err) {
-                console.error(err);
+                console.error("GET TODAY CHART ERROR:", err);
             } finally {
-                setRefreshing(false);
+                if (requestId === requestCountRef.current) {
+                    setRefreshing(false);
+                    setLoading(false);
+                }
             }
         };
 
         fetchChart();
     }, [refreshKey, setRefreshing]);
 
-    const formatTime = (hours: number) => {
-        const h = Math.floor(hours);
-        const m = Math.round((hours - h) * 60);
-
-        return `${h}h ${m}m`;
+    const formatYAxis = (hours: number) => {
+        if (hours === 0) return "0m";
+        const totalMinutes = Math.round(hours * 60);
+        const h = Math.floor(totalMinutes / 60);
+        const m = totalMinutes % 60;
+        if (h > 0 && m > 0) return `${h}h ${m}m`;
+        if (h > 0) return `${h}h`;
+        return `${m}m`;
     };
 
     const maxValue = Math.max(
-        ...data.map(
-            (d: any) => d.work + d.break
-        ),
+        ...data.map((d: any) => (Number(d.work) || 0) + (Number(d.break) || 0)),
         1
     );
 
+    const isDark = effectiveTheme === "dark";
+
     return (
-        <div className="relative h-full w-full overflow-hidden rounded-lg">
-
-            {/* ================================= */}
-            {/* AMBIENT BACKGROUND EFFECT */}
-            {/* ================================= */}
-
-            <div className="pointer-events-none absolute -left-10 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-blue-500/10 blur-3xl" />
-
-            <div className="pointer-events-none absolute right-0 top-0 h-36 w-36 rounded-full bg-amber-500/5 blur-3xl" />
-
-            <div className="pointer-events-none absolute bottom-0 left-1/2 h-32 w-48 -translate-x-1/2 rounded-full bg-blue-400/5 blur-3xl" />
-
-            {/* Subtle grid background */}
-            <div className="pointer-events-none absolute inset-0 opacity-[0.025] today-chart-grid" />
-
-            {/* ================================= */}
-            {/* CHART */}
-            {/* ================================= */}
-
-            <div className="relative z-10 h-full w-full">
-                <ResponsiveContainer
-                    width="100%"
-                    height="100%"
-                >
-                    <BarChart
-                        data={data}
-                        barCategoryGap="5%"
-                        barGap={0}
+        <div
+            className={`relative flex flex-col h-full w-full rounded-2xl border p-4 transition-all duration-300 ${
+                isDark
+                    ? "bg-[#0E172A] border-[#1E293B] shadow-[0_4px_20px_rgba(0,0,0,0.25)]"
+                    : "bg-white border-gray-200 shadow-sm"
+            }`}
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3 px-1">
+                <div className="flex items-center gap-3">
+                    <div
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                            isDark
+                                ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
+                                : "bg-blue-600 text-white"
+                        }`}
                     >
+                        <Clock3 className="h-4 w-4" />
+                    </div>
+
+                    <div>
+                        <h3 className={`text-sm font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+                            Today
+                        </h3>
+                        <p className={`text-[11px] ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                            Hourly breakdown
+                        </p>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (onManualRefresh) onManualRefresh();
+                        else setRefreshing(true);
+                    }}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                        isDark
+                            ? "text-gray-400 hover:text-white hover:bg-white/5"
+                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                    }`}
+                    title="Refresh today chart"
+                >
+                    <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin text-blue-400" : ""}`} />
+                </button>
+            </div>
+
+            {/* Chart Area */}
+            <div className="relative z-10 flex-1 w-full min-h-[220px]">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data} barCategoryGap="12%" barGap={0}>
                         <CartesianGrid
-                            stroke="#24344F"
-                            strokeDasharray="0"
+                            stroke={isDark ? "#1E293B" : "#E2E8F0"}
+                            strokeDasharray="3 3"
                             vertical={false}
                         />
 
@@ -97,79 +133,50 @@ export default function TodayChart({
                             dataKey="time"
                             interval={1}
                             tick={{
-                                fill: "#7B8794",
-                                fontSize: 11,
+                                fill: isDark ? "#64748B" : "#94A3B8",
+                                fontSize: 10,
                             }}
                             axisLine={false}
                             tickLine={false}
                         />
 
                         <YAxis
-                            domain={[
-                                0,
-                                Math.ceil(maxValue),
-                            ]}
-                            tickFormatter={formatTime}
+                            domain={[0, Math.ceil(maxValue * 1.1)]}
+                            tickFormatter={formatYAxis}
                             tick={{
-                                fill: "#7B8794",
-                                fontSize: 11,
+                                fill: isDark ? "#64748B" : "#94A3B8",
+                                fontSize: 10,
                             }}
                             axisLine={false}
                             tickLine={false}
+                            width={38}
                         />
 
                         <Tooltip
                             cursor={{
-                                fill: "transparent",
+                                fill: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
                             }}
                             content={<CustomTooltip />}
                         />
 
-                        {/* Work */}
+                        {/* Work (Blue) */}
                         <Bar
                             dataKey="work"
-                            fill="#4EA1FF"
-                            radius={[
-                                0,
-                                0,
-                                0,
-                                0,
-                            ]}
+                            fill="#3B82F6"
                             stackId="total"
-                            barSize={11}
+                            radius={[0, 0, 0, 0]}
                         />
 
-                        {/* Break */}
+                        {/* Break (Orange) */}
                         <Bar
                             dataKey="break"
-                            fill="#F59E0B"
-                            radius={[
-                                3,
-                                3,
-                                0,
-                                0,
-                            ]}
+                            fill="#F97316"
                             stackId="total"
+                            radius={[3, 3, 0, 0]}
                         />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
-
-            <style jsx>{`
-                .today-chart-grid {
-                    background-image:
-                        linear-gradient(
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        ),
-                        linear-gradient(
-                            90deg,
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        );
-                    background-size: 24px 24px;
-                }
-            `}</style>
         </div>
     );
 }

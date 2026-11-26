@@ -12,6 +12,7 @@ import { HiOutlineEnvelopeOpen } from "react-icons/hi2";
 import ReportsModal from "./time-tracking/attendance/reports/ReportsModal";
 import toast from "react-hot-toast";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import { disconnectSocket } from "@/socket/socket";
 
 import { useDashboard } from "@/context/DashboardContext";
 
@@ -44,7 +45,13 @@ const DashNavbar = () => {
   const toastId = toast.loading("Signing out...");
 
   try {
+    if (typeof window !== "undefined" && window.electronAPI?.logoutElectron) {
+      await window.electronAPI.logoutElectron();
+    }
+
     await API.post("/auth/logout");
+
+    disconnectSocket();
 
     toast.success("Logged out successfully", {
       id: toastId,
@@ -88,33 +95,30 @@ const DashNavbar = () => {
     setShowDesktopDownloadModal(true);
   };
 
-  const fetchPendingCount = async () => {
-    try {
-      const { data } = await API.get("/manual-time-requests/count");
-
-      setPendingCount(data.count);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    fetchPendingCount();
+    let mounted = true;
+    const load = () => {
+      API.get("/manual-time-requests/count")
+        .then(({ data }) => {
+          if (mounted) setPendingCount(data.count);
+        })
+        .catch((err) => console.error(err));
+    };
 
-    const interval = setInterval(fetchPendingCount, 10000);
+    load();
 
-    const refresh = () => fetchPendingCount();
-
-    window.addEventListener("refreshInboxCount", refresh);
+    const interval = setInterval(load, 10000);
+    window.addEventListener("refreshInboxCount", load);
 
     return () => {
+      mounted = false;
       clearInterval(interval);
-      window.removeEventListener("refreshInboxCount", refresh);
+      window.removeEventListener("refreshInboxCount", load);
     };
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
+    <header className="sticky top-0 z-50 bg-white dark:bg-[#162742] border-b border-gray-200 dark:border-[#263852] transition-colors duration-200">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* LEFT */}
         <div className="flex items-center gap-x-2 sm:gap-x-4 pl-12 sm:pl-0">
@@ -123,17 +127,17 @@ const DashNavbar = () => {
             <div className="flex items-center">
               <button
                 onClick={() => setAppOpen(!appOpen)}
-                className="flex items-center px-2 py-2 sm:px-3 rounded bg-indigo-50 hover:bg-indigo-100 text-gray-800 sm:border-r border-indigo-200 shadow-sm"
+                className="flex items-center px-2 py-2 sm:px-3 rounded bg-indigo-50 dark:bg-[#0F1B31] hover:bg-indigo-100 dark:hover:bg-[#1A2E4F] text-gray-800 dark:text-gray-100 sm:border-r border-indigo-200 dark:border-[#263852] shadow-sm"
               >
-                <Clock3 className="w-5 h-5 sm:mr-2 text-indigo-600" />
-                <span className="text-sm font-semibold text-indigo-900 hidden sm:inline">
+                <Clock3 className="w-5 h-5 sm:mr-2 text-indigo-600 dark:text-indigo-400" />
+                <span className="text-sm font-semibold text-indigo-900 dark:text-indigo-300 hidden sm:inline">
                   {currentApp}
                 </span>
               </button>
 
               <button
                 onClick={() => setAppOpen(!appOpen)}
-                className="p-2 rounded-r bg-indigo-50 hover:bg-indigo-100 text-gray-600"
+                className="p-2 rounded-r bg-indigo-50 dark:bg-[#0F1B31] hover:bg-indigo-100 dark:hover:bg-[#1A2E4F] text-gray-600 dark:text-gray-400"
               >
                 <ChevronDown className="w-5 h-5" />
               </button>
@@ -142,19 +146,19 @@ const DashNavbar = () => {
             {/* Dropdown Menu */}
             {appOpen && (
               <div className="absolute left-0 mt-2 w-[85vw] max-w-72 sm:w-72 bg-[#020617] text-white rounded-xl shadow-lg p-4 z-[60]">
-                <p className="text-sm text-gray-400 mb-1">Apps</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Apps</p>
 
                 <div className="bg-gray-800 rounded-lg p-2 space-y-1">
                   <div
                     onClick={() => {
-                      router.push("/dashboard/time-tracking/overview");
+                      router.push("/dashboard/time-tracking/home");
                       setAppOpen(false);
                     }}
                     className="flex items-center justify-between p-1 hover:bg-gray-700 rounded cursor-pointer"
                   >
                     <span>Time Tracking</span>
                     {pathname.startsWith(
-                      "/dashboard/time-tracking/overview",
+                      "/dashboard/time-tracking",
                     ) && <Check className="w-4 h-4 text-gray-400 ml-auto" />}
                   </div>
 
@@ -173,7 +177,7 @@ const DashNavbar = () => {
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-400 mt-3 mb-2">Configuration</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mt-3 mb-2">Configuration</p>
 
                 <div className="space-y-1">
                   {canManageUsersTeams && (
@@ -217,7 +221,7 @@ const DashNavbar = () => {
               className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold transition ${
                 pathname.startsWith("/dashboard/user-management")
                   ? "bg-indigo-600 text-white"
-                  : "bg-indigo-50 hover:bg-indigo-100 text-gray-800"
+                  : "bg-indigo-50 hover:bg-indigo-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-200"
               }`}
             >
               <FaUsers
@@ -237,7 +241,7 @@ const DashNavbar = () => {
             className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded text-sm font-semibold transition ${
               pathname.startsWith("/dashboard/settings")
                 ? "bg-indigo-600 text-white"
-                : "bg-indigo-50 hover:bg-indigo-100 text-gray-800"
+                : "bg-indigo-50 hover:bg-indigo-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-800 dark:text-slate-200"
             }`}
           >
             <span className="hidden sm:inline">Settings</span>
@@ -266,7 +270,7 @@ const DashNavbar = () => {
               onClick={() => window.dispatchEvent(new Event("toggleInbox"))}
               className="relative"
             >
-              <HiOutlineEnvelopeOpen className="w-6 h-6 text-gray-500 hover:text-gray-700 cursor-pointer" />
+              <HiOutlineEnvelopeOpen className="w-6 h-6 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 cursor-pointer" />
             </button>
 
             {pendingCount > 0 && (
@@ -298,7 +302,7 @@ const DashNavbar = () => {
             onClick={() => setReportsOpen(true)}
             className="cursor-pointer"
           >
-            <HiOutlineInboxStack className="w-6 h-6 text-gray-500 hover:text-gray-700" />
+            <HiOutlineInboxStack className="w-6 h-6 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors" />
           </button>
 
           {/* // User Profile */}
@@ -320,45 +324,45 @@ const DashNavbar = () => {
                 </div>
               )}
 
-              <span className="text-sm text-gray-700 hidden md:block">
+              <span className="text-sm text-gray-700 dark:text-gray-200 hidden md:block">
                 {user?.email || "user@example.com"}
               </span>
 
-              <ChevronDown className="w-4 h-4 text-gray-500" />
+              <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-[85vw] max-w-72 sm:w-72 bg-[#020617] text-white rounded-xl shadow-lg p-4 z-[60]">
+              <div className="absolute right-0 mt-2 w-[85vw] max-w-72 sm:w-72 bg-white dark:bg-slate-800 text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 rounded-xl shadow-lg p-4 z-[60]">
                 {/* Organization */}
                 <div className="mb-3">
-                  <p className="text-sm text-white font-medium">Organization</p>
-                  <p className="text-xs text-gray-400 font-sm">
+                  <p className="text-sm text-gray-900 dark:text-white font-medium">Organization</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 font-sm">
                     {user?.organization?.name || "XYZ"}
                   </p>
                 </div>
 
                 {/* Account */}
                 <div className="mb-3">
-                  <p className="text-sm text-white font-medium">Account</p>
-                  <p className="text-xs text-gray-400 font-sm">{user?.email}</p>
+                  <p className="text-sm text-gray-900 dark:text-white font-medium">Account</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 font-sm">{user?.email}</p>
                 </div>
 
                 {/* Role */}
                 <div className="mb-4">
-                  <p className="text-sm text-white font-medium">Role</p>
-                  <p className="text-xs text-gray-400 font-sm">
+                  <p className="text-sm text-gray-900 dark:text-white font-medium">Role</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 font-sm">
                     {user?.role || "Owner"}
                   </p>
                 </div>
 
                 {/* Sign out */}
                 <div
-                  className="border-t border-gray-100 mt-2 hover:bg-gray-900 py-2 rounded-md"
+                  className="border-t border-gray-100 dark:border-slate-700 mt-2 hover:bg-gray-100 dark:hover:bg-slate-700/60 py-2 rounded-md"
                   role="none"
                 >
                   <button
                     onClick={handleLogout}
-                    className="w-full text-left text-red-600 text-sm cursor-pointer min-h-10"
+                    className="w-full text-left text-red-600 dark:text-red-400 text-sm cursor-pointer min-h-10"
                   >
                     Sign out
                   </button>
@@ -373,14 +377,14 @@ const DashNavbar = () => {
 
       {showDesktopDownloadModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 p-6 shadow-2xl">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                   Desktop App Required
                 </h2>
 
-                <p className="mt-2 text-sm leading-6 text-gray-600">
+                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-slate-300">
                   WorkComposer time tracking runs through the Desktop app. To
                   start tracking your time, download and install the
                   WorkComposer Desktop application.
@@ -390,7 +394,7 @@ const DashNavbar = () => {
               <button
                 type="button"
                 onClick={() => setShowDesktopDownloadModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl"
+                className="text-gray-400 dark:text-slate-400 hover:text-gray-600 dark:hover:text-slate-200 text-xl"
                 aria-label="Close"
               >
                 ×
@@ -401,7 +405,7 @@ const DashNavbar = () => {
               <button
                 type="button"
                 onClick={() => setShowDesktopDownloadModal(false)}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-600"
               >
                 Cancel
               </button>

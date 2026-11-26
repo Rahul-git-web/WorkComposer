@@ -1,323 +1,239 @@
-import Task from "../models/task.model.js";
-import User from "../models/user.model.js";
-import Session from "../models/session.model.js";
-import Project from "../models/project.model.js";
+import {
+  organizationRepository,
+  taskRepository,
+  userRepository,
+  sessionRepository,
+} from "../db/repositories/index.js";
+import {
+  getZonedDayRange,
+  getTodayInTimezone,
+  DEFAULT_TIMEZONE,
+} from "../utils/timezone.js";
 
-export const getDailySummary = async (organizationId) => {
-  const startOfDay = new Date();
+export const getDailySummary = async (organizationId, reportDate = null, customTimezone = null) => {
+  let timezone = customTimezone;
+  if (!timezone) {
+    const org = await organizationRepository.findById(organizationId);
+    timezone = org?.timezone || DEFAULT_TIMEZONE;
+  }
 
-  startOfDay.setHours(0, 0, 0, 0);
+  const today = reportDate || getTodayInTimezone(timezone);
+  const { start, end } = getZonedDayRange(today, timezone);
 
-  const endOfDay = new Date();
-
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const tasksCreated = await Task.countDocuments({
-    organization: organizationId,
+  const tasksCreated = await taskRepository.count({
+    organizationId,
     createdAt: {
-      $gte: startOfDay,
-      $lte: endOfDay,
+      gte: start,
+      lt: end,
     },
   });
 
-  const tasksCompleted = await Task.countDocuments({
-    organization: organizationId,
+  const tasksCompleted = await taskRepository.count({
+    organizationId,
     status: "completed",
     updatedAt: {
-      $gte: startOfDay,
-      $lte: endOfDay,
+      gte: start,
+      lt: end,
     },
   });
 
-  const users = await User.find(
+  const users = await userRepository.find(
     {
       organization: organizationId,
     },
-    "_id firstName lastName",
+    { select: "_id firstName lastName" },
   );
 
-  const userIds = users.map((u) => u._id);
+  const userIds = (users || []).map((u) => u.id || u._id);
+  const activeUserSet = new Set();
+  const userDurationMap = new Map();
 
-  const activeUsers = await Session.distinct("userId", {
-    userId: {
-      $in: userIds,
-    },
-    startTime: {
-      $gte: startOfDay,
-      $lte: endOfDay,
-    },
-  });
+  let totalWorkSeconds = 0;
+  let totalBreakSeconds = 0;
 
-  const workSessions = await Session.aggregate([
-    {
-      $match: {
-        userId: {
-          $in: userIds,
-        },
-        type: "work",
-        startTime: {
-          $gte: startOfDay,
-          $lte: endOfDay,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalDuration: {
-          $sum: "$duration",
-        },
-      },
-    },
-  ]);
+  if (userIds.length > 0) {
+    const sessions = await sessionRepository.findOverlappingSessions({
+      userIds,
+      periodStart: start,
+      periodEnd: end,
+    });
 
-  const breakSessions = await Session.aggregate([
-    {
-      $match: {
-        userId: {
-          $in: userIds,
-        },
-        type: "break",
-        startTime: {
-          $gte: startOfDay,
-          $lte: endOfDay,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalDuration: {
-          $sum: "$duration",
-        },
-      },
-    },
-  ]);
+    for (const session of sessions) {
+      const sStart = new Date(session.startTime);
+      const sEnd = session.endTime
+        ? new Date(session.endTime)
+        : (session.updatedAt ? new Date(session.updatedAt) : end);
+      const clampedStart = Math.max(start.getTime(), sStart.getTime());
+      const clampedEnd = Math.min(end.getTime(), sEnd.getTime());
+      const duration = Math.max(0, Math.floor((clampedEnd - clampedStart) / 1000));
 
-  const breakSeconds = breakSessions[0]?.totalDuration || 0;
+      const uId = String(session.userId || session.user);
 
-  const breakHours = Math.floor(breakSeconds / 3600);
-  const breakMinutes = Math.floor((breakSeconds % 3600) / 60);
+      if (session.type === "work") {
+        totalWorkSeconds += duration;
+        if (duration > 0) {
+          activeUserSet.add(uId);
+          userDurationMap.set(uId, (userDurationMap.get(uId) || 0) + duration);
+        }
+      } else if (session.type === "break") {
+        totalBreakSeconds += duration;
+      }
+    }
+  }
 
+  const breakHours = Math.floor(totalBreakSeconds / 3600);
+  const breakMinutes = Math.floor((totalBreakSeconds % 3600) / 60);
   const totalBreakTime = `${breakHours}h ${breakMinutes}m`;
 
-  const totalSeconds = workSessions[0]?.totalDuration || 0;
-
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-
+  const hours = Math.floor(totalWorkSeconds / 3600);
+  const minutes = Math.floor((totalWorkSeconds % 3600) / 60);
   const totalWorkTime = `${hours}h ${minutes}m`;
 
-  const topPerformer = await Session.aggregate([
-    {
-      $match: {
-        userId: {
-          $in: userIds,
-        },
-        type: "work",
-        startTime: {
-          $gte: startOfDay,
-          $lte: endOfDay,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: "$userId",
-        totalDuration: {
-          $sum: "$duration",
-        },
-      },
-    },
-    {
-      $sort: {
-        totalDuration: -1,
-      },
-    },
-    {
-      $limit: 1,
-    },
-  ]);
-
   let topPerformerData = null;
+  if (userDurationMap.size > 0) {
+    let topUserId = null;
+    let maxDuration = -1;
 
-  if (topPerformer.length > 0) {
-    const performer = users.find(
-      (u) => u._id.toString() === topPerformer[0]._id.toString(),
-    );
+    for (const [uId, dur] of userDurationMap.entries()) {
+      if (dur > maxDuration) {
+        maxDuration = dur;
+        topUserId = uId;
+      }
+    }
 
-    if (performer) {
-      const total = topPerformer[0].totalDuration;
-
-      topPerformerData = {
-        name: `${performer.firstName} ${performer.lastName}`,
-        workTime: `${Math.floor(total / 3600)}h ${Math.floor(
-          (total % 3600) / 60,
-        )}m`,
-      };
+    if (topUserId) {
+      const performer = (users || []).find((u) => String(u.id || u._id) === topUserId);
+      if (performer) {
+        topPerformerData = {
+          name: `${performer.firstName} ${performer.lastName}`,
+          workTime: `${Math.floor(maxDuration / 3600)}h ${Math.floor((maxDuration % 3600) / 60)}m`,
+        };
+      }
     }
   }
 
   return {
+    date: today,
     tasksCreated,
     tasksCompleted,
-    activeUsers: activeUsers.length,
+    activeUsers: activeUserSet.size,
     totalWorkTime,
     totalBreakTime,
     topPerformer: topPerformerData,
   };
 };
 
-export const getWeeklySummary = async (organizationId) => {
-  const now = new Date();
+export const getWeeklySummary = async (organizationId, endDate = null, customTimezone = null) => {
+  let timezone = customTimezone;
+  if (!timezone) {
+    const org = await organizationRepository.findById(organizationId);
+    timezone = org?.timezone || DEFAULT_TIMEZONE;
+  }
 
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - 7);
-  startOfWeek.setHours(0, 0, 0, 0);
+  const endStr = endDate || getTodayInTimezone(timezone);
+  const [y, m, d] = endStr.split("-").map(Number);
+  const startObj = new Date(Date.UTC(y, m - 1, d - 6));
+  const startStr = startObj.toISOString().slice(0, 10);
 
-  const endOfWeek = new Date(now);
+  const periodStart = getZonedDayRange(startStr, timezone).start;
+  const periodEnd = getZonedDayRange(endStr, timezone).end;
 
-  const users = await User.find(
-    { organization: organizationId },
-    "_id firstName lastName",
-  );
-
-  const userIds = users.map((user) => user._id);
-
-  const tasksCreated = await Task.countDocuments({
-    organization: organizationId,
+  const tasksCreated = await taskRepository.count({
+    organizationId,
     createdAt: {
-      $gte: startOfWeek,
-      $lte: endOfWeek,
+      gte: periodStart,
+      lt: periodEnd,
     },
   });
 
-  const tasksCompleted = await Task.countDocuments({
-    organization: organizationId,
+  const tasksCompleted = await taskRepository.count({
+    organizationId,
     status: "completed",
     updatedAt: {
-      $gte: startOfWeek,
-      $lte: endOfWeek,
+      gte: periodStart,
+      lt: periodEnd,
     },
   });
 
-  const activeUsers = await Session.distinct("userId", {
-    userId: { $in: userIds },
-    startTime: {
-      $gte: startOfWeek,
-      $lte: endOfWeek,
-    },
-  });
+  const users = await userRepository.find(
+    { organization: organizationId },
+    { select: "_id firstName lastName" },
+  );
 
-  const workTime = await Session.aggregate([
-    {
-      $match: {
-        userId: { $in: userIds },
-        type: "work",
-        startTime: {
-          $gte: startOfWeek,
-          $lte: endOfWeek,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalDuration: {
-          $sum: "$duration",
-        },
-      },
-    },
-  ]);
+  const userIds = (users || []).map((u) => u.id || u._id);
+  const activeUserSet = new Set();
+  const userDurationMap = new Map();
 
-  const totalWorkSeconds = workTime[0]?.totalDuration || 0;
+  let totalWorkSeconds = 0;
+  let totalBreakSeconds = 0;
+
+  if (userIds.length > 0) {
+    const sessions = await sessionRepository.findOverlappingSessions({
+      userIds,
+      periodStart,
+      periodEnd,
+    });
+
+    for (const session of sessions) {
+      const sStart = new Date(session.startTime);
+      const sEnd = session.endTime
+        ? new Date(session.endTime)
+        : (session.updatedAt ? new Date(session.updatedAt) : periodEnd);
+      const clampedStart = Math.max(periodStart.getTime(), sStart.getTime());
+      const clampedEnd = Math.min(periodEnd.getTime(), sEnd.getTime());
+      const duration = Math.max(0, Math.floor((clampedEnd - clampedStart) / 1000));
+
+      const uId = String(session.userId || session.user);
+
+      if (session.type === "work") {
+        totalWorkSeconds += duration;
+        if (duration > 0) {
+          activeUserSet.add(uId);
+          userDurationMap.set(uId, (userDurationMap.get(uId) || 0) + duration);
+        }
+      } else if (session.type === "break") {
+        totalBreakSeconds += duration;
+      }
+    }
+  }
 
   const workHours = Math.floor(totalWorkSeconds / 3600);
   const workMinutes = Math.floor((totalWorkSeconds % 3600) / 60);
-
   const totalWorkTime = `${workHours}h ${workMinutes}m`;
-
-  const breakTime = await Session.aggregate([
-    {
-      $match: {
-        userId: { $in: userIds },
-        type: "break",
-        startTime: {
-          $gte: startOfWeek,
-          $lte: endOfWeek,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalDuration: {
-          $sum: "$duration",
-        },
-      },
-    },
-  ]);
-
-  const totalBreakSeconds = breakTime[0]?.totalDuration || 0;
 
   const breakHours = Math.floor(totalBreakSeconds / 3600);
   const breakMinutes = Math.floor((totalBreakSeconds % 3600) / 60);
-
   const totalBreakTime = `${breakHours}h ${breakMinutes}m`;
 
-  const topPerformerData = await Session.aggregate([
-    {
-      $match: {
-        userId: { $in: userIds },
-        type: "work",
-        startTime: {
-          $gte: startOfWeek,
-          $lte: endOfWeek,
-        },
-      },
-    },
-    {
-      $group: {
-        _id: "$userId",
-        totalDuration: {
-          $sum: "$duration",
-        },
-      },
-    },
-    {
-      $sort: {
-        totalDuration: -1,
-      },
-    },
-    {
-      $limit: 1,
-    },
-  ]);
-
   let topPerformer = null;
+  if (userDurationMap.size > 0) {
+    let topUserId = null;
+    let maxDuration = -1;
 
-  if (topPerformerData.length > 0) {
-    const performer = users.find(
-      (user) => user._id.toString() === topPerformerData[0]._id.toString(),
-    );
+    for (const [uId, dur] of userDurationMap.entries()) {
+      if (dur > maxDuration) {
+        maxDuration = dur;
+        topUserId = uId;
+      }
+    }
 
-    const totalSeconds = topPerformerData[0].totalDuration;
-
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-
-    topPerformer = {
-      name: performer
-        ? `${performer.firstName} ${performer.lastName}`
-        : "Unknown User",
-      workTime: `${hours}h ${minutes}m`,
-    };
+    if (topUserId) {
+      const performer = (users || []).find((u) => String(u.id || u._id) === topUserId);
+      topPerformer = {
+        name: performer
+          ? `${performer.firstName} ${performer.lastName}`
+          : "Unknown User",
+        workTime: `${Math.floor(maxDuration / 3600)}h ${Math.floor((maxDuration % 3600) / 60)}m`,
+      };
+    }
   }
 
   return {
+    startDate: startStr,
+    endDate: endStr,
     tasksCreated,
     tasksCompleted,
-    activeUsers: activeUsers.length,
+    activeUsers: activeUserSet.size,
     totalWorkTime,
     totalBreakTime,
     topPerformer,

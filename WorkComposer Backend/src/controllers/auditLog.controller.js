@@ -1,4 +1,5 @@
 import AuditLog from "../models/auditLog.model.js";
+import { getAvatarUrl } from "../utils/avatar.js";
 
 export const getAuditLogs = async (req, res) => {
   try {
@@ -11,8 +12,10 @@ export const getAuditLogs = async (req, res) => {
       endDate,
     } = req.query;
 
+    const orgId = req.user?.organization?._id || req.user?.organization?.id || req.user?.organization;
+
     const query = {
-      organization: req.user.organization,
+      organization: orgId,
     };
 
     // Filter by user
@@ -35,20 +38,29 @@ export const getAuditLogs = async (req, res) => {
 
     const total = await AuditLog.countDocuments(query);
 
-    const logs = await AuditLog.find(query)
+    const rawLogs = await AuditLog.find(query)
       .populate("performedBy", "firstName lastName avatar email")
       .sort({ createdAt: -1 })
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit));
 
+    // Normalize user avatars and serialize for frontend consistency
+    const logs = (rawLogs || []).map((log) => {
+      const doc = log?.toObject ? log.toObject() : { ...log };
+      if (doc.performedBy && typeof doc.performedBy === "object") {
+        doc.performedBy.avatar = getAvatarUrl(doc.performedBy.avatar) || "";
+      }
+      return doc;
+    });
+
     res.status(200).json({
       logs,
       total,
       page: Number(page),
-      totalPages: Math.ceil(total / Number(limit)),
+      totalPages: Math.ceil(total / Number(limit)) || 1,
     });
   } catch (err) {
-    console.error(err);
+    console.error("Audit log controller error:", err);
 
     res.status(500).json({
       message: "Failed to fetch audit logs",

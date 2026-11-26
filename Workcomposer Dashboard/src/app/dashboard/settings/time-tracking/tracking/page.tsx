@@ -73,7 +73,7 @@ export default function TrackingPage() {
     return (
         <div className="py-10 flex-1">
             <div className="mx-auto w-full max-w-[1700px] px-6 sm:px-8 lg:px-10">
-                <div className="mx-auto mt-8 w-full max-w-6xl rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="mx-auto mt-8 w-full max-w-6xl rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
 
                     <div className="mx-auto max-w-7xl">
 
@@ -156,6 +156,7 @@ export default function TrackingPage() {
                                         },
                                     };
 
+                                    setSettings(updatedSettings);
                                     updateSettings(updatedSettings);
                                 }}
                             />
@@ -239,11 +240,11 @@ export default function TrackingPage() {
                             <ExpandableSetting>
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <h4 className="text-lg font-medium text-gray-900">
+                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white">
                                             Minutes of inactivity before pause
                                         </h4>
 
-                                        <p className="mt-8 max-w-3xl text-base text-gray-500">
+                                        <p className="mt-8 max-w-3xl text-base text-gray-500 dark:text-gray-400">
                                             Any inactivity shorter than this counts as worked time.
                                             A higher number means short pauses and breaks are recorded
                                             as work, not as breaks.
@@ -251,7 +252,7 @@ export default function TrackingPage() {
                                     </div>
 
                                     <div className="flex flex-col">
-                                        <label className="mb-2 text-sm font-medium text-gray-900">
+                                        <label className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">
                                             Minutes
                                         </label>
 
@@ -339,11 +340,11 @@ export default function TrackingPage() {
                             <ExpandableSetting>
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <h4 className="text-lg font-medium text-gray-900">
+                                        <h4 className="text-lg font-medium text-gray-900 dark:text-white">
                                             Limit break duration when computer sleeps
                                         </h4>
 
-                                        <p className="mt-8 max-w-3xl text-base text-gray-500">
+                                        <p className="mt-8 max-w-3xl text-base text-gray-500 dark:text-gray-400">
                                             Breaks longer than this duration will stop the tracking
                                             session instead of being counted as computer sleep.
                                         </p>
@@ -351,7 +352,7 @@ export default function TrackingPage() {
 
                                     <div className="flex gap-4">
                                         <div className="flex flex-col">
-                                            <label className="mb-2 text-sm font-medium text-gray-900">
+                                            <label className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">
                                                 Hours
                                             </label>
 
@@ -378,7 +379,7 @@ export default function TrackingPage() {
                                         </div>
 
                                         <div className="flex flex-col">
-                                            <label className="mb-2 text-sm font-medium text-gray-900">
+                                            <label className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-200">
                                                 Minutes
                                             </label>
 

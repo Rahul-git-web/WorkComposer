@@ -3,10 +3,30 @@ import User from "../models/user.model.js";
 import { hasPermission } from "../middleware/permission.middleware.js";
 import geocoder from "../utils/geocoder.js";
 import { getAvatarUrl } from "../utils/avatar.js";
+import { timeTrackingSettingsRepository, userRepository } from "../db/repositories/index.js";
+import resolveTrackingSettings from "../utils/resolveTrackingSettings.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
 
 // SAVE LOCATION
 export const saveLocation = async (req, res) => {
   try {
+    const callerOrgId = normalizeId(req.user?.organizationId || req.user?.organization);
+    const callerUserId = normalizeId(req.user?._id || req.user?.id);
+    if (callerOrgId && callerUserId) {
+      const [orgSettings, callerUser] = await Promise.all([
+        timeTrackingSettingsRepository.findOne({ organization: callerOrgId }),
+        userRepository.findById(callerUserId),
+      ]);
+      const effective = resolveTrackingSettings(orgSettings, callerUser || req.user);
+      if (effective?.tracking?.ipTracking === false) {
+        return res.status(200).json({
+          success: true,
+          skipped: true,
+          reason: "ip_tracking_disabled",
+        });
+      }
+    }
+
     const { latitude, longitude, accuracy } = req.body;
 
     let address = {};
@@ -95,10 +115,11 @@ export const saveLocation = async (req, res) => {
 
     res.json(location);
   } catch (err) {
-    console.error(err);
+    console.error("SAVE LOCATION ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to save location",
+      error: "Failed to save location",
     });
   }
 };
@@ -176,10 +197,11 @@ export const getLocations = async (req, res) => {
 
     res.json(latestLocations);
   } catch (err) {
-   console.error(err);
+    console.error("GET LOCATIONS ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to get locations",
+      error: "Failed to get locations",
     });
   }
 };

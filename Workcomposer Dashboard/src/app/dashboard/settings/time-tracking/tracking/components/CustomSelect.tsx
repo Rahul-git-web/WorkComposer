@@ -28,8 +28,8 @@ export default function CustomSelect({
     width = "w-24",
 }: Props) {
     const [open, setOpen] = useState(false);
-    const [openUp, setOpenUp] = useState(false);
-    const [menuPosition, setMenuPosition] = useState({
+    const [menuLayout, setMenuLayout] = useState({
+        openUp: false,
         top: 0,
         left: 0,
         width: 0,
@@ -61,24 +61,20 @@ export default function CustomSelect({
         if (!open || !ref.current) return;
 
         const rect = ref.current.getBoundingClientRect();
-
         const dropdownHeight = 230;
-
         const spaceBelow = window.innerHeight - rect.bottom;
         const spaceAbove = rect.top;
-
         const shouldOpenUp =
             spaceBelow < dropdownHeight &&
             spaceAbove > dropdownHeight;
 
-        setOpenUp(shouldOpenUp);
-
-        setMenuPosition({
+        setMenuLayout({
+            openUp: shouldOpenUp,
             left: rect.left,
             width: rect.width,
-            top: openUp ? rect.top : rect.bottom + 8,
+            top: shouldOpenUp ? rect.top : rect.bottom + 8,
         });
-    }, [open, openUp]);
+    }, [open]);
 
     const selected = options.find((o) => o.value === value);
 
@@ -87,7 +83,7 @@ export default function CustomSelect({
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-sm"
+                className="flex h-11 w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-3 text-sm"
             >
                 <span>{selected?.label}</span>
                 <ChevronsUpDown size={16} />
@@ -97,12 +93,12 @@ export default function CustomSelect({
                 createPortal(
                     <div
                         ref={menuRef}
-                        className="fixed z-[9999] max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-xl"
+                        className="fixed z-[9999] max-h-56 overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#0F172A] py-1 shadow-xl"
                         style={{
-                            left: menuPosition.left,
-                            width: menuPosition.width,
-                            top: menuPosition.top,
-                            transform: openUp
+                            left: menuLayout.left,
+                            width: menuLayout.width,
+                            top: menuLayout.top,
+                            transform: menuLayout.openUp
                                 ? "translateY(calc(-100% - 8px))"
                                 : "translateY(0)",
                         }}
@@ -119,8 +115,8 @@ export default function CustomSelect({
                                         setOpen(false);
                                     }}
                                     className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${selected
-                                        ? "bg-indigo-50 text-indigo-600"
-                                        : "text-gray-700 hover:bg-indigo-50"
+                                        ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold"
+                                        : "text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-[#1E293B]"
                                         }`}
                                 >
                                     <span>{option.label}</span>
@@ -128,7 +124,7 @@ export default function CustomSelect({
                                     {selected && (
                                         <Check
                                             size={16}
-                                            className="text-indigo-600"
+                                            className="text-indigo-600 dark:text-indigo-400"
                                         />
                                     )}
                                 </button>

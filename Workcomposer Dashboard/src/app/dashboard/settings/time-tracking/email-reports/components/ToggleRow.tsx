@@ -16,16 +16,16 @@ export default function ToggleRow({
     onConfigure,
 }: Props) {
     return (
-        <div className="border-b border-gray-200 px-6 py-6">
+        <div className="border-b border-gray-200 dark:border-gray-800 px-6 py-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
 
                 <div className="flex-1">
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
                         {title}
                     </h3>
 
                     {description && (
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             {description}
                         </p>
                     )}
@@ -36,7 +36,7 @@ export default function ToggleRow({
                     {showConfigure && (
                         <button
                             onClick={onConfigure}
-                            className="text-sm font-medium text-indigo-600 hover:underline"
+                            className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
                         >
                             Configure per user
                         </button>
@@ -48,7 +48,7 @@ export default function ToggleRow({
                             onClick={onToggle}
                             className={`relative h-7 w-14 rounded-full transition ${checked
                                 ? "bg-indigo-600"
-                                : "bg-gray-300"
+                                : "bg-gray-300 dark:bg-gray-700"
                                 }`}
                         >
                             <span
@@ -61,8 +61,8 @@ export default function ToggleRow({
 
                         <span
                             className={`text-sm font-medium ${checked
-                                ? "text-indigo-600"
-                                : "text-gray-500"
+                                ? "text-indigo-600 dark:text-indigo-400"
+                                : "text-gray-500 dark:text-gray-400"
                                 }`}
                         >
                             {checked ? "On" : "Off"}

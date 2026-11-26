@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import DeleteTaskModal from "./DeleteTaskModal";
 import { useContext } from "react";
 import DashboardContext, { useDashboard } from "@/context/DashboardContext";
+import toast from "react-hot-toast";
 
 const TaskDetails = ({
     setShowTaskModal,
@@ -54,9 +55,10 @@ const TaskDetails = ({
 
     const [assigneeIds, setAssigneeIds] = useState<string[]>(() => {
         if (Array.isArray(selectedTask?.assignedTo)) {
-            return selectedTask.assignedTo.map((u: any) => u._id);
+            return selectedTask.assignedTo.map((u: any) => u._id || u.id);
         }
-        return selectedTask?.assignedTo?._id ? [selectedTask.assignedTo._id] : [];
+        const singleId = selectedTask?.assignedTo?._id || selectedTask?.assignedTo?.id;
+        return singleId ? [singleId] : [];
     });
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -122,58 +124,63 @@ const TaskDetails = ({
     ) => {
         e.preventDefault();
 
+        const taskId = selectedTask?.id || selectedTask?._id;
+        if (!taskId) return;
+
         try {
-            await API.put(`/tasks/${selectedTask.id}`, {
+            await API.put(`/tasks/${taskId}`, {
                 title,
                 description,
                 dueDate,
                 priority: priority.toLowerCase(),
                 status:
                     status === "ToDo" ? "todo" : status === "In Progress" ? "in-progress" : "completed",
-                assignedTo: assigneeIds, // was: assigneeId || null
+                assignedTo: assigneeIds,
             });
 
+            toast.success("Task updated successfully");
             await fetchTasks();
-
             setShowTaskModal(false);
 
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
+            toast.error(err?.response?.data?.message || "Failed to update task");
         }
     };
 
     const handleDeleteTask = async () => {
+        const taskId = selectedTask?.id || selectedTask?._id;
+        if (!taskId) return;
+
         try {
-
             setDeleting(true);
-
-            await API.delete(`/tasks/${selectedTask.id}`);
-
+            await API.delete(`/tasks/${taskId}`);
+            toast.success("Task deleted successfully");
             await fetchTasks();
-
             setShowDeleteModal(false);
-
             setShowTaskModal(false);
 
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
+            toast.error(err?.response?.data?.message || "Failed to delete task");
         } finally {
             setDeleting(false);
         }
     };
 
     const fetchComments = async () => {
-        if (!selectedTask?.id) return;
+        const taskId = selectedTask?.id || selectedTask?._id;
+        if (!taskId) return;
 
         try {
             setLoadingComments(true);
 
             const { data } = await API.get(
-                `/tasks/${selectedTask.id}/comments`
+                `/tasks/${taskId}/comments`
             );
 
             setComments(data);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
         } finally {
             setLoadingComments(false);
@@ -183,19 +190,22 @@ const TaskDetails = ({
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
 
+        const taskId = selectedTask?.id || selectedTask?._id;
+        if (!taskId) return;
+
         try {
             const { data } = await API.post(
-                `/tasks/${selectedTask.id}/comments`,
+                `/tasks/${taskId}/comments`,
                 {
                     content: newComment,
                 }
             );
 
             setComments((prev: any) => [...prev, data]);
-
             setNewComment("");
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
+            toast.error(err?.response?.data?.message || "Failed to add comment");
         }
     };
 
@@ -212,15 +222,17 @@ const TaskDetails = ({
 
             setComments((prev: any) =>
                 prev.map((comment: any) =>
-                    comment._id === commentId ? data : comment
+                    (comment._id || comment.id) === commentId ? data : comment
                 )
             );
 
             setEditingCommentId(null);
             setEditingContent("");
             setOpenCommentMenu(null);
-        } catch (err) {
+            toast.success("Comment updated");
+        } catch (err: any) {
             console.error(err);
+            toast.error(err?.response?.data?.message || "Failed to update comment");
         }
     };
 
@@ -229,12 +241,14 @@ const TaskDetails = ({
             await API.delete(`/tasks/comment/${commentId}`);
 
             setComments((prev: any) =>
-                prev.filter((comment: any) => comment._id !== commentId)
+                prev.filter((comment: any) => (comment._id || comment.id) !== commentId)
             );
 
             setOpenCommentMenu(null);
-        } catch (err) {
+            toast.success("Comment deleted");
+        } catch (err: any) {
             console.error(err);
+            toast.error(err?.response?.data?.message || "Failed to delete comment");
         }
     };
 
@@ -251,7 +265,7 @@ const TaskDetails = ({
     return (
         <>
             <div role='dialog' className='relative z-[100]'>
-                <div className='fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity'></div>
+                <div className='fixed inset-0 bg-gray-500/75 dark:bg-black/75 backdrop-blur-sm transition-opacity'></div>
                 <div
                     onClick={() => setShowTaskModal(false)}
                     className='fixed inset-0 z-[100] w-screen overflow-y-auto'>
@@ -260,14 +274,14 @@ const TaskDetails = ({
                             onClick={(e) =>
                                 e.stopPropagation()
                             }
-                            className='relative transform rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl'>
+                            className='relative transform rounded-lg bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 px-4 pt-5 pb-4 text-left shadow-xl dark:shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl'>
 
-                            <header className='text-lg font-semibold text-gray-900'>Task Details</header>
+                            <header className='text-lg font-semibold text-gray-900 dark:text-white'>Task Details</header>
                             {isReadOnly && (
-                                <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-4 py-3">
+                                <div className="mt-3 rounded-md border border-blue-200 dark:border-blue-800/60 bg-blue-50 dark:bg-blue-950/40 px-4 py-3">
                                     <div className="flex items-start gap-3">
                                         <svg
-                                            className="mt-0.5 h-5 w-5 text-blue-600 shrink-0"
+                                            className="mt-0.5 h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0"
                                             viewBox="0 0 20 20"
                                             fill="currentColor"
                                         >
@@ -279,11 +293,11 @@ const TaskDetails = ({
                                         </svg>
 
                                         <div>
-                                            <p className="text-sm font-medium text-blue-900">
+                                            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
                                                 {readOnly ? "Viewing task from Slack" : "Read-only task"}
                                             </p>
 
-                                            <p className="mt-1 text-sm text-blue-700">
+                                            <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
                                                 {readOnly
                                                     ? "This task is opened in read-only mode. Open it from the Task Management page if you need to edit it."
                                                     : "You can view this task and participate in comments, but you don't have permission to modify task details."}
@@ -299,7 +313,7 @@ const TaskDetails = ({
                                         className='space-y-6'>
 
                                         <div>
-                                            <label htmlFor='title' className='block text-sm/6 font-medium text-gray-900'>Title</label>
+                                            <label htmlFor='title' className='block text-sm/6 font-medium text-gray-900 dark:text-slate-200'>Title</label>
                                             <div className='mt-2'>
                                                 <input
                                                     id='title'
@@ -309,12 +323,12 @@ const TaskDetails = ({
                                                         setTitle(e.target.value)
                                                     }
                                                     readOnly={isReadOnly}
-                                                    placeholder='Enter task title' className='block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6'></input>
+                                                    placeholder='Enter task title' className='block w-full rounded-md bg-white dark:bg-slate-900 px-3 py-1.5 text-base text-gray-900 dark:text-slate-100 outline-1 -outline-offset-1 outline-gray-300 dark:outline-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6'></input>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label htmlFor='description' className='block text-sm/6 font-medium text-gray-900'>Description</label>
+                                            <label htmlFor='description' className='block text-sm/6 font-medium text-gray-900 dark:text-slate-200'>Description</label>
                                             <div className='mt-2'>
                                                 <textarea
                                                     id='description'
@@ -325,12 +339,12 @@ const TaskDetails = ({
                                                     readOnly={isReadOnly}
                                                     rows={4}
                                                     placeholder='Enter task description'
-                                                    className='block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6'></textarea>
+                                                    className='block w-full rounded-md bg-white dark:bg-slate-900 px-3 py-1.5 text-base text-gray-900 dark:text-slate-100 outline-1 -outline-offset-1 outline-gray-300 dark:outline-slate-700 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6'></textarea>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label className='block text-sm/6 font-medium text-gray-900'>
+                                            <label className='block text-sm/6 font-medium text-gray-900 dark:text-slate-200'>
                                                 Due Date
                                             </label>
 
@@ -342,24 +356,24 @@ const TaskDetails = ({
                                                         setDueDate(e.target.value)
                                                     }
                                                     readOnly={isReadOnly}
-                                                    className='block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'
+                                                    className='block w-full rounded-md bg-white dark:bg-slate-900 px-3 py-1.5 text-base text-gray-900 dark:text-slate-100 outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'
                                                 />
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label htmlFor='project' className='block text-sm/6 font-medium text-gray-900'>Project</label>
+                                            <label htmlFor='project' className='block text-sm/6 font-medium text-gray-900 dark:text-slate-200'>Project</label>
                                             <div className='mt-2'>
                                                 <input
                                                     id='project'
                                                     value={selectedTask?.project?.name || "Default Project"}
-                                                    readOnly className='block w-full cursor-not-allowed rounded-md bg-gray-100 px-3 py-1.5 text-base text-gray-700 sm:text-sm'></input>
+                                                    readOnly className='block w-full cursor-not-allowed rounded-md bg-gray-100 dark:bg-slate-900 px-3 py-1.5 text-base text-gray-700 dark:text-slate-300 border border-transparent dark:border-slate-700 sm:text-sm'></input>
                                             </div>
                                         </div>
 
                                         <div className='grid grid-cols-1 sm:grid-cols-2 gap-6'>
                                             <div>
-                                                <label className='block text-sm/6 font-medium text-gray-900'>Priority</label>
+                                                <label className='block text-sm/6 font-medium text-gray-900 dark:text-slate-200'>Priority</label>
                                                 <div className='relative mt-2'>
                                                     <button
                                                         type='button'
@@ -368,17 +382,17 @@ const TaskDetails = ({
                                                         onClick={(e) => {
                                                             if (isReadOnly) return;
 
-                                                            e.stopPropagation();
+                                                             e.stopPropagation();
 
                                                             setShowPriority(!showPriority);
                                                             setShowStatus(false);
                                                             setShowAssignee(false);
                                                         }}
-                                                        className={`grid w-full ${isReadOnly ? "cursor-not-allowed bg-gray-50" : "cursor-pointer bg-white"
-                                                            } rounded-md py-1.5 pr-2 pl-3 text-left text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6`}
+                                                        className={`grid w-full ${isReadOnly ? "cursor-not-allowed bg-gray-50 dark:bg-slate-900" : "cursor-pointer bg-white dark:bg-slate-900"
+                                                            } rounded-md py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-slate-100 outline-1 -outline-offset-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6`}
                                                     >
                                                         <span className='col-start-1 row-start-1 truncate pr-6'>{priority}</span>
-                                                        <TbSelector className="col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4" />
+                                                        <TbSelector className="col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 dark:text-slate-400 sm:size-4" />
                                                     </button>
 
                                                     {showPriority && (
@@ -386,17 +400,16 @@ const TaskDetails = ({
                                                             onClick={(e) =>
                                                                 e.stopPropagation()
                                                             }
-                                                            aria-orientation="vertical" role="listbox" className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
+                                                            aria-orientation="vertical" role="listbox" className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-slate-800 py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-slate-700 focus:outline-none sm:text-sm">
                                                             <li
                                                                 onClick={() => {
                                                                     setPriority("Low");
                                                                     setShowPriority(false);
                                                                 }}
-                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 focus:bg-gray-50" role="option">
-                                                                <div className="text-gray-900 absolute inset-0 rounded-md"></div>
-                                                                <span className="font-semibold relative block truncate text-gray-900">Low</span>
+                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50" role="option">
+                                                                <span className="font-semibold relative block truncate text-gray-900 dark:text-white">Low</span>
                                                                 {priority === "Low" && (
-                                                                    <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                    <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                         <Check className="size-5" />
                                                                     </span>
                                                                 )}
@@ -407,11 +420,10 @@ const TaskDetails = ({
                                                                     setPriority("Medium");
                                                                     setShowPriority(false);
                                                                 }}
-                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 focus:bg-gray-50">
-                                                                <div className="text-gray-900 absolute inset-0 rounded-md"></div>
-                                                                <span className="font-normal relative block truncate text-gray-900">Medium</span>
+                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                                                <span className="font-normal relative block truncate text-gray-900 dark:text-slate-200">Medium</span>
                                                                 {priority === "Medium" && (
-                                                                    <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                    <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                         <Check className="size-5" />
                                                                     </span>
                                                                 )}
@@ -422,11 +434,10 @@ const TaskDetails = ({
                                                                     setPriority("High");
                                                                     setShowPriority(false);
                                                                 }}
-                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 focus:bg-gray-50">
-                                                                <div className="text-gray-900 absolute inset-0 rounded-md"></div>
-                                                                <span className="font-normal relative block truncate text-gray-900">High</span>
+                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                                                <span className="font-normal relative block truncate text-gray-900 dark:text-slate-200">High</span>
                                                                 {priority === "High" && (
-                                                                    <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                    <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                         <Check className="size-5" />
                                                                     </span>
                                                                 )}
@@ -437,7 +448,7 @@ const TaskDetails = ({
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm/6 font-medium text-gray-900">Status</label>
+                                                <label className="block text-sm/6 font-medium text-gray-900 dark:text-slate-200">Status</label>
                                                 <div className="relative mt-2">
                                                     <button
                                                         type="button"
@@ -453,12 +464,12 @@ const TaskDetails = ({
                                                             setShowAssignee(false);
                                                         }}
                                                         className={`grid w-full ${isReadOnly
-                                                            ? "cursor-not-allowed bg-gray-50"
-                                                            : "cursor-pointer bg-white"
-                                                            } rounded-md py-1.5 pr-2 pl-3 text-left text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6`}
+                                                            ? "cursor-not-allowed bg-gray-50 dark:bg-slate-900"
+                                                            : "cursor-pointer bg-white dark:bg-slate-900"
+                                                            } rounded-md py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-slate-100 outline-1 -outline-offset-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6`}
                                                     >
                                                         <span className="col-start-1 row-start-1 truncate pr-6">{status}</span>
-                                                        <TbSelector className="col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4" />
+                                                        <TbSelector className="col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 dark:text-slate-400 sm:size-4" />
                                                     </button>
 
                                                     {showStatus && (
@@ -466,17 +477,16 @@ const TaskDetails = ({
                                                             onClick={(e) =>
                                                                 e.stopPropagation()
                                                             }
-                                                            aria-orientation="vertical" role="listbox" className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
+                                                            aria-orientation="vertical" role="listbox" className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-slate-800 py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-slate-700 focus:outline-none sm:text-sm">
                                                             <li
                                                                 onClick={() => {
                                                                     setStatus("ToDo");
                                                                     setShowStatus(false);
                                                                 }}
-                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 focus:bg-gray-50">
-                                                                <div className="text-gray-900 absolute inset-0 rounded-md"></div>
-                                                                <span className="font-semibold relative block truncate text-gray-900">ToDo</span>
+                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                                                <span className="font-semibold relative block truncate text-gray-900 dark:text-white">ToDo</span>
                                                                 {status === "ToDo" && (
-                                                                    <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                    <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                         <Check className="size-5" />
                                                                     </span>
                                                                 )}
@@ -487,11 +497,10 @@ const TaskDetails = ({
                                                                     setStatus("In Progress");
                                                                     setShowStatus(false);
                                                                 }}
-                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 focus:bg-gray-50">
-                                                                <div className="text-gray-900 absolute inset-0 rounded-md"></div>
-                                                                <span className="font-normal relative block truncate text-gray-900">In Progress</span>
+                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                                                <span className="font-normal relative block truncate text-gray-900 dark:text-slate-200">In Progress</span>
                                                                 {status === "In Progress" && (
-                                                                    <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                    <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                         <Check className="size-5" />
                                                                     </span>
                                                                 )}
@@ -502,11 +511,10 @@ const TaskDetails = ({
                                                                     setStatus("Done");
                                                                     setShowStatus(false);
                                                                 }}
-                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 focus:bg-gray-50">
-                                                                <div className="text-gray-900 absolute inset-0 rounded-md"></div>
-                                                                <span className="font-normal relative block truncate text-gray-900">Done</span>
+                                                                className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                                                                <span className="font-normal relative block truncate text-gray-900 dark:text-slate-200">Done</span>
                                                                 {status === "Done" && (
-                                                                    <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                    <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                         <Check className="size-5" />
                                                                     </span>
                                                                 )}
@@ -518,7 +526,7 @@ const TaskDetails = ({
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm/6 font-medium text-gray-900">Assignees</label>
+                                            <label className="block text-sm/6 font-medium text-gray-900 dark:text-slate-200">Assignees</label>
                                             <div className="relative mt-2">
                                                 <div
                                                     role="button"
@@ -542,22 +550,22 @@ const TaskDetails = ({
                                                             setShowStatus(false);
                                                         }
                                                     }}
-                                                    className={`grid w-full ${isReadOnly ? "cursor-not-allowed bg-gray-50" : "cursor-pointer bg-white"
-                                                        } min-h-[38px] rounded-md py-1.5 pr-2 pl-3 text-left text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6`}
+                                                    className={`grid w-full ${isReadOnly ? "cursor-not-allowed bg-gray-50 dark:bg-slate-900" : "cursor-pointer bg-white dark:bg-slate-900"
+                                                        } min-h-[38px] rounded-md py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-slate-100 outline-1 -outline-offset-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6`}
                                                 >
                                                     {assigneeIds.length === 0 ? (
-                                                        <span className="col-start-1 row-start-1 truncate pr-6 text-gray-400">
+                                                        <span className="col-start-1 row-start-1 truncate pr-6 text-gray-400 dark:text-slate-500">
                                                             Select assignees
                                                         </span>
                                                     ) : (
                                                         <div className="col-start-1 row-start-1 flex flex-wrap gap-1 pr-6">
                                                             {assigneeIds.map((id) => {
-                                                                const u = users.find((usr) => usr._id === id);
+                                                                const u = users.find((usr) => (usr._id || usr.id) === id);
                                                                 if (!u) return null;
                                                                 return (
                                                                     <span
                                                                         key={id}
-                                                                        className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700"
+                                                                        className="inline-flex items-center gap-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300"
                                                                     >
                                                                         {u.firstName} {u.lastName}
                                                                         {!isReadOnly && (
@@ -569,7 +577,7 @@ const TaskDetails = ({
                                                                                         prev.filter((existingId) => existingId !== id)
                                                                                     );
                                                                                 }}
-                                                                                className="ml-0.5 text-indigo-400 hover:text-indigo-700"
+                                                                                className="ml-0.5 text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-200"
                                                                                 aria-label={`Remove ${u.firstName}`}
                                                                             >
                                                                                 ×
@@ -580,7 +588,7 @@ const TaskDetails = ({
                                                             })}
                                                         </div>
                                                     )}
-                                                    <TbSelector className="col-start-1 row-start-1 size-5 self-start justify-self-end text-gray-500 sm:size-4 mt-0.5" />
+                                                    <TbSelector className="col-start-1 row-start-1 size-5 self-start justify-self-end text-gray-500 dark:text-slate-400 sm:size-4 mt-0.5" />
                                                 </div>
 
                                                 {showAssignee && (
@@ -588,39 +596,40 @@ const TaskDetails = ({
                                                         onClick={(e) => e.stopPropagation()}
                                                         role="listbox"
                                                         aria-multiselectable="true"
-                                                        className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm"
+                                                        className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white dark:bg-slate-800 py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-slate-700 focus:outline-none sm:text-sm"
                                                     >
                                                         <li
                                                             onClick={() => setAssigneeIds([])}
-                                                            className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50"
+                                                            className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50"
                                                         >
                                                             <div className="relative flex items-center">
-                                                                <span className="font-semibold ml-3 truncate text-gray-900">
+                                                                <span className="font-semibold ml-3 truncate text-gray-900 dark:text-white">
                                                                     - Clear all -
                                                                 </span>
                                                             </div>
                                                             {assigneeIds.length === 0 && (
-                                                                <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                     <Check className="size-5" />
                                                                 </span>
                                                             )}
                                                         </li>
 
                                                         {users.map((user) => {
-                                                            const isSelected = assigneeIds.includes(user._id);
+                                                            const userId = user._id || user.id;
+                                                            const isSelected = assigneeIds.includes(userId);
 
                                                             return (
                                                                 <li
-                                                                    key={user._id}
+                                                                    key={userId}
                                                                     onClick={() => {
                                                                         setAssigneeIds((prev) =>
                                                                             isSelected
-                                                                                ? prev.filter((id) => id !== user._id)
-                                                                                : [...prev, user._id]
+                                                                                ? prev.filter((id) => id !== userId)
+                                                                                : [...prev, userId]
                                                                         );
                                                                     }}
                                                                     aria-selected={isSelected}
-                                                                    className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50"
+                                                                    className="relative cursor-pointer py-2 pr-9 pl-3 select-none hover:bg-gray-50 dark:hover:bg-slate-700/50"
                                                                 >
                                                                     <div className="relative flex items-center">
                                                                         {user.avatar?.trim() ? (
@@ -638,7 +647,7 @@ const TaskDetails = ({
                                                                             </div>
                                                                         )}
                                                                         <span
-                                                                            className={`ml-3 truncate text-gray-900 ${isSelected ? "font-semibold" : "font-normal"
+                                                                            className={`ml-3 truncate ${isSelected ? "font-semibold text-gray-900 dark:text-white" : "font-normal text-gray-700 dark:text-slate-300"
                                                                                 }`}
                                                                         >
                                                                             {user.firstName} {user.lastName}
@@ -646,7 +655,7 @@ const TaskDetails = ({
                                                                     </div>
 
                                                                     {isSelected && (
-                                                                        <span className="text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4">
+                                                                        <span className="text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4">
                                                                             <Check className="size-5" />
                                                                         </span>
                                                                     )}
@@ -670,7 +679,7 @@ const TaskDetails = ({
                                         )}
 
                                         <div className="mt-8">
-                                            <h3 className="text-lg font-semibold text-gray-900">
+                                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                                                 Comments
                                             </h3>
 
@@ -680,7 +689,7 @@ const TaskDetails = ({
                                                     value={newComment}
                                                     onChange={(e) => setNewComment(e.target.value)}
                                                     placeholder="Write a comment..."
-                                                    className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                                                    className="block w-full rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 placeholder-gray-400 dark:placeholder-slate-500 focus:border-indigo-500 focus:outline-none"
                                                 />
 
                                                 <div className="mt-3 flex justify-end">
@@ -697,11 +706,11 @@ const TaskDetails = ({
 
                                             <div className="mt-4 space-y-4 max-h-64 overflow-y-auto pr-1">
                                                 {loadingComments ? (
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-sm text-gray-500 dark:text-slate-400">
                                                         Loading comments...
                                                     </p>
                                                 ) : comments.length === 0 ? (
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="text-sm text-gray-500 dark:text-slate-400">
                                                         No comments yet.
                                                     </p>
                                                 ) : (
@@ -709,7 +718,7 @@ const TaskDetails = ({
                                                         return (
                                                             <div
                                                                 key={comment._id}
-                                                                className="rounded-lg border border-gray-200 p-4"
+                                                                className="rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/40 p-4"
                                                             >
                                                                 <div className="flex items-center justify-between">
                                                                     <div className="flex items-center gap-3">
@@ -729,12 +738,12 @@ const TaskDetails = ({
                                                                         )}
 
                                                                         <div>
-                                                                            <p className="font-medium text-gray-900">
+                                                                            <p className="font-medium text-gray-900 dark:text-white">
                                                                                 {comment.user?.firstName}{" "}
                                                                                 {comment.user?.lastName}
                                                                             </p>
 
-                                                                            <p className="text-xs text-gray-500">
+                                                                            <p className="text-xs text-gray-500 dark:text-slate-400">
                                                                                 {new Date(
                                                                                     comment.createdAt
                                                                                 ).toLocaleString()}
@@ -742,40 +751,40 @@ const TaskDetails = ({
                                                                         </div>
                                                                     </div>
 
-                                                                    {comment.user?._id === currentUser?._id && (
+                                                                    {(comment.user?._id || comment.user?.id) === (currentUser?._id || currentUser?.id) && (
                                                                         <div className="relative">
                                                                             <button
                                                                                 type="button"
-                                                                                onClick={() =>
+                                                                                onClick={() => {
+                                                                                    const cId = comment._id || comment.id;
                                                                                     setOpenCommentMenu(
-                                                                                        openCommentMenu === comment._id
-                                                                                            ? null
-                                                                                            : comment._id
-                                                                                    )
-                                                                                }
-                                                                                className="rounded p-1 hover:bg-gray-100"
+                                                                                        openCommentMenu === cId ? null : cId
+                                                                                    );
+                                                                                }}
+                                                                                className="rounded p-1 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400"
                                                                             >
-                                                                                <MoreVertical className="h-5 w-5 text-gray-500" />
+                                                                                <MoreVertical className="h-5 w-5" />
                                                                             </button>
 
-                                                                            {openCommentMenu === comment._id && (
-                                                                                <div className="absolute right-0 z-10 mt-2 w-36 rounded-md border bg-white shadow-lg">
+                                                                            {openCommentMenu === (comment._id || comment.id) && (
+                                                                                <div className="absolute right-0 z-10 mt-2 w-36 rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg">
                                                                                     <button
                                                                                         type="button"
                                                                                         onClick={() => {
-                                                                                            setEditingCommentId(comment._id);
+                                                                                            const cId = comment._id || comment.id;
+                                                                                            setEditingCommentId(cId);
                                                                                             setEditingContent(comment.content);
                                                                                             setOpenCommentMenu(null);
                                                                                         }}
-                                                                                        className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                                                                                        className="block w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                                                                                     >
                                                                                         Edit
                                                                                     </button>
 
                                                                                     <button
                                                                                         type="button"
-                                                                                        onClick={() => handleDeleteComment(comment._id)}
-                                                                                        className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
+                                                                                        onClick={() => handleDeleteComment(comment._id || comment.id)}
+                                                                                        className="block w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-slate-700"
                                                                                     >
                                                                                         Delete
                                                                                     </button>
@@ -791,7 +800,7 @@ const TaskDetails = ({
                                                                             rows={3}
                                                                             value={editingContent}
                                                                             onChange={(e) => setEditingContent(e.target.value)}
-                                                                            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                                                            className="w-full rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2 text-sm"
                                                                         />
 
                                                                         <div className="mt-2 flex justify-end gap-2">
@@ -801,7 +810,7 @@ const TaskDetails = ({
                                                                                     setEditingCommentId(null);
                                                                                     setEditingContent("");
                                                                                 }}
-                                                                                className="rounded-md border px-3 py-1 text-sm"
+                                                                                className="rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-1 text-sm text-gray-700 dark:text-slate-200"
                                                                             >
                                                                                 Cancel
                                                                             </button>
@@ -816,13 +825,13 @@ const TaskDetails = ({
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">
+                                                                    <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700 dark:text-slate-300">
                                                                         {comment.content}
                                                                     </p>
                                                                 )}
 
                                                                 {comment.edited && (
-                                                                    <p className="mt-2 text-xs italic text-gray-400">
+                                                                    <p className="mt-2 text-xs italic text-gray-400 dark:text-slate-500">
                                                                         Edited
                                                                     </p>
                                                                 )}
@@ -833,8 +842,8 @@ const TaskDetails = ({
                                             </div>
                                         </div>
 
-                                        <hr className="my-4"></hr>
-                                        <div className="flex justify-between text-sm text-gray-600">
+                                        <hr className="my-4 border-gray-200 dark:border-slate-700"></hr>
+                                        <div className="flex justify-between text-sm text-gray-600 dark:text-slate-400">
                                             <span>Created: {
                                                 selectedTask?.createdAt
                                                     ? new Date(selectedTask.createdAt).toLocaleString()
@@ -849,7 +858,7 @@ const TaskDetails = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowDeleteModal(true)}
-                                                    className="underline text-red-600 cursor-pointer"
+                                                    className="underline text-red-600 dark:text-red-400 cursor-pointer"
                                                 >
                                                     Delete
                                                 </button>

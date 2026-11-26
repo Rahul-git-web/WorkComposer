@@ -10,7 +10,9 @@ import fs from "fs";
 import path from "path";
 import { Parser } from "json2csv";
 import { getAvatarUrl } from "../utils/avatar.js";
-import { getReportUserIds } from "../utils/reportAccess.js";
+import { getReportAccess, getReportUserIds } from "../utils/reportAccess.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
+import { sendErrorResponse } from "../utils/sendErrorResponse.js";
 
 const getScopedReportUserQuery = async (
   req,
@@ -24,8 +26,13 @@ const getScopedReportUserQuery = async (
     return null;
   }
 
+  const callerOrgId = normalizeId(req.user.organizationId || req.user.organization);
+  if (!callerOrgId) {
+    return null;
+  }
+
   const userQuery = {
-    organization: req.user.organization,
+    organization: callerOrgId,
   };
 
   // Restrict to users allowed by reportAccess
@@ -37,26 +44,31 @@ const getScopedReportUserQuery = async (
 
   // Apply user's selected users without bypassing permissions
   if (selectedUsers?.length) {
+    const requestedIds = selectedUsers.map((id) => normalizeId(id)).filter(Boolean);
     if (allowedUserIds) {
+      const allowedSet = new Set(allowedUserIds.map((id) => id.toString()));
+      const permitted = requestedIds.filter((id) => allowedSet.has(id));
+      if (permitted.length === 0) {
+        return null;
+      }
       userQuery._id = {
-        $in: selectedUsers.filter((id) =>
-          allowedUserIds.some(
-            (allowedId) => allowedId.toString() === id.toString(),
-          ),
-        ),
+        $in: permitted,
       };
     } else {
       userQuery._id = {
-        $in: selectedUsers,
+        $in: requestedIds,
       };
     }
   }
 
   // Apply selected teams
   if (selectedTeams?.length) {
-    userQuery.team = {
-      $in: selectedTeams,
-    };
+    const requestedTeams = selectedTeams.map((t) => normalizeId(t)).filter(Boolean);
+    if (requestedTeams.length) {
+      userQuery.team = {
+        $in: requestedTeams,
+      };
+    }
   }
 
   return userQuery;
@@ -69,7 +81,10 @@ import {
   generateProjectCSV,
 } from "../services/reportExport.service.js";
 
+const cleanReportDate = (d) => (typeof d === "string" ? d.split("T")[0] : d);
+
 const formatTime = (seconds) => {
+  if (!seconds || isNaN(seconds)) return "0h 0m";
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
 
@@ -103,26 +118,13 @@ export const testCSV = async (req, res) => {
       result,
     });
   } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to create activity log report", 500);
   }
 };
 
 export const createAttendanceOverviewReport = async (req, res) => {
   try {
     const { startDate, endDate, selectedUsers, selectedTeams } = req.body;
-
-    const report = await Report.create({
-      user: req.user._id,
-      type: "attendance-overview",
-      status: "processing",
-
-      startDate,
-      endDate,
-    });
 
     const userQuery = await getScopedReportUserQuery(
       req,
@@ -136,6 +138,14 @@ export const createAttendanceOverviewReport = async (req, res) => {
       });
     }
 
+    const report = await Report.create({
+      user: req.user._id,
+      type: "attendance-overview",
+      status: "processing",
+      startDate,
+      endDate,
+    });
+
     const users = await User.find(userQuery);
 
     const attendanceData = await Promise.all(
@@ -146,8 +156,8 @@ export const createAttendanceOverviewReport = async (req, res) => {
 
         if (startDate && endDate) {
           query.date = {
-            $gte: startDate,
-            $lte: endDate,
+            $gte: cleanReportDate(startDate),
+            $lte: cleanReportDate(endDate),
           };
         }
 
@@ -205,33 +215,51 @@ export const createAttendanceOverviewReport = async (req, res) => {
       report,
     });
   } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to create attendance overview report", 500);
   }
 };
 
 export const getReports = async (req, res) => {
   try {
+    const callerUserId = normalizeId(req.user?._id || req.user?.id);
+    if (!callerUserId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const reportAccess = await getReportAccess(req.user);
+    if (reportAccess === "none") {
+      return res.status(403).json({
+        message: "Report access denied",
+      });
+    }
+
     const reports = await Report.find({
-      user: req.user._id,
+      user: callerUserId,
     }).sort({ createdAt: -1 });
 
     res.json(reports);
   } catch (err) {
-    res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to fetch reports", 500);
   }
 };
 
 export const deleteReport = async (req, res) => {
   try {
+    const callerUserId = normalizeId(req.user?._id || req.user?.id);
+    if (!callerUserId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const reportAccess = await getReportAccess(req.user);
+    if (reportAccess === "none") {
+      return res.status(403).json({
+        message: "Report access denied",
+      });
+    }
+
     const report = await Report.findOne({
       _id: req.params.id,
-      user: req.user._id,
+      user: callerUserId,
     });
 
     if (!report) {
@@ -257,26 +285,13 @@ export const deleteReport = async (req, res) => {
       success: true,
     });
   } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to delete report", 500);
   }
 };
 
 export const createAttendanceDetailedReport = async (req, res) => {
   try {
     const { startDate, endDate, selectedUsers, selectedTeams } = req.body;
-
-    const report = await Report.create({
-      user: req.user._id,
-      type: "attendance-detailed",
-      status: "processing",
-
-      startDate,
-      endDate,
-    });
 
     const userQuery = await getScopedReportUserQuery(
       req,
@@ -290,6 +305,15 @@ export const createAttendanceDetailedReport = async (req, res) => {
       });
     }
 
+    const callerUserId = normalizeId(req.user?._id || req.user?.id);
+    const report = await Report.create({
+      user: callerUserId,
+      type: "attendance-detailed",
+      status: "processing",
+      startDate,
+      endDate,
+    });
+
     const users = await User.find(userQuery);
 
     const rows = [];
@@ -301,8 +325,8 @@ export const createAttendanceDetailedReport = async (req, res) => {
 
       if (startDate && endDate) {
         query.date = {
-          $gte: startDate,
-          $lte: endDate,
+          $gte: cleanReportDate(startDate),
+          $lte: cleanReportDate(endDate),
         };
       }
 
@@ -365,45 +389,30 @@ export const createAttendanceDetailedReport = async (req, res) => {
           sessionsCount: daySessions.length,
         });
       }
-
-      const result = await generateAttendanceDetailedCSV(report._id, rows);
-
-      report.status = "done";
-
-      report.fileUrl = result.fileUrl;
-
-      report.generatedAt = new Date();
-
-      await report.save();
     }
+
+    const result = await generateAttendanceDetailedCSV(report._id, rows);
+
+    report.status = "done";
+
+    report.fileUrl = result.fileUrl;
+
+    report.generatedAt = new Date();
+
+    await report.save();
 
     res.status(201).json({
       success: true,
       report,
     });
   } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to create attendance detailed report", 500);
   }
 };
 
 export const createUsageReport = async (req, res) => {
   try {
     const { startDate, endDate, selectedUsers, selectedTeams } = req.body;
-
-    const report = await Report.create({
-      user: req.user._id,
-
-      type: "usage",
-
-      status: "processing",
-
-      startDate,
-      endDate,
-    });
 
     const userQuery = await getScopedReportUserQuery(
       req,
@@ -417,6 +426,14 @@ export const createUsageReport = async (req, res) => {
       });
     }
 
+    const report = await Report.create({
+      user: req.user._id,
+      type: "usage",
+      status: "processing",
+      startDate,
+      endDate,
+    });
+
     const users = await User.find(userQuery);
 
     const csvRows = [];
@@ -428,8 +445,8 @@ export const createUsageReport = async (req, res) => {
 
       if (startDate && endDate) {
         query.date = {
-          $gte: startDate,
-          $lte: endDate,
+          $gte: cleanReportDate(startDate),
+          $lte: cleanReportDate(endDate),
         };
       }
 
@@ -467,11 +484,7 @@ export const createUsageReport = async (req, res) => {
       report,
     });
   } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to create usage report", 500);
   }
 };
 
@@ -554,8 +567,8 @@ export const createProductivityReport = async (req, res) => {
 
       if (startDate && endDate) {
         query.date = {
-          $gte: startDate,
-          $lte: endDate,
+          $gte: cleanReportDate(startDate),
+          $lte: cleanReportDate(endDate),
         };
       }
 
@@ -621,16 +634,24 @@ export const createProductivityReport = async (req, res) => {
       report,
     });
   } catch (err) {
-    console.error(err);
-
-    return res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to create productivity report", 500);
   }
 };
 
 export const getProductivityReport = async (req, res) => {
   try {
+    const callerOrgId = normalizeId(req.user?.organizationId || req.user?.organization);
+    if (!callerOrgId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const reportAccess = await getReportAccess(req.user);
+    if (reportAccess === "none") {
+      return res.status(403).json({
+        message: "Report access denied",
+      });
+    }
+
     const selectedUsers = req.query.users?.trim()
       ? req.query.users.split(",").filter(Boolean)
       : [];
@@ -646,10 +667,21 @@ export const getProductivityReport = async (req, res) => {
     );
 
     if (!userQuery) {
-      return res.json([]);
+      return res.status(403).json({
+        message: "Report access denied",
+      });
     }
 
     const users = await User.find(userQuery).populate("team");
+
+    const classifications = await AppClassification.find({
+      organization: callerOrgId,
+    });
+
+    const classificationMap = {};
+    classifications.forEach((item) => {
+      classificationMap[item.appName.trim().toLowerCase()] = item;
+    });
 
     const data = await Promise.all(
       users.map(async (user) => {
@@ -659,8 +691,8 @@ export const getProductivityReport = async (req, res) => {
 
         if (req.query.startDate && req.query.endDate) {
           query.date = {
-            $gte: req.query.startDate,
-            $lte: req.query.endDate,
+            $gte: cleanReportDate(req.query.startDate),
+            $lte: cleanReportDate(req.query.endDate),
           };
         }
 
@@ -675,29 +707,13 @@ export const getProductivityReport = async (req, res) => {
         };
 
         if (req.query.startDate && req.query.endDate) {
-          const startDate = req.query.startDate.split("T")[0];
-          const endDate = req.query.endDate.split("T")[0];
-
           appUsageQuery.date = {
-            $gte: startDate,
-            $lte: endDate,
+            $gte: cleanReportDate(req.query.startDate),
+            $lte: cleanReportDate(req.query.endDate),
           };
         }
 
         const appUsages = await AppUsage.find(appUsageQuery);
-
-        if (appUsages.length) {
-        }
-
-        const classifications = await AppClassification.find({
-          organization: req.user.organization,
-        });
-
-        const classificationMap = {};
-
-        classifications.forEach((item) => {
-          classificationMap[item.appName.trim().toLowerCase()] = item;
-        });
 
         const productiveApps = {};
         const neutralApps = {};
@@ -705,9 +721,7 @@ export const getProductivityReport = async (req, res) => {
 
         appUsages.forEach((app) => {
           const appKey = app.appName?.trim().toLowerCase();
-
           const classification = classificationMap[appKey];
-
           const productivity = classification?.productivity || "neutral";
 
           if (productivity === "blacklisted") {
@@ -723,17 +737,16 @@ export const getProductivityReport = async (req, res) => {
               return;
             }
 
-            if (classification) {
-              const excludedTeams = (classification.excludedTeams || []).map(
-                (id) => id.toString(),
-              );
+            const excludedTeams = (classification.excludedTeams || []).map(
+              (id) => id.toString(),
+            );
 
-              if (
-                user.team &&
-                excludedTeams.includes(user.team._id.toString())
-              ) {
-                return;
-              }
+            const teamId = user.team?._id || user.team?.id || user.team;
+            if (
+              teamId &&
+              excludedTeams.includes(teamId.toString())
+            ) {
+              return;
             }
           }
 
@@ -791,6 +804,7 @@ export const getProductivityReport = async (req, res) => {
           _id: user._id,
           name: `${user.firstName} ${user.lastName}`,
           avatar: getAvatarUrl(user.avatar),
+          team: user.team || "Default team",
 
           totalTracked: formatTime(totalSeconds),
 
@@ -798,10 +812,12 @@ export const getProductivityReport = async (req, res) => {
           neutralPercent,
           unproductivePercent,
 
+          productiveSeconds,
+          neutralSeconds,
+          unproductiveSeconds,
+
           productiveTime: formatTime(productiveSeconds),
-
           neutralTime: formatTime(neutralSeconds),
-
           unproductiveTime: formatTime(unproductiveSeconds),
 
           productiveApps: Object.entries(productiveApps)
@@ -831,27 +847,37 @@ export const getProductivityReport = async (req, res) => {
       }),
     );
 
+    const sortBy = req.query.sortBy || "name";
+    const order = req.query.order || "asc";
+
+    data.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case "team": {
+          const teamA = typeof a.team === "object" ? (a.team?.name || "") : (a.team || "");
+          const teamB = typeof b.team === "object" ? (b.team?.name || "") : (b.team || "");
+          comparison = teamA.localeCompare(teamB);
+          break;
+        }
+        case "productiveTime":
+          comparison = (a.productiveSeconds || 0) - (b.productiveSeconds || 0);
+          break;
+        default:
+          comparison = (a.name || "").localeCompare(b.name || "");
+          break;
+      }
+      return order === "asc" ? comparison : -comparison;
+    });
+
     res.json(data);
   } catch (err) {
-    console.error(err);
-
-    res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to fetch productivity report", 500);
   }
 };
 
 export const createProjectUserReport = async (req, res) => {
   try {
     const { startDate, endDate, selectedUsers, selectedTeams } = req.body;
-
-    const report = await Report.create({
-      user: req.user._id,
-      type: "project-user",
-      status: "processing",
-      startDate,
-      endDate,
-    });
 
     const userQuery = await getScopedReportUserQuery(
       req,
@@ -865,6 +891,14 @@ export const createProjectUserReport = async (req, res) => {
       });
     }
 
+    const report = await Report.create({
+      user: req.user._id,
+      type: "project-user",
+      status: "processing",
+      startDate,
+      endDate,
+    });
+
     const users = await User.find(userQuery).select("_id firstName lastName");
 
     const userIds = users.map((user) => user._id);
@@ -877,8 +911,8 @@ export const createProjectUserReport = async (req, res) => {
 
     if (startDate && endDate) {
       trackingQuery.date = {
-        $gte: startDate,
-        $lte: endDate,
+        $gte: cleanReportDate(startDate),
+        $lte: cleanReportDate(endDate),
       };
     }
 
@@ -909,17 +943,25 @@ export const createProjectUserReport = async (req, res) => {
       report,
     });
   } catch (err) {
-    console.error(err);
-
-    return res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to create project user report", 500);
   }
 };
 
 export const createProjectReport = async (req, res) => {
   try {
     const { startDate, endDate, selectedUsers, selectedTeams } = req.body;
+
+    const callerOrgId = normalizeId(req.user.organizationId || req.user.organization);
+    if (!callerOrgId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const reportAccess = await getReportAccess(req.user);
+    if (reportAccess === "none") {
+      return res.status(403).json({
+        message: "Report access denied",
+      });
+    }
 
     const allowedUserIds = await getReportUserIds(req.user);
 
@@ -932,24 +974,31 @@ export const createProjectReport = async (req, res) => {
     let scopedUserIds = null;
 
     if (selectedUsers?.length) {
-      scopedUserIds = allowedUserIds
-        ? selectedUsers.filter((id) =>
-            allowedUserIds.some(
-              (allowedId) => allowedId.toString() === id.toString(),
-            ),
-          )
-        : selectedUsers;
+      if (allowedUserIds) {
+        const allowedSet = new Set(allowedUserIds.map((id) => id.toString()));
+        const permitted = selectedUsers.filter((id) =>
+          allowedSet.has(id.toString()),
+        );
+        if (permitted.length === 0) {
+          return res.status(403).json({
+            message: "Report access denied",
+          });
+        }
+        scopedUserIds = permitted;
+      } else {
+        scopedUserIds = selectedUsers.map((id) => normalizeId(id)).filter(Boolean);
+      }
     } else if (allowedUserIds) {
       scopedUserIds = allowedUserIds.map((id) => id.toString());
     }
 
     const projectQuery = {
-      organization: req.user.organization,
+      organization: callerOrgId,
     };
 
     if (selectedTeams?.length) {
       projectQuery.teams = {
-        $in: selectedTeams,
+        $in: selectedTeams.map((t) => normalizeId(t)).filter(Boolean),
       };
     }
 
@@ -987,8 +1036,8 @@ export const createProjectReport = async (req, res) => {
 
       if (startDate && endDate) {
         trackingQuery.date = {
-          $gte: startDate,
-          $lte: endDate,
+          $gte: cleanReportDate(startDate),
+          $lte: cleanReportDate(endDate),
         };
       }
 
@@ -1004,15 +1053,16 @@ export const createProjectReport = async (req, res) => {
       );
 
       const visibleUsers = allowedUserIds
-        ? project.users.filter((user) =>
-            allowedUserIds.some(
-              (allowedId) => allowedId.toString() === user._id.toString(),
+        ? (project.users || []).filter((user) =>
+            user && allowedUserIds.some(
+              (allowedId) => allowedId.toString() === (user._id || user.id).toString(),
             ),
           )
-        : project.users;
+        : (project.users || []).filter(Boolean);
 
       const users = visibleUsers
-        .map((user) => `${user.firstName} ${user.lastName}`)
+        .map((user) => `${user.firstName || ""} ${user.lastName || ""}`.trim())
+        .filter(Boolean)
         .join(", ");
 
       rows.push({
@@ -1035,11 +1085,7 @@ export const createProjectReport = async (req, res) => {
       report,
     });
   } catch (err) {
-    console.error(err);
-
-    return res.status(500).json({
-      message: err.message,
-    });
+    return sendErrorResponse(res, err, "Failed to create project report", 500);
   }
 };
 
@@ -1075,10 +1121,86 @@ export const classifyApp = async (req, res) => {
       classification,
     });
   } catch (err) {
-    console.error(err);
+    return sendErrorResponse(res, err, "Failed to classify app", 500);
+  }
+};
 
-    res.status(500).json({
-      message: err.message,
-    });
+export const downloadReport = async (req, res) => {
+  try {
+    const callerUserId = normalizeId(req.user?._id || req.user?.id);
+    const callerOrgId = normalizeId(
+      req.user?.organization?._id || req.user?.organizationId || req.user?.organization
+    );
+
+    if (!callerUserId || !callerOrgId) {
+      return res.status(401).json({ message: "Not authorized" });
+    }
+
+    const { id } = req.params;
+    const report = await Report.findById(id);
+    if (!report) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    const reportOwner = await User.findById(report.user || report.userId);
+    if (!reportOwner) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    const reportOrgId = normalizeId(
+      reportOwner.organizationId || reportOwner.organization?._id || reportOwner.organization
+    );
+
+    // Cross-tenant check: 404 zero disclosure
+    if (!reportOrgId || callerOrgId !== reportOrgId) {
+      return res.status(404).json({ message: "Report not found" });
+    }
+
+    // Role / capability / resource authorization
+    const reportOwnerUserId = normalizeId(reportOwner._id || reportOwner.id);
+    let allowed = false;
+
+    if (req.user.role === "owner" || req.user.role === "admin") {
+      allowed = true;
+    } else if (callerUserId === reportOwnerUserId) {
+      allowed = true;
+    } else {
+      const reportAccess = await getReportAccess(req.user);
+      if (reportAccess === "all") {
+        allowed = true;
+      } else if (reportAccess === "managed") {
+        const ownerManagerId = normalizeId(reportOwner.managerId || reportOwner.manager);
+        if (ownerManagerId && ownerManagerId === callerUserId) {
+          allowed = true;
+        }
+      }
+    }
+
+    if (!allowed) {
+      return res.status(403).json({
+        message: "You are not authorized to access this report",
+      });
+    }
+
+    const rawFileName = report.fileUrl ? path.basename(report.fileUrl) : "";
+    if (!rawFileName) {
+      return res.status(404).json({ message: "Report file not found" });
+    }
+
+    const reportsDir = path.resolve(process.cwd(), "uploads", "reports");
+    const filePath = path.resolve(reportsDir, rawFileName);
+
+    // Path traversal safety
+    if (!filePath.startsWith(reportsDir) || !fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Report file not found on disk" });
+    }
+
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${rawFileName}"`);
+    return res.sendFile(filePath);
+  } catch (err) {
+    return sendErrorResponse(res, err, "Failed to download report", 500);
   }
 };

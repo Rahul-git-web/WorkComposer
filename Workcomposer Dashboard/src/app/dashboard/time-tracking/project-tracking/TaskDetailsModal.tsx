@@ -62,15 +62,15 @@ const TaskDetailsModal = ({
                 <div className='fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity'></div>
                 <div className='fixed inset-0 z-50 overflow-y-auto'>
                     <div className='flex min-h-full items-center justify-center p-4'>
-                        <div className="w-full max-w-md rounded-xl bg-white shadow-2xl border border-gray-200 transition-all">
-                            <div className="px-4 py-3 border-b border-gray-200 bg-white rounded-t-xl">
+                        <div className="w-full max-w-md rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-gray-200 dark:border-slate-700 transition-all">
+                            <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-t-xl">
                                 <div className='flex items-center justify-between'>
-                                    <h3 className="text-lg font-bold text-gray-800">
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">
                                         Task Details
                                     </h3>
                                     <button
                                         onClick={onClose}
-                                        className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                                        className="rounded-full p-1.5 text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
                                     >
                                         <X className="w-5 h-5" />
                                     </button>
@@ -79,25 +79,25 @@ const TaskDetailsModal = ({
 
                             <div className='p-4'>
                                 <div>
-                                    <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                        <thead className="bg-white">
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700 text-sm">
+                                        <thead className="bg-white dark:bg-slate-800">
                                             <tr>
-                                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                                     User
                                                 </th>
 
-                                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
                                                     Duration
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white">
+                                        <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-800">
 
                                             {users.length > 0 ? (
                                                 users.map((item: any) => (
                                                     <tr
                                                         key={item.user._id}
-                                                        className="hover:bg-gray-50 transition-colors duration-150"
+                                                        className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors duration-150"
                                                     >
                                                         <td className="px-4 py-3 whitespace-nowrap">
                                                             <div className="flex items-center gap-2">
@@ -105,10 +105,10 @@ const TaskDetailsModal = ({
                                                                 <img
                                                                     src={item.user.avatar || "/avatar.png"}
                                                                     alt={item.user.firstName}
-                                                                    className="w-8 h-8 rounded-full object-cover border"
+                                                                    className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-slate-700"
                                                                 />
 
-                                                                <span className="font-medium text-gray-900">
+                                                                <span className="font-medium text-gray-900 dark:text-slate-200">
                                                                     {item.user.firstName} {item.user.lastName}
                                                                 </span>
 
@@ -116,7 +116,7 @@ const TaskDetailsModal = ({
                                                         </td>
 
                                                         <td className="px-4 py-3 whitespace-nowrap">
-                                                            <span className="font-medium text-gray-900">
+                                                            <span className="font-medium text-gray-900 dark:text-slate-200">
                                                                 {formatTime(item.duration)}
                                                             </span>
                                                         </td>
@@ -126,7 +126,7 @@ const TaskDetailsModal = ({
                                                 <tr>
                                                     <td
                                                         colSpan={2}
-                                                        className="py-10 text-center text-gray-500"
+                                                        className="py-10 text-center text-gray-500 dark:text-slate-400"
                                                     >
                                                         No users have tracked this task yet.
                                                     </td>
@@ -138,11 +138,11 @@ const TaskDetailsModal = ({
                                 </div>
                             </div>
 
-                            <div className='px-4 py-3 bg-wc-surface-2 border-t border-wc-border rounded-b-lg'>
+                            <div className='px-4 py-3 bg-wc-surface-2 dark:bg-slate-800/80 border-t border-wc-border dark:border-slate-700 rounded-b-lg'>
                                 <div className='flex justify-end'>
                                     <button
                                         onClick={onClose}
-                                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 rounded-md shadow-sm text-sm font-medium transition-colors"
+                                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-600 rounded-md shadow-sm text-sm font-medium transition-colors"
                                     >
                                         Close
                                     </button>

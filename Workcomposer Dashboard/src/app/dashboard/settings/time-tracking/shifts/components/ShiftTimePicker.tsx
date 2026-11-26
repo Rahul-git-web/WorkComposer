@@ -45,8 +45,8 @@ export default function ShiftTimePicker({
                     }
                     disabled={disabled}
                     className={`h-10 w-full appearance-none rounded-lg border px-3 pr-8 text-sm outline-none transition ${disabled
-                        ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                        : "border-gray-300 bg-white focus:border-indigo-500"
+                        ? "cursor-not-allowed border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500"
+                        : "border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:border-indigo-500"
                         }`}
                 >
                     {HOURS.map((h) => (
@@ -58,11 +58,11 @@ export default function ShiftTimePicker({
 
                 <ChevronsUpDown
                     size={16}
-                    className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${disabled ? "text-gray-400" : "text-gray-500"
+                    className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${disabled ? "text-gray-400 dark:text-gray-500" : "text-gray-500 dark:text-gray-400"
                         }`}
                 />
             </div>
-            <span className="text-lg font-semibold text-gray-500">
+            <span className="text-lg font-semibold text-gray-500 dark:text-gray-400">
                 :
             </span>
 
@@ -76,8 +76,8 @@ export default function ShiftTimePicker({
                     }
                     disabled={disabled}
                     className={`h-10 w-full appearance-none rounded-lg border px-3 pr-8 text-sm outline-none transition ${disabled
-                        ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400"
-                        : "border-gray-300 bg-white focus:border-indigo-500"
+                        ? "cursor-not-allowed border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500"
+                        : "border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:border-indigo-500"
                         }`}
                 >
                     {MINUTES.map((m) => (

@@ -58,4 +58,9 @@ const reportSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("Report", reportSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { reportRepository } from "../db/repositories/report.repository.js";
+
+const _Model = mongoose.model("Report", reportSchema);
+export default createModelProxy(_Model, () => reportRepository);

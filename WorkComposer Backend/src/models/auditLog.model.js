@@ -11,7 +11,7 @@ const auditLogSchema = new mongoose.Schema(
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
 
     category: {
@@ -58,4 +58,8 @@ const auditLogSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("AuditLog", auditLogSchema);
+import { createModelProxy } from "../db/modelProxy.js";
+import { auditLogRepository } from "../db/repositories/auditLog.repository.js";
+
+const _Model = mongoose.model("AuditLog", auditLogSchema);
+export default createModelProxy(_Model, () => auditLogRepository);

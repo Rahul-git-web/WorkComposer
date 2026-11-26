@@ -85,4 +85,9 @@ locationSchema.index({
   trackedAt: -1,
 });
 
-export default mongoose.model("Location", locationSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { locationRepository } from "../db/repositories/location.repository.js";
+
+const _Model = mongoose.model("Location", locationSchema);
+export default createModelProxy(_Model, () => locationRepository);

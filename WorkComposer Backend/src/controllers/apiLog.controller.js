@@ -1,8 +1,15 @@
 import ApiLog from "../models/apiLog.model.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
 
 export const getApiLogs = async (req, res) => {
   try {
-    const organization = req.user.organization;
+    const orgId = normalizeId(req.user?.organizationId || req.user?.organization?._id || req.user?.organization);
+
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization not found.",
+      });
+    }
 
     const { startDate, endDate } = req.query;
 
@@ -11,7 +18,7 @@ export const getApiLogs = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {
-      organization,
+      organization: orgId,
     };
 
     if (startDate && endDate) {

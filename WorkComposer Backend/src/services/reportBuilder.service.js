@@ -1,162 +1,152 @@
-import Session from "../models/session.model.js";
-import Activity from "../models/activity.model.js";
-import Screenshot from "../models/screenshot.model.js";
-import Project from "../models/project.model.js";
-import Task from "../models/task.model.js";
-import AppUsage from "../models/appUsage.model.js";
-import UsageLog from "../models/usageLog.model.js";
+import {
+  sessionRepository,
+  screenshotRepository,
+  appUsageRepository,
+  usageLogRepository,
+  projectRepository,
+  taskRepository,
+  userRepository,
+} from "../db/repositories/index.js";
+import { getZonedDayRange, resolveUserTimezone } from "../utils/timezone.js";
 
-export const buildDailyReport = async (userId, date) => {
-  const report = {
-    attendance: null,
-
-    workedSeconds: 0,
-    breakSeconds: 0,
-    idleSeconds: 0,
-
-    productivity: 0,
-
-    screenshots: 0,
-
-    appsUsed: [],
-
-    urlsVisited: [],
-
-    projects: [],
-
-    tasks: {
-      local: 0,
-      jira: 0,
-      asana: 0,
-      total: 0,
-    },
-
-    firstStartTime: null,
-    lastStopTime: null,
-
-    activeMinutes: 0,
-
-    timeline: [],
-
-    reportUrl: "",
-  };
-
-  const sessions = await Session.find({
-    userId,
-    date,
-  });
-
-  report.workedSeconds = sessions
-    .filter((session) => session.type === "work")
-    .reduce((total, session) => total + session.duration, 0);
-
-  report.breakSeconds = sessions
-    .filter((session) => session.type === "break")
-    .reduce((total, session) => total + session.duration, 0);
-
-  const workSessions = sessions
-    .filter((session) => session.type === "work")
-    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-
-  if (workSessions.length > 0) {
-    report.attendance = "Present";
-    report.firstStartTime = workSessions[0].startTime;
-    report.lastStopTime = workSessions[workSessions.length - 1].endTime;
-  } else {
-    report.attendance = "Absent";
+export const buildDailyReport = async (userId, date, options = {}) => {
+  let user = options.user;
+  if (!user) {
+    user = await userRepository.findById(userId, { populateOrganization: true });
   }
 
-  const activities = await Activity.find({
+  const timezone = options.timezone || resolveUserTimezone(user);
+  const { start, end } = getZonedDayRange(date, timezone);
+
+  const sessions = await sessionRepository.findOverlappingSessions({
     userId,
-    date,
+    periodStart: start,
+    periodEnd: end,
   });
 
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
+  let workedSeconds = 0;
+  let breakSeconds = 0;
+  let firstStartTime = null;
+  let lastStopTime = null;
 
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
+  for (const session of sessions) {
+    const sStart = new Date(session.startTime);
+    const sEnd = session.endTime
+      ? new Date(session.endTime)
+      : (session.updatedAt ? new Date(session.updatedAt) : end);
+    const clampedStart = Math.max(start.getTime(), sStart.getTime());
+    const clampedEnd = Math.min(end.getTime(), sEnd.getTime());
+    const duration = Math.max(0, Math.floor((clampedEnd - clampedStart) / 1000));
 
-  const screenshots = await Screenshot.find({
-    user: userId,
-    capturedAt: {
-      $gte: start,
-      $lte: end,
-    },
+    if (session.type === "work") {
+      workedSeconds += duration;
+      if (!firstStartTime || sStart < new Date(firstStartTime)) {
+        firstStartTime = session.startTime;
+      }
+      if (session.endTime && (!lastStopTime || new Date(session.endTime) > new Date(lastStopTime))) {
+        lastStopTime = session.endTime;
+      }
+    } else if (session.type === "break") {
+      breakSeconds += duration;
+    }
+  }
+
+  const attendance = workedSeconds > 0 ? "Present" : "Absent";
+
+  const screenshots = await screenshotRepository.find({
+    userId,
+    capturedAt: { gte: start, lt: end },
   });
 
-  report.screenshots = screenshots.length;
-
-  if (screenshots.length > 0) {
+  const screenshotsCount = screenshots.length;
+  let productivity = 0;
+  if (screenshotsCount > 0) {
     const totalScore = screenshots.reduce(
       (sum, shot) => sum + (shot.activityScore || 0),
       0,
     );
-
-    report.productivity = Math.round(totalScore / screenshots.length);
+    productivity = Math.round(totalScore / screenshotsCount);
   }
 
-  report.idleSeconds = Math.round(
-    report.workedSeconds * ((100 - report.productivity) / 100),
+  const idleSeconds = Math.round(
+    workedSeconds * ((100 - productivity) / 100),
   );
 
-  report.activeMinutes = Math.round(
-    (report.workedSeconds - report.idleSeconds) / 60,
+  const activeMinutes = Math.round(
+    (workedSeconds - idleSeconds) / 60,
   );
 
-  const appUsage = await AppUsage.find({
-    user: userId,
-    date,
-  }).sort({ duration: -1 });
+  let appUsage = [];
+  try {
+    appUsage = await appUsageRepository.find({
+      userId,
+      date,
+    });
+  } catch {}
 
-  report.appsUsed = appUsage.map((app) => ({
-    appName: app.appName,
-    duration: app.duration,
-  }));
+  const appsUsed = (appUsage || [])
+    .map((app) => ({
+      appName: app.appName,
+      duration: app.duration,
+    }))
+    .sort((a, b) => b.duration - a.duration);
 
-  const usageLogs = await UsageLog.find({
-    user: userId,
-    startTime: {
-      $gte: start,
-      $lte: end,
-    },
-  });
+  let usageLogs = [];
+  try {
+    usageLogs = await usageLogRepository.find({
+      userId,
+      startTime: { gte: start, lt: end },
+    });
+  } catch {}
 
-  report.urlsVisited = [
-    ...new Set(usageLogs.map((log) => log.url).filter(Boolean)),
+  const urlsVisited = [
+    ...new Set((usageLogs || []).map((log) => log.url).filter(Boolean)),
   ];
 
-  const projects = await Project.find({
-  members: userId,
-}).select("name");
+  let projects = [];
+  try {
+    projects = await projectRepository.find({
+      members: userId,
+    });
+  } catch {}
 
-report.projects = projects.map((project) => ({
-  id: project._id,
-  name: project.name,
-}));
+  const reportProjects = (projects || []).map((project) => ({
+    id: project.id || project._id,
+    name: project.name,
+  }));
 
-const tasks = await Task.find({
-  assignedTo: userId,
-});
+  let tasks = [];
+  try {
+    tasks = await taskRepository.find({
+      assignedTo: userId,
+    });
+  } catch {}
 
-report.tasks.local = tasks.filter(
-  (task) => !task.jiraTaskId && !task.asanaTaskId,
-).length;
+  const tasksSummary = {
+    local: (tasks || []).filter(
+      (task) => !task.jiraTaskId && !task.asanaTaskId,
+    ).length,
+    jira: (tasks || []).filter((task) => task.jiraTaskId).length,
+    asana: (tasks || []).filter((task) => task.asanaTaskId).length,
+  };
+  tasksSummary.total =
+    tasksSummary.local + tasksSummary.jira + tasksSummary.asana;
 
-report.tasks.jira = tasks.filter(
-  (task) => task.jiraTaskId,
-).length;
-
-report.tasks.asana = tasks.filter(
-  (task) => task.asanaTaskId,
-).length;
-
-report.tasks.total =
-  report.tasks.local +
-  report.tasks.jira +
-  report.tasks.asana;
-
-  report.reportUrl = `/dashboard/reports/tracking?user=${userId}&date=${date}`;
-
-  return report;
+  return {
+    attendance,
+    workedSeconds,
+    breakSeconds,
+    idleSeconds,
+    productivity,
+    screenshots: screenshotsCount,
+    appsUsed,
+    urlsVisited,
+    projects: reportProjects,
+    tasks: tasksSummary,
+    firstStartTime,
+    lastStopTime,
+    activeMinutes,
+    timeline: [],
+    reportUrl: `/dashboard/reports/tracking?user=${userId}&date=${date}`,
+  };
 };

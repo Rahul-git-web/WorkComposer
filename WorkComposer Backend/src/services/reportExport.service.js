@@ -33,7 +33,14 @@ export const generateAttendanceOverviewCSV = async (
 
     const fileName = `attendance-overview-${reportId}.csv`;
 
-    const filePath = path.join(process.cwd(), "uploads", "reports", fileName);
+    const reportsDir = path.join(process.cwd(), "uploads", "reports");
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, {
+        recursive: true,
+      });
+    }
+
+    const filePath = path.join(reportsDir, fileName);
 
     fs.writeFileSync(filePath, csv);
 

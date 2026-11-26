@@ -1,5 +1,12 @@
 import Role from "../models/role.model.js";
 import User from "../models/user.model.js";
+import { getIO } from "../socket/socket.js";
+import {
+  resolveEffectiveAuthContext,
+  normalizeId,
+} from "../security/effectiveAuthContext.js";
+import { canManageRole } from "../security/policyEvaluator.js";
+import { auditRoleUpdated } from "../utils/auditService.js";
 
 export const getRoles = async (req, res) => {
   try {
@@ -44,9 +51,24 @@ export const updateRole = async (req, res) => {
 
     const { permissions, reportAccess, screenshotAccess } = req.body;
 
+    if (!req.user) {
+      return res.status(401).json({
+        message: "Not authorized, no token",
+      });
+    }
+
+    const callerOrgId = normalizeId(
+      req.user.organization?._id || req.user.organizationId || req.user.organization
+    );
+    if (!callerOrgId) {
+      return res.status(403).json({
+        message: "Access denied: Missing organization context.",
+      });
+    }
+
     const role = await Role.findOne({
       _id: id,
-      organization: req.user.organization,
+      organization: callerOrgId,
     });
 
     if (!role) {
@@ -55,17 +77,39 @@ export const updateRole = async (req, res) => {
       });
     }
 
-    if (role.name.toLowerCase() === "owner") {
+    // Resolve caller EffectiveAuthContext authoritatively from primary DB
+    const callerRoleDoc = req.user.roleRef
+      ? await Role.findById(normalizeId(req.user.roleRef))
+      : null;
+    const authContext = resolveEffectiveAuthContext(req.user, callerRoleDoc);
+
+    const decision = canManageRole(authContext, role, permissions);
+    if (!decision.allowed) {
       return res.status(403).json({
-        message: "Owner role cannot be modified.",
+        message: decision.reason,
       });
     }
 
-    role.permissions = permissions;
-    role.reportAccess = reportAccess;
-    role.screenshotAccess = screenshotAccess;
+    if (permissions !== undefined) role.permissions = permissions;
+    if (reportAccess !== undefined) role.reportAccess = reportAccess;
+    if (screenshotAccess !== undefined) role.screenshotAccess = screenshotAccess;
 
     await role.save();
+
+    await auditRoleUpdated({
+      req,
+      role,
+      changes: { permissions, reportAccess, screenshotAccess },
+    });
+
+    try {
+      getIO()
+        ?.to(`organization:${callerOrgId}`)
+        .emit("roles-updated", {
+          roleId: normalizeId(role._id || role.id),
+          role,
+        });
+    } catch {}
 
     res.json({
       message: "Role updated successfully",

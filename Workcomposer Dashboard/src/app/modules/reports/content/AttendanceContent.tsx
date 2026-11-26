@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import API from "@/api";
 import AttendanceCard from "@/app/dashboard/time-tracking/attendance/AttendanceCard";
 import type { ReportContentProps } from "../types";
-import { formatLocalDate } from "@/utils/date";
-
+import { formatDateForApi } from "@/utils/appTimezone";
+import { useAppTimezone } from "@/hooks/useAppTimezone";
 
 export default function AttendanceContent({
     reportRange,
@@ -13,83 +13,101 @@ export default function AttendanceContent({
     selectedUsers,
     sortBy,
     order,
-}: ReportContentProps) {
+    refreshKey,
+    isRefreshing,
+    timezone: propTimezone,
+}: ReportContentProps & {
+    refreshKey?: number;
+    isRefreshing?: boolean;
+    timezone?: string;
+}) {
+    const defaultTimezone = useAppTimezone();
+    const timezone = propTimezone || defaultTimezone;
 
     const [users, setUsers] = useState<any[]>([]);
     const [allUsers, setAllUsers] = useState<any[]>([]);
 
-const fetchAllUsers = async () => {
-    try {
-        const res = await API.get("/users/all-users", {
+    useEffect(() => {
+        let mounted = true;
+        API.get("/users/all-users", {
             params: {
                 page: 1,
                 limit: 1000,
             },
-        });
-
-        setAllUsers(
-            Array.isArray(res.data.users)
-                ? res.data.users
-                : []
-        );
-    } catch (error) {
-        console.error("ERROR FETCHING USERS:", error);
-        setAllUsers([]);
-    }
-};
-
-useEffect(() => {
-    fetchAllUsers();
-}, []);
+        })
+            .then((res) => {
+                if (!mounted) return;
+                setAllUsers(
+                    Array.isArray(res.data.users)
+                        ? res.data.users
+                        : Array.isArray(res.data)
+                        ? res.data
+                        : []
+                );
+            })
+            .catch((error) => {
+                console.error("ERROR FETCHING USERS:", error);
+                if (mounted) setAllUsers([]);
+            });
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     useEffect(() => {
-    const fetchAttendance = async () => {
-        try {
-            const formatLocalDate = (date: Date) => {
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, "0");
-                const day = String(date.getDate()).padStart(2, "0");
+        const fetchAttendance = async () => {
+            try {
+                const startDate = formatDateForApi(reportRange.startDate, timezone);
+                const endDate = formatDateForApi(reportRange.endDate, timezone);
 
-                return `${year}-${month}-${day}`;
-            };
+                const userIds = (selectedUsers || [])
+                    .map((u: any) => u?._id || u?.id)
+                    .filter(Boolean)
+                    .join(",");
 
-            const startDate = formatLocalDate(reportRange.startDate);
-            const endDate = formatLocalDate(reportRange.endDate);
+                const teamIds = (selectedTeams || [])
+                    .map((team: any) =>
+                        typeof team === "object" ? team?._id || team?.id : team
+                    )
+                    .filter(Boolean)
+                    .join(",");
 
-            const { data } = await API.get("/attendance", {
-                params: {
-                    startDate,
-                    endDate,
-                    users: selectedUsers.map((u) => u._id).join(","),
-                    teams: selectedTeams.join(","),
-                    sortBy,
-                    order,
-                },
-            });
+                const { data } = await API.get("/attendance", {
+                    params: {
+                        startDate,
+                        endDate,
+                        users: userIds,
+                        teams: teamIds,
+                        sortBy,
+                        order,
+                    },
+                });
 
+                setUsers(Array.isArray(data) ? data : []);
+            } catch (error) {
+                console.error("ATTENDANCE ERROR:", error);
+                setUsers([]);
+            }
+        };
 
-            setUsers(data);
-        } catch (error) {
-            console.error("ATTENDANCE ERROR:", error);
-        }
-    };
-
-    fetchAttendance();
-}, [
-    reportRange,
-    selectedUsers,
-    selectedTeams,
-    sortBy,
-    order,
-]);
+        fetchAttendance();
+    }, [
+        reportRange,
+        selectedUsers,
+        selectedTeams,
+        sortBy,
+        order,
+        refreshKey,
+        timezone,
+    ]);
 
     return (
-      <AttendanceCard
-    users={users}
-    allUsers={allUsers}
-    reportRange={reportRange}
-    selectedUsers={selectedUsers}
-    selectedTeams={selectedTeams}
-/>
+        <AttendanceCard
+            users={users}
+            allUsers={allUsers}
+            reportRange={reportRange}
+            selectedUsers={selectedUsers}
+            selectedTeams={selectedTeams}
+        />
     );
 }

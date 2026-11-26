@@ -15,6 +15,7 @@ import API from "@/api";
 import { useDesktop } from "@/context/DesktopContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { disconnectSocket } from "@/socket/socket";
 import DesktopUsersSidebar from "@/app/desktop-components/sidebar/DesktopUsersSidebar";
 import DesktopProjectsSidebar from "@/app/desktop-components/sidebar/DesktopProjectsSidebar";
 import DesktopSettingsSidebar from "@/app/desktop-components/sidebar/DesktopSettingsSidebar";
@@ -113,6 +114,8 @@ export default function Sidebar({
 
       // Existing backend logout
       await API.post("/auth/logout");
+
+      disconnectSocket();
 
       localStorage.removeItem("accessToken");
 
@@ -284,23 +287,22 @@ export default function Sidebar({
             </button>
 
             {showProfile && (
-              <div className="absolute bottom-5 left-19 w-[280px] bg-white rounded-xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95
-            duration-200">
+              <div className="absolute bottom-5 left-19 w-[280px] bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] rounded-xl overflow-hidden shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-200">
 
                 <div className="p-5">
 
-                  <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">
+                  <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
                     Organization
                   </p>
 
-                  <h3 className="text-gray-700 text-lg font-bold mt-2">
+                  <h3 className="text-gray-900 dark:text-white text-lg font-bold mt-2">
                     {user?.organization?.name || "Unknown Organization"}
                   </h3>
 
                   <div className="flex items-center gap-3 mt-4">
 
                     <div className="relative">
-                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700">
                         {user?.avatar ? (
                           <img
                             src={user.avatar}
@@ -315,24 +317,24 @@ export default function Sidebar({
                         )}
                       </div>
 
-                      <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
+                      <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-gray-800" />
                     </div>
 
                     <div>
-                      <h4 className="text-gray-800 text-[17px] font-bold">
+                      <h4 className="text-gray-900 dark:text-white text-[17px] font-bold">
                         {user
                           ? `${user.firstName} ${user.lastName}`
                           : "Loading..."}
                       </h4>
 
-                      <p className="text-gray-400 text-sm font-semibold">
+                      <p className="text-gray-500 dark:text-gray-400 text-sm font-semibold">
                         {user?.email}
                       </p>
 
                       <div className="flex items-center gap-1 mt-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-600" />
 
-                        <span className="text-green-600 text-xs font-normal">
+                        <span className="text-green-600 dark:text-green-400 text-xs font-normal">
                           {user?.role}
                         </span>
                       </div>
@@ -358,7 +360,7 @@ export default function Sidebar({
 
       {/* Desktop Module Sidebar */}
       {currentSidebar && (
-        <div className="hidden xl:block fixed left-[78px] top-16 bottom-0 w-72 overflow-y-auto z-30 hide-scrollbar">
+        <div className="hidden xl:block fixed left-[78px] top-16 bottom-0 w-72 overflow-y-auto z-30 hide-scrollbar bg-white dark:bg-[#0F172A] border-r border-gray-200 dark:border-[#22324D] transition-colors duration-200">
           {currentSidebar}
         </div>
       )}
@@ -374,11 +376,11 @@ export default function Sidebar({
           />
 
           {/* Sidebar */}
-          <div className="absolute left-[78px] top-16 bottom-0 w-72 bg-[#0F172A] shadow-2xl overflow-y-auto hide-scrollbar">
+          <div className="absolute left-[78px] top-16 bottom-0 w-72 bg-white dark:bg-[#0F172A] border-r border-gray-200 dark:border-[#22324D] shadow-2xl overflow-y-auto hide-scrollbar">
 
             <button
               onClick={() => setModuleSidebarOpen(false)}
-              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-md text-white hover:bg-white/10"
+              className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-md text-gray-500 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
             >
               ✕
             </button>

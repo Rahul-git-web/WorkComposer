@@ -75,11 +75,11 @@ export default function RejectRequestModal({
 
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 
-                <div className="w-full max-w-xl max-h-[calc(100vh-2rem)] overflow-y-auto overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div className="w-full max-w-xl max-h-[calc(100vh-2rem)] overflow-y-auto overflow-hidden rounded-2xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 shadow-2xl">
 
                     {/* Header */}
 
-                    <div className="bg-red-50 border-b border-red-100 px-4 sm:px-8 py-5 sm:py-7">
+                    <div className="bg-red-50 dark:bg-red-950/40 border-b border-red-100 dark:border-red-900/40 px-4 sm:px-8 py-5 sm:py-7">
 
                         <div className="flex items-center">
 
@@ -91,11 +91,11 @@ export default function RejectRequestModal({
 
                             <div>
 
-                                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
                                     Add Rejection Note
                                 </h2>
 
-                                <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                                <p className="mt-1 text-xs sm:text-sm text-gray-500 dark:text-slate-400">
                                     Provide a reason for rejecting this time request
                                 </p>
 
@@ -111,9 +111,9 @@ export default function RejectRequestModal({
 
                         <div>
 
-                            <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-slate-200">
 
-                                <MessageSquareWarning className="h-4 w-4 text-red-600" />
+                                <MessageSquareWarning className="h-4 w-4 text-red-600 dark:text-red-400" />
 
                                 Rejection Reason
 
@@ -125,24 +125,24 @@ export default function RejectRequestModal({
                                 value={comment}
                                 onChange={(e) => setComment(e.target.value)}
                                 placeholder="Please provide a clear reason..."
-                                className="w-full rounded-xl border-2 border-red-200 px-4 py-3 outline-none transition focus:border-red-500"
+                                className="w-full rounded-xl border-2 border-red-200 dark:border-red-900/50 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 px-4 py-3 outline-none transition focus:border-red-500 dark:focus:border-red-500"
                             />
 
                         </div>
 
-                        <div className="rounded-xl border border-orange-200 bg-orange-50 p-5">
+                        <div className="rounded-xl border border-orange-200 dark:border-amber-900/40 bg-orange-50 dark:bg-amber-950/30 p-5">
 
                             <div className="flex gap-3">
 
-                                <TriangleAlert className="mt-1 h-5 w-5 text-orange-600" />
+                                <TriangleAlert className="mt-1 h-5 w-5 text-orange-600 dark:text-amber-400" />
 
                                 <div>
 
-                                    <h3 className="font-semibold text-orange-700">
+                                    <h3 className="font-semibold text-orange-700 dark:text-amber-300">
                                         Important Note
                                     </h3>
 
-                                    <p className="mt-1 text-sm text-orange-600">
+                                    <p className="mt-1 text-sm text-orange-600 dark:text-amber-400">
                                         The employee will receive your rejection
                                         reason. Please keep it clear,
                                         professional and constructive.
@@ -158,18 +158,18 @@ export default function RejectRequestModal({
 
                     {/* Footer */}
 
-                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 sm:gap-4 border-t bg-gray-50 px-4 sm:px-8 py-4 sm:py-5">
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 sm:gap-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/60 px-4 sm:px-8 py-4 sm:py-5">
 
                         <button
                             onClick={onClose}
-                            className="w-full sm:w-auto rounded-xl border border-gray-300 bg-white px-6 py-3 font-semibold shadow-sm hover:bg-gray-100"
+                            className="w-full sm:w-auto rounded-xl border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 px-6 py-3 font-semibold shadow-sm hover:bg-gray-100 dark:hover:bg-slate-600 transition-colors"
                         >
                             Cancel
                         </button>
 
                         <button
                             onClick={handleReject}
-                            className="w-full sm:w-auto rounded-xl bg-red-600 px-8 py-3 font-semibold text-white shadow hover:bg-red-700"
+                            className="w-full sm:w-auto rounded-xl bg-red-600 px-8 py-3 font-semibold text-white shadow hover:bg-red-700 transition-colors"
                         >
                             {requests.length > 0
                                 ? `Reject ${requests.length} Requests`

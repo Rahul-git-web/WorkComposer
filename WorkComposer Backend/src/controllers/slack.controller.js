@@ -2,15 +2,35 @@ import axios from "axios";
 import Integration from "../models/integration.model.js";
 import User from "../models/user.model.js";
 import { sendSlackMessage } from "../services/slack.service.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
+import {
+  DesktopIntegrationOAuthError,
+  createDesktopCompletionHandoff,
+  createIntegrationOAuthContext,
+  resolveDesktopCancelRedirect,
+  verifyIntegrationCallbackState,
+} from "../utils/desktopIntegrationOAuth.js";
 
 export const connectSlack = async (req, res) => {
   try {
-    const state = Buffer.from(
-      JSON.stringify({
-        organization: req.user.organization._id,
-        user: req.user._id,
-      }),
-    ).toString("base64");
+    const orgId = normalizeId(
+      req.user?.organizationId || req.user?.organization?._id || req.user?.organization,
+    );
+    const userId = normalizeId(req.user?._id || req.user?.id);
+
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to connect Slack",
+      });
+    }
+
+    const { state } = createIntegrationOAuthContext({
+      req,
+      res,
+      organizationId: orgId,
+      userId,
+      provider: "slack",
+    });
 
     const scopes = [
       "chat:write",
@@ -29,7 +49,13 @@ export const connectSlack = async (req, res) => {
 
     return res.json({ url });
   } catch (err) {
-    console.error(err);
+    if (err instanceof DesktopIntegrationOAuthError) {
+      return res.status(err.statusCode).json({
+        message: err.message,
+      });
+    }
+
+    console.error("[Slack] Failed to initiate connection:", err.message || "Unknown error");
 
     return res.status(500).json({
       message: "Failed to connect Slack",
@@ -38,21 +64,49 @@ export const connectSlack = async (req, res) => {
 };
 
 export const slackCallback = async (req, res) => {
+  let callbackContext = null;
   try {
     const { code, state, error } = req.query;
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
 
     if (error) {
+      const desktopCancelRedirect = resolveDesktopCancelRedirect({
+        req,
+        res,
+        provider: "slack",
+      });
+      if (desktopCancelRedirect) {
+        return res.redirect(desktopCancelRedirect);
+      }
       return res.redirect(
-        `${process.env.FRONTEND_URL}/dashboard/settings/account/integrations/slack?status=cancelled`,
+        `${frontendUrl}/dashboard/settings/account/integrations/slack?status=cancelled`,
       );
     }
 
-    const decodedState = JSON.parse(
-      Buffer.from(decodeURIComponent(state), "base64").toString(),
-    );
+    if (!code || !state) {
+      return res.status(400).json({
+        message: "Missing code or state parameter",
+      });
+    }
 
-    const organizationId = decodedState.organization;
-    const userId = decodedState.user;
+    try {
+      callbackContext = verifyIntegrationCallbackState({
+        req,
+        res,
+        provider: "slack",
+      });
+    } catch (err) {
+      console.error("[Slack] OAuth state verification failed:", err.message);
+      if (err?.desktopErrorRedirectUrl) {
+        return res.redirect(err.desktopErrorRedirectUrl);
+      }
+      return res.redirect(
+        `${frontendUrl}/dashboard/settings/account/integrations/slack?status=error&error=invalid_state`,
+      );
+    }
+
+    const organizationId = callbackContext.organizationId;
+    const userId = callbackContext.userId;
 
     const params = new URLSearchParams();
 
@@ -99,22 +153,61 @@ export const slackCallback = async (req, res) => {
       slackUserId: data.authed_user.id,
     });
 
+    if (callbackContext.isDesktop) {
+      const { deepLinkUrl } = createDesktopCompletionHandoff({
+        provider: "slack",
+        status: "connected",
+        organizationId,
+        userId,
+        desktopChallenge: callbackContext.desktopChallenge,
+        workspaceName: team.name || "",
+        message: "Slack connected successfully.",
+      });
+      return res.redirect(deepLinkUrl);
+    }
+
     return res.redirect(
       `${process.env.FRONTEND_URL}/dashboard/settings/account/integrations/slack`,
     );
   } catch (err) {
-    console.error(err);
+    console.error("[Slack] Callback failed:", err.response?.data?.error || err.message || "Slack callback failed");
+
+    if (callbackContext?.isDesktop) {
+      const { deepLinkUrl } = createDesktopCompletionHandoff({
+        provider: "slack",
+        status: "error",
+        error: "slack_auth_failed",
+        message: "Failed to connect Slack. Please try again.",
+        organizationId: callbackContext.organizationId,
+        userId: callbackContext.userId,
+        desktopChallenge: callbackContext.desktopChallenge,
+      });
+      return res.redirect(deepLinkUrl);
+    }
 
     return res.status(500).json({
       message: "Slack callback failed",
+      error: "Slack callback failed",
     });
   }
 };
 
+const resolveSlackOrgId = (req) =>
+  normalizeId(
+    req.user?.organizationId || req.user?.organization?._id || req.user?.organization,
+  );
+
 export const getSlackIntegration = async (req, res) => {
   try {
+    const orgId = resolveSlackOrgId(req);
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to fetch Slack integration",
+      });
+    }
+
     const integration = await Integration.findOne({
-      organization: req.user.organization._id,
+      organization: orgId,
       provider: "slack",
     });
 
@@ -130,9 +223,16 @@ export const getSlackIntegration = async (req, res) => {
 
 export const disconnectSlack = async (req, res) => {
   try {
+    const orgId = resolveSlackOrgId(req);
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to disconnect Slack",
+      });
+    }
+
     await Integration.findOneAndUpdate(
       {
-        organization: req.user.organization._id,
+        organization: orgId,
         provider: "slack",
       },
       {
@@ -158,8 +258,15 @@ export const disconnectSlack = async (req, res) => {
 
 export const getSlackChannels = async (req, res) => {
   try {
+    const orgId = resolveSlackOrgId(req);
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to fetch Slack channels",
+      });
+    }
+
     const integration = await Integration.findOne({
-      organization: req.user.organization._id,
+      organization: orgId,
       provider: "slack",
       connected: true,
     });
@@ -185,8 +292,10 @@ export const getSlackChannels = async (req, res) => {
     );
 
     if (!data.ok) {
+      console.error("SLACK API ERROR:", data.error);
       return res.status(400).json({
-        message: data.error,
+        message: "Failed to fetch Slack channels",
+        error: "Failed to fetch Slack channels",
       });
     }
 
@@ -209,9 +318,15 @@ export const getSlackChannels = async (req, res) => {
 export const saveSlackChannel = async (req, res) => {
   try {
     const { channelId, channelName } = req.body;
+    const orgId = resolveSlackOrgId(req);
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to save Slack channel",
+      });
+    }
 
     const integration = await Integration.findOne({
-      organization: req.user.organization._id,
+      organization: orgId,
       provider: "slack",
       connected: true,
     });
@@ -242,8 +357,15 @@ export const saveSlackChannel = async (req, res) => {
 
 export const sendTestSlackMessage = async (req, res) => {
   try {
+    const orgId = resolveSlackOrgId(req);
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to send test message",
+      });
+    }
+
     const integration = await Integration.findOne({
-      organization: req.user.organization._id,
+      organization: orgId,
       provider: "slack",
       connected: true,
     });
@@ -261,7 +383,7 @@ export const sendTestSlackMessage = async (req, res) => {
     }
 
     await sendSlackMessage(
-      req.user.organization._id,
+      orgId,
       integration.slackChannelId,
       "WorkComposer Slack integration is working successfully!",
     );
@@ -280,8 +402,15 @@ export const sendTestSlackMessage = async (req, res) => {
 
 export const updateSlackNotifications = async (req, res) => {
   try {
+    const orgId = resolveSlackOrgId(req);
+    if (!orgId) {
+      return res.status(400).json({
+        message: "Organization required to update Slack notifications",
+      });
+    }
+
     const integration = await Integration.findOne({
-      organization: req.user.organization._id,
+      organization: orgId,
       provider: "slack",
     });
 
@@ -303,10 +432,11 @@ export const updateSlackNotifications = async (req, res) => {
       notifications: integration.notifications,
     });
   } catch (err) {
-    console.error(err);
+    console.error("UPDATE SLACK NOTIFICATIONS ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to update Slack notifications",
+      error: "Failed to update Slack notifications",
     });
   }
 };

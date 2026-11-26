@@ -4,10 +4,25 @@ import Activity from "../models/activity.model.js";
 import UsageLog from "../models/usageLog.model.js";
 import AppClassification from "../models/appClassification.model.js";
 import { getReportUserIds } from "../utils/reportAccess.js";
+import { userRepository } from "../db/repositories/user.repository.js";
+import { projectRepository } from "../db/repositories/project.repository.js";
+import { taskRepository } from "../db/repositories/task.repository.js";
+import { screenshotRepository } from "../db/repositories/screenshot.repository.js";
+import { activityRepository } from "../db/repositories/activity.repository.js";
+import { normalizeId } from "../security/effectiveAuthContext.js";
+import { isDuplicateKeyError } from "../db/errors.js";
+import {
+  resolveUserTimezone,
+  getZonedDayRange,
+  getTodayInTimezone,
+  getDateInTimezone,
+} from "../utils/timezone.js";
 
 export const getActivity = async (req, res) => {
   try {
     const { userId } = req.params;
+    const callerOrgId = normalizeId(req.user.organizationId || req.user.organization);
+    const targetUserId = normalizeId(userId);
 
     const allowedUserIds = await getReportUserIds(req.user);
 
@@ -19,40 +34,93 @@ export const getActivity = async (req, res) => {
 
     if (
       allowedUserIds &&
-      !allowedUserIds.some((id) => id.toString() === userId.toString())
+      !allowedUserIds.some((id) => id.toString() === targetUserId.toString())
     ) {
       return res.status(403).json({
         message: "Permission denied",
       });
     }
 
+    const targetUser = await userRepository.findUserByIdAndOrganization(targetUserId, callerOrgId);
+    if (!targetUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const timezone = resolveUserTimezone(targetUser, req);
     const { date } = req.query;
 
-    const startDate = new Date(date);
-    startDate.setHours(0, 0, 0, 0);
+    let dateString;
+    if (date) {
+      if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+        dateString = date.trim();
+      } else {
+        const parsed = new Date(date);
+        if (isNaN(parsed.getTime())) {
+          return res.status(400).json({
+            message: "Invalid date format",
+          });
+        }
+        dateString = getDateInTimezone(parsed, timezone);
+      }
+    } else {
+      dateString = getTodayInTimezone(timezone);
+    }
 
-    const endDate = new Date(date);
-    endDate.setHours(23, 59, 59, 999);
+    const { start, end } = getZonedDayRange(dateString, timezone);
 
-    const screenshots = await Screenshot.find({
-      user: userId,
-      capturedAt: {
-        $gte: startDate,
-        $lte: endDate,
+    const screenshots = await screenshotRepository.find(
+      {
+        userId: targetUserId,
+        capturedAt: {
+          gte: start,
+          lt: end,
+        },
       },
-    }).sort({ capturedAt: 1 });
+      { sort: { capturedAt: "asc" } }
+    );
+
+    const rawActivities = await activityRepository.find(
+      {
+        userId: targetUserId,
+        OR: [
+          {
+            eventTimestamp: {
+              gte: start,
+              lt: end,
+            },
+          },
+          {
+            eventTimestamp: null,
+            createdAt: {
+              gte: start,
+              lt: end,
+            },
+          },
+        ],
+      },
+      { sort: [{ eventTimestamp: "asc" }, { createdAt: "asc" }] }
+    );
 
     const buckets = {};
 
     screenshots.forEach((shot) => {
-      const date = new Date(shot.capturedAt);
+      const dateObj = new Date(shot.capturedAt);
 
-      const hour = date.getHours();
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "numeric",
+        minute: "numeric",
+        hourCycle: "h23",
+      }).formatToParts(dateObj);
 
-      const minute = date.getMinutes();
+      const hourPart = parts.find((p) => p.type === "hour")?.value ?? "0";
+      const minutePart = parts.find((p) => p.type === "minute")?.value ?? "0";
 
+      const hour = parseInt(hourPart, 10);
+      const minute = parseInt(minutePart, 10);
       const bucketMinute = minute < 30 ? "00" : "30";
-
       const bucketKey = `${hour}:${bucketMinute}`;
 
       if (!buckets[bucketKey]) {
@@ -60,12 +128,61 @@ export const getActivity = async (req, res) => {
           total: 0,
           count: 0,
           workTime: 0,
+          hasScreenshot: true,
         };
       }
 
       buckets[bucketKey].total += shot.activityScore || 0;
       buckets[bucketKey].count += 1;
       buckets[bucketKey].workTime += 5;
+      buckets[bucketKey].hasScreenshot = true;
+    });
+
+    const activityEventsByBucket = {};
+    rawActivities.forEach((act) => {
+      const actTime = act.eventTimestamp || act.telemetry?.firstObservedAt || act.telemetry?.measuredStart || act.createdAt;
+      const dateObj = new Date(actTime);
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        hour: "numeric",
+        minute: "numeric",
+        hourCycle: "h23",
+      }).formatToParts(dateObj);
+
+      const hourPart = parts.find((p) => p.type === "hour")?.value ?? "0";
+      const minutePart = parts.find((p) => p.type === "minute")?.value ?? "0";
+
+      const hour = parseInt(hourPart, 10);
+      const minute = parseInt(minutePart, 10);
+      const bucketMinute = minute < 30 ? "00" : "30";
+      const bucketKey = `${hour}:${bucketMinute}`;
+
+      if (!activityEventsByBucket[bucketKey]) {
+        activityEventsByBucket[bucketKey] = {
+          totalActions: 0,
+          eventCount: 0,
+        };
+      }
+      const actions = (act.keyPresses || 0) + (act.mouseClicks || 0) + (act.mouseMoves || 0);
+      activityEventsByBucket[bucketKey].totalActions += actions;
+      activityEventsByBucket[bucketKey].eventCount += 1;
+    });
+
+    Object.entries(activityEventsByBucket).forEach(([bucketKey, data]) => {
+      if (!buckets[bucketKey]) {
+        buckets[bucketKey] = {
+          total: 0,
+          count: 0,
+          workTime: 0,
+        };
+      }
+      if (!buckets[bucketKey].hasScreenshot) {
+        const avgActionsPerEvent = data.totalActions / (data.eventCount || 1);
+        const score = Math.min(Math.round((avgActionsPerEvent / 30) * 100), 100);
+        buckets[bucketKey].total = Math.max(score, data.totalActions > 0 ? 10 : 0);
+        buckets[bucketKey].count = 1;
+        buckets[bucketKey].workTime = Math.min(Math.max(Math.round((data.eventCount * 10) / 60), 1), 30);
+      }
     });
 
     const activity = [];
@@ -115,10 +232,11 @@ export const getActivity = async (req, res) => {
       idleTime,
     });
   } catch (err) {
-    console.error(err);
+    console.error("GET ACTIVITY ERROR:", err);
 
     res.status(500).json({
-      error: err.message,
+      message: "Failed to get activity",
+      error: "Failed to get activity",
     });
   }
 };
@@ -126,6 +244,8 @@ export const getActivity = async (req, res) => {
 export const getActivityTimeline = async (req, res) => {
   try {
     const { userId } = req.params;
+    const callerOrgId = normalizeId(req.user.organizationId || req.user.organization);
+    const targetUserId = normalizeId(userId);
 
     const allowedUserIds = await getReportUserIds(req.user);
 
@@ -137,10 +257,17 @@ export const getActivityTimeline = async (req, res) => {
 
     if (
       allowedUserIds &&
-      !allowedUserIds.some((id) => id.toString() === userId.toString())
+      !allowedUserIds.some((id) => id.toString() === targetUserId.toString())
     ) {
       return res.status(403).json({
         message: "Permission denied",
+      });
+    }
+
+    const targetUser = await userRepository.findUserByIdAndOrganization(targetUserId, callerOrgId);
+    if (!targetUser) {
+      return res.status(404).json({
+        message: "User not found",
       });
     }
 
@@ -208,40 +335,174 @@ export const getActivityTimeline = async (req, res) => {
 
     return res.json(timeline);
   } catch (err) {
-    console.error(err);
+    console.error("GET ACTIVITY TIMELINE ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to get activity timeline",
+      error: "Failed to get activity timeline",
     });
   }
 };
 
 export const trackActivity = async (req, res) => {
   try {
-    const { keyPresses, mouseClicks, mouseMoves, project, task } = req.body;
+    const { keyPresses, mouseClicks, mouseMoves, project, task, telemetry, idempotencyKey, eventTimestamp } = req.body;
+    const callerOrgId = normalizeId(req.user.organizationId || req.user.organization);
+    const callerUserId = normalizeId(req.user._id || req.user.id);
 
-    const date = new Date().toISOString().split("T")[0];
+    const rawIdempotencyKey = idempotencyKey || telemetry?.summaryId || telemetry?.idempotencyKey || null;
+    let validatedIdempotencyKey = null;
+    if (rawIdempotencyKey !== null && rawIdempotencyKey !== undefined) {
+      if (typeof rawIdempotencyKey !== "string" || !/^[a-zA-Z0-9_\-:]{1,128}$/.test(rawIdempotencyKey.trim())) {
+        return res.status(400).json({
+          message: "Invalid idempotencyKey format",
+        });
+      }
+      validatedIdempotencyKey = rawIdempotencyKey.trim();
+    }
 
-    const activity = await Activity.create({
-      user: req.user._id,
+    const rawEventTime = eventTimestamp || telemetry?.firstObservedAt || telemetry?.measuredStart || null;
+    let validatedEventTimestamp = null;
+    if (rawEventTime !== null && rawEventTime !== undefined) {
+      if (typeof rawEventTime !== "string" && typeof rawEventTime !== "number" && !(rawEventTime instanceof Date)) {
+        return res.status(400).json({
+          message: "Invalid eventTimestamp format",
+        });
+      }
+      const parsed = new Date(rawEventTime);
+      const timeMs = parsed.getTime();
+      if (isNaN(timeMs)) {
+        return res.status(400).json({
+          message: "Invalid eventTimestamp format",
+        });
+      }
+      const minPlausible = new Date("2020-01-01T00:00:00.000Z").getTime();
+      if (timeMs < minPlausible) {
+        return res.status(400).json({
+          message: "eventTimestamp is out of plausible range",
+        });
+      }
+      const maxFuture = Date.now() + 10 * 60 * 1000; // 10 minutes clock drift tolerance
+      if (timeMs > maxFuture) {
+        return res.status(400).json({
+          message: "eventTimestamp cannot be in the future",
+        });
+      }
+      validatedEventTimestamp = parsed;
+    }
 
-      project: project || null,
-      task: task || null,
+    let resolvedProjectId = null;
+    if (project) {
+      const proj = await projectRepository.findProjectByIdAndOrganization(project, callerOrgId);
+      if (proj) {
+        resolvedProjectId = normalizeId(proj._id || proj.id);
+      }
+    }
 
-      date,
-      keyPresses,
-      mouseClicks,
-      mouseMoves,
-    });
+    let resolvedTaskId = null;
+    if (task) {
+      const t = await taskRepository.findOne({ _id: task, organization: callerOrgId });
+      if (t) {
+        resolvedTaskId = normalizeId(t._id || t.id);
+      }
+    }
 
-    res.json({
+    let validatedTelemetry = null;
+    if (telemetry && typeof telemetry === "object") {
+      validatedTelemetry = {
+        summaryId: validatedIdempotencyKey || (typeof telemetry.summaryId === "string" ? telemetry.summaryId : null),
+        measuredStart: typeof telemetry.measuredStart === "string" ? telemetry.measuredStart : null,
+        measuredEnd: typeof telemetry.measuredEnd === "string" ? telemetry.measuredEnd : null,
+        firstObservedAt: typeof telemetry.firstObservedAt === "string" ? telemetry.firstObservedAt : null,
+        lastObservedAt: typeof telemetry.lastObservedAt === "string" ? telemetry.lastObservedAt : null,
+        totalEvents: typeof telemetry.totalEvents === "number" ? Math.max(0, telemetry.totalEvents) : 0,
+        naturalGapsCount: typeof telemetry.naturalGapsCount === "number" ? Math.max(0, telemetry.naturalGapsCount) : 0,
+        longestGapMs: typeof telemetry.longestGapMs === "number" ? Math.max(0, telemetry.longestGapMs) : 0,
+        continuousDurationMs: typeof telemetry.continuousDurationMs === "number" ? Math.max(0, telemetry.continuousDurationMs) : 0,
+        completeness: typeof telemetry.completeness === "string" ? telemetry.completeness : "unknown",
+        sessionId: telemetry.sessionId ? normalizeId(telemetry.sessionId) : null,
+        deviceId: telemetry.deviceId ? String(telemetry.deviceId).slice(0, 100) : null,
+      };
+    }
+
+    // 1. Idempotency Check: if key provided, check for existing record before insert
+    if (validatedIdempotencyKey) {
+      const existing = await activityRepository.findOne({ idempotencyKey: validatedIdempotencyKey });
+      if (existing) {
+        const existingOwnerId = normalizeId(existing.user || existing.userId);
+        if (existingOwnerId !== callerUserId) {
+          return res.status(403).json({
+            message: "Permission denied: idempotencyKey belongs to another user",
+          });
+        }
+        const responsePayload = {
+          success: true,
+          activity: existing,
+          duplicate: true,
+        };
+        if (validatedTelemetry) {
+          responsePayload.telemetry = validatedTelemetry;
+        }
+        return res.status(200).json(responsePayload);
+      }
+    }
+
+    const date = (validatedEventTimestamp || new Date()).toISOString().split("T")[0];
+
+    let activity;
+    try {
+      activity = await Activity.create({
+        user: callerUserId,
+        project: resolvedProjectId || null,
+        task: resolvedTaskId || null,
+        date,
+        keyPresses: Number(keyPresses || 0),
+        mouseClicks: Number(mouseClicks || 0),
+        mouseMoves: Number(mouseMoves || 0),
+        idempotencyKey: validatedIdempotencyKey || null,
+        eventTimestamp: validatedEventTimestamp || undefined,
+        telemetry: validatedTelemetry || undefined,
+      });
+    } catch (createErr) {
+      // 2. Handle simultaneous race condition: catch unique constraint error
+      if (validatedIdempotencyKey && isDuplicateKeyError(createErr)) {
+        const existing = await activityRepository.findOne({ idempotencyKey: validatedIdempotencyKey });
+        if (existing) {
+          const existingOwnerId = normalizeId(existing.user || existing.userId);
+          if (existingOwnerId !== callerUserId) {
+            return res.status(403).json({
+              message: "Permission denied: idempotencyKey belongs to another user",
+            });
+          }
+          const responsePayload = {
+            success: true,
+            activity: existing,
+            duplicate: true,
+          };
+          if (validatedTelemetry) {
+            responsePayload.telemetry = validatedTelemetry;
+          }
+          return res.status(200).json(responsePayload);
+        }
+      }
+      throw createErr;
+    }
+
+    const responsePayload = {
       success: true,
-    });
+      activity,
+    };
+    if (validatedTelemetry) {
+      responsePayload.telemetry = validatedTelemetry;
+    }
+
+    res.json(responsePayload);
   } catch (err) {
-    console.error(err);
+    console.error("TRACK ACTIVITY ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to track activity",
+      error: "Failed to track activity",
     });
   }
 };
@@ -250,32 +511,23 @@ export const getSessionDetails = async (req, res) => {
   try {
     const { userId, startTime, endTime } = req.query;
 
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-
-    const durationSeconds = Math.floor((end - start) / 1000);
-
-    const hours = Math.floor(durationSeconds / 3600);
-
-    const minutes = Math.floor((durationSeconds % 3600) / 60);
-
-    const workTime = `${hours}h ${minutes}m`;
-
-    const activities = await Activity.find({}).sort({ createdAt: -1 }).limit(5);
-
-    const activitiesInRange = await Activity.find({
-      user: userId,
-      createdAt: {
-        $gte: start,
-        $lte: end,
-      },
-    }).sort({ createdAt: 1 });
-
     if (!userId || !startTime || !endTime) {
       return res.status(400).json({
         message: "Missing required params",
       });
     }
+
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      return res.status(400).json({
+        message: "Invalid time range",
+      });
+    }
+
+    const callerOrgId = normalizeId(req.user.organizationId || req.user.organization);
+    const targetUserId = normalizeId(userId);
 
     const allowedUserIds = await getReportUserIds(req.user);
 
@@ -287,23 +539,60 @@ export const getSessionDetails = async (req, res) => {
 
     if (
       allowedUserIds &&
-      !allowedUserIds.some((id) => id.toString() === userId.toString())
+      !allowedUserIds.some((id) => id.toString() === targetUserId.toString())
     ) {
       return res.status(403).json({
         message: "Permission denied",
       });
     }
 
-    const screenshots = await Screenshot.find({
-      user: userId,
-      capturedAt: {
-        $gte: start,
-        $lte: end,
+    const targetUser = await userRepository.findUserByIdAndOrganization(targetUserId, callerOrgId);
+    if (!targetUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const durationSeconds = Math.max(0, Math.floor((end - start) / 1000));
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const workTime = `${hours}h ${minutes}m`;
+
+    const activitiesInRange = await activityRepository.find(
+      {
+        user: targetUserId,
+        OR: [
+          {
+            eventTimestamp: {
+              gte: start,
+              lte: end,
+            },
+          },
+          {
+            eventTimestamp: null,
+            createdAt: {
+              gte: start,
+              lte: end,
+            },
+          },
+        ],
       },
-    }).sort({ capturedAt: 1 });
+      { sort: [{ eventTimestamp: "asc" }, { createdAt: "asc" }] }
+    );
+
+    const screenshots = await screenshotRepository.find(
+      {
+        userId: targetUserId,
+        capturedAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+      { sort: { capturedAt: "asc" } }
+    );
 
     const usageLogs = await UsageLog.find({
-      user: userId,
+      user: targetUserId,
       startTime: {
         $lt: end,
       },
@@ -387,7 +676,8 @@ export const getSessionDetails = async (req, res) => {
     const grouped = {};
 
     activitiesInRange.forEach((activity) => {
-      const date = new Date(activity.createdAt);
+      const actTime = activity.eventTimestamp || activity.telemetry?.firstObservedAt || activity.telemetry?.measuredStart || activity.createdAt;
+      const date = new Date(actTime);
 
       const time = `${String(date.getHours()).padStart(2, "0")}:${String(
         date.getMinutes(),
@@ -414,8 +704,10 @@ export const getSessionDetails = async (req, res) => {
     const chartData = [];
 
     const current = new Date(start);
+    const maxBuckets = 1440;
+    let bucketCount = 0;
 
-    while (current <= end) {
+    while (current <= end && bucketCount < maxBuckets) {
       const key = `${String(current.getHours()).padStart(2, "0")}:${String(
         current.getMinutes(),
       ).padStart(2, "0")}`;
@@ -428,6 +720,7 @@ export const getSessionDetails = async (req, res) => {
       });
 
       current.setMinutes(current.getMinutes() + 1);
+      bucketCount++;
     }
 
     return res.json({
@@ -450,10 +743,11 @@ export const getSessionDetails = async (req, res) => {
       workTime,
     });
   } catch (err) {
-    console.error(err);
+    console.error("GET SESSION DETAILS ERROR:", err);
 
     res.status(500).json({
-      message: err.message,
+      message: "Failed to get session details",
+      error: "Failed to get session details",
     });
   }
 };

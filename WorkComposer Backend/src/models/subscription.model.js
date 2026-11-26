@@ -64,4 +64,9 @@ const subscriptionSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("Subscription", subscriptionSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { subscriptionRepository } from "../db/repositories/subscription.repository.js";
+
+const _Model = mongoose.model("Subscription", subscriptionSchema);
+export default createModelProxy(_Model, () => subscriptionRepository);

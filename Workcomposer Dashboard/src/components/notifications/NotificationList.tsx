@@ -58,20 +58,20 @@ export default function NotificationList({
     return (
         <div className="flex-1 py-6 sm:py-8 lg:py-10">
             <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
 
-                    <div className="flex flex-col gap-4 border-b border-gray-200 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+                    <div className="flex flex-col gap-4 border-b border-gray-200 dark:border-[#22324D] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50">
-                                <Bell className="h-5 w-5 text-indigo-600" />
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-900/30">
+                                <Bell className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                             </div>
 
                             <div>
-                                <h1 className="text-lg font-semibold text-gray-900">
+                                <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
                                     Notifications
                                 </h1>
 
-                                <p className="mt-0.5 text-xs text-gray-500">
+                                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                                     {unreadCount > 0
                                         ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`
                                         : "You're all caught up"}
@@ -83,7 +83,7 @@ export default function NotificationList({
                             <button
                                 type="button"
                                 onClick={markAllAsRead}
-                                className="inline-flex w-fit items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
+                                className="inline-flex w-fit items-center gap-2 rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-800"
                             >
                                 <CheckCheck className="h-4 w-4" />
                                 Mark all as read
@@ -94,19 +94,19 @@ export default function NotificationList({
                     <div>
                         {loading ? (
                             <div className="flex h-72 items-center justify-center">
-                                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                                <Loader2 className="h-6 w-6 animate-spin text-indigo-600 dark:text-indigo-400" />
                             </div>
                         ) : notifications.length === 0 ? (
                             <div className="flex h-72 flex-col items-center justify-center px-6 text-center">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                                    <Bell className="h-6 w-6 text-gray-400" />
+                                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                                    <Bell className="h-6 w-6 text-gray-400 dark:text-gray-500" />
                                 </div>
 
-                                <h2 className="mt-4 text-sm font-semibold text-gray-800">
+                                <h2 className="mt-4 text-sm font-semibold text-gray-800 dark:text-gray-200">
                                     No notifications
                                 </h2>
 
-                                <p className="mt-1 max-w-sm text-xs leading-5 text-gray-500">
+                                <p className="mt-1 max-w-sm text-xs leading-5 text-gray-500 dark:text-gray-400">
                                     Notifications about tasks,
                                     tracking, and other
                                     activity will appear here.
@@ -133,8 +133,8 @@ export default function NotificationList({
                     {!loading &&
                         notifications.length > 0 &&
                         totalPages > 1 && (
-                            <div className="flex items-center justify-between border-t border-gray-200 px-5 py-4 sm:px-7">
-                                <p className="text-xs text-gray-500">
+                            <div className="flex items-center justify-between border-t border-gray-200 dark:border-[#22324D] px-5 py-4 sm:px-7">
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
                                     Page {page} of {totalPages}
                                 </p>
 
@@ -145,7 +145,7 @@ export default function NotificationList({
                                         onClick={() =>
                                             goToPage(page - 1)
                                         }
-                                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                     </button>
@@ -158,7 +158,7 @@ export default function NotificationList({
                                         onClick={() =>
                                             goToPage(page + 1)
                                         }
-                                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 transition hover:bg-gray-50 dark:hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
                                     >
                                         <ChevronRight className="h-4 w-4" />
                                     </button>

@@ -29,6 +29,9 @@ const teamSchema = new mongoose.Schema(
   },
 );
 
+import { createModelProxy } from "../db/modelProxy.js";
+import { teamRepository } from "../db/repositories/team.repository.js";
+
 const Team = mongoose.model("Team", teamSchema);
 
-export default Team;
+export default createModelProxy(Team, () => teamRepository);

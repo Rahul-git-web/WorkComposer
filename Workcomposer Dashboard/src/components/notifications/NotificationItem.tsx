@@ -85,13 +85,13 @@ export default function NotificationItem({
 
                 onClick?.(notification);
             }}
-            className={`flex w-full gap-3 border-b border-gray-100 px-4 py-4 text-left transition hover:bg-gray-50 ${
+            className={`flex w-full gap-3 border-b border-gray-100 dark:border-gray-800 px-4 py-4 text-left transition hover:bg-gray-50 dark:hover:bg-[#1E293B] ${
                 !notification.read
-                    ? "bg-indigo-50/50"
-                    : "bg-white"
+                    ? "bg-indigo-50/50 dark:bg-indigo-950/20"
+                    : "bg-white dark:bg-[#0F172A]"
             }`}
         >
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100">
+            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/40">
                 {getNotificationIcon(notification.type)}
             </div>
 
@@ -100,23 +100,23 @@ export default function NotificationItem({
                     <p
                         className={`text-sm ${
                             notification.read
-                                ? "font-medium text-gray-700"
-                                : "font-semibold text-gray-900"
+                                ? "font-medium text-gray-700 dark:text-gray-300"
+                                : "font-semibold text-gray-900 dark:text-white"
                         }`}
                     >
                         {notification.title}
                     </p>
 
                     {!notification.read && (
-                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-indigo-600" />
+                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-indigo-600 dark:bg-indigo-400" />
                     )}
                 </div>
 
-                <p className="mt-1 text-xs leading-5 text-gray-500">
+                <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
                     {notification.message}
                 </p>
 
-                <p className="mt-2 text-[11px] text-gray-400">
+                <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
                     {formatTime(notification.createdAt)}
                 </p>
             </div>

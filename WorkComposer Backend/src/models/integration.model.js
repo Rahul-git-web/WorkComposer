@@ -121,4 +121,9 @@ const integrationSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("Integration", integrationSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { integrationRepository } from "../db/repositories/integration.repository.js";
+
+const _Model = mongoose.model("Integration", integrationSchema);
+export default createModelProxy(_Model, () => integrationRepository);

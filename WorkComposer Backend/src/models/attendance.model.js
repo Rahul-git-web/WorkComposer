@@ -37,4 +37,9 @@ const attendanceSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("Attendance", attendanceSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { attendanceRepository } from "../db/repositories/attendance.repository.js";
+
+const _Model = mongoose.model("Attendance", attendanceSchema);
+export default createModelProxy(_Model, () => attendanceRepository);

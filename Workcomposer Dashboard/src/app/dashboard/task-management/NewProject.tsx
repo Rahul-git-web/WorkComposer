@@ -12,6 +12,7 @@ import { Check, Search } from 'lucide-react';
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createPortal } from 'react-dom';
+import toast from "react-hot-toast";
 
 
 const NewProject = ({
@@ -38,6 +39,7 @@ const NewProject = ({
 
     const [selectedFilterTeam, setSelectedFilterTeam] = useState("All Teams");
     const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
 
 
     useEffect(() => {
@@ -48,7 +50,7 @@ const NewProject = ({
             setSelectedTeams(editingProject.teams || []);
 
             setSelectedUsers(
-                (editingProject.users || []).map((user: any) => user._id)
+                (editingProject.users || []).map((user: any) => user._id || user.id)
             );
         }
     }, [editingProject]);
@@ -114,7 +116,7 @@ const NewProject = ({
 
     return createPortal(
         <div role='dialog' className='relative z-50'>
-            <div className='fixed inset-0 bg-gray-500/75 backdrop-blur-sm transition-opacity'></div>
+            <div className='fixed inset-0 bg-gray-500/75 dark:bg-black/75 backdrop-blur-sm transition-opacity'></div>
             <div className='fixed inset-0 z-50 w-screen overflow-y-auto'
                 onClick={() =>
                     setShowProjectModal(false)
@@ -125,7 +127,7 @@ const NewProject = ({
                         onClick={(e) =>
                             e.stopPropagation()
                         }
-                        className='relative transform rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-[900px]'>
+                        className='relative transform rounded-lg bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 px-4 pt-5 pb-4 text-left shadow-xl dark:shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-[900px]'>
 
                         <form
                             onSubmit={async (e) => {
@@ -138,31 +140,37 @@ const NewProject = ({
                                 };
 
                                 try {
+                                    setSaving(true);
                                     if (editingProject) {
-
-                                        await API.put(`/projects/${editingProject._id}`, newProject)
+                                        const projectId = editingProject._id || editingProject.id;
+                                        await API.put(`/projects/${projectId}`, newProject);
+                                        toast.success("Project updated successfully");
                                     } else {
                                         await API.post("/projects", newProject);
+                                        toast.success("Project created successfully");
                                     }
 
                                     await fetchProjects();
                                     setShowProjectModal(false);
                                 }
-                                catch (err) {
+                                catch (err: any) {
                                     console.error(err);
+                                    toast.error(err?.response?.data?.message || "Failed to save project");
+                                } finally {
+                                    setSaving(false);
                                 }
                             }
                             }
                         >
                             <div className='flex items-center justify-between mb-6'>
                                 <div>
-                                    <h2 className='text-2xl font-bold text-gray-900'>{editingProject ? "Edit Project" : "New Project Setup"}</h2>
-                                    <p className='mt-1 text-sm text-gray-600'>{editingProject ? "Update project information and manage team access permissions" : "Define your project and manage team access permission"}</p>
+                                    <h2 className='text-2xl font-bold text-gray-900 dark:text-white'>{editingProject ? "Edit Project" : "New Project Setup"}</h2>
+                                    <p className='mt-1 text-sm text-gray-600 dark:text-slate-400'>{editingProject ? "Update project information and manage team access permissions" : "Define your project and manage team access permission"}</p>
                                 </div>
                             </div>
 
                             <div className='flex gap-6'>
-                                <nav className='w-64 flex-shrink-0 bg-gray-50 p-6 border-r border-gray-200 rounded-l-lg' aria-label='Project sections'>
+                                <nav className='w-64 flex-shrink-0 bg-gray-50 dark:bg-slate-900/50 p-6 border-r border-gray-200 dark:border-slate-700 rounded-l-lg' aria-label='Project sections'>
                                     <ul role='list' className='space-y-2'>
                                         <li>
                                             <button
@@ -170,11 +178,11 @@ const NewProject = ({
                                                 onClick={() =>
                                                     setActiveTab("details")
                                                 }
-                                                className={`group flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium w-full transition-all ${activeTab === "details"
-                                                    ? "bg-indigo-50 text-indigo-700 font-semibold"
-                                                    : "text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                                                className={`group flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium w-full transition-all rounded-md ${activeTab === "details"
+                                                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold"
+                                                    : "text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400"
                                                     }`} >
-                                                <AiOutlineFileText className="text-indigo-600 h-5 w-5 flex-shrink-0 transition-colors" />
+                                                <AiOutlineFileText className="text-indigo-600 dark:text-indigo-400 h-5 w-5 flex-shrink-0 transition-colors" />
                                                 Project Details
                                             </button>
                                         </li>
@@ -185,11 +193,11 @@ const NewProject = ({
                                                 onClick={() =>
                                                     setActiveTab("access")
                                                 }
-                                                className={`group flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium w-full transition-all ${activeTab === "access"
-                                                    ? "bg-indigo-50 text-indigo-700 font-semibold"
-                                                    : "text-gray-700 hover:bg-gray-50 hover:text-indigo-600"
+                                                className={`group flex items-center gap-x-3 px-3 py-2.5 text-sm font-medium w-full transition-all rounded-md ${activeTab === "access"
+                                                    ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold"
+                                                    : "text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400"
                                                     }`}>
-                                                <FaUsers className="text-gray-400 group-hover:text-indigo-600 h-5 w-5 flex-shrink-0 transition-colors" />
+                                                <FaUsers className="text-gray-400 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 h-5 w-5 flex-shrink-0 transition-colors" />
                                                 Access & Permissions
                                             </button>
                                         </li>
@@ -201,7 +209,7 @@ const NewProject = ({
                                     {activeTab === "details" && (
                                         <div className="space-y-5">
                                             <div>
-                                                <label htmlFor="title" className="block text-sm font-medium text-gray-900 mb-1.5">
+                                                <label htmlFor="title" className="block text-sm font-medium text-gray-900 dark:text-slate-200 mb-1.5">
                                                     Project Name
                                                     <span className="text-red-500">*</span>
                                                 </label>
@@ -214,8 +222,8 @@ const NewProject = ({
                                                     }
                                                     placeholder="Enter project name (e.g., Website ui modification 2026)"
                                                     required
-                                                    className="block w-full rounded-lg border-gray-300 shadow-sm px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-20 transition-all"></input>
-                                                <p className="mt-1.5 text-xs text-gray-500">Provide a unique and descriptive name to identify this project</p>
+                                                    className="block w-full rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm px-4 py-2.5 text-sm text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-20 transition-all"></input>
+                                                <p className="mt-1.5 text-xs text-gray-500 dark:text-slate-400">Provide a unique and descriptive name to identify this project</p>
                                             </div>
                                         </div>
                                     )}
@@ -223,17 +231,17 @@ const NewProject = ({
 
                                     {activeTab === "access" && (
                                         <div className="space-y-5">
-                                            <div className="sticky top-0 bg-white z-[100] mb-1.5">
-                                                <label className="block text-sm font-medium text-gray-900 mb-3">Access & Permissions</label>
-                                                <div className="flex gap-6 border-b border-gray-200">
+                                            <div className="sticky top-0 bg-white dark:bg-slate-800 z-[100] mb-1.5">
+                                                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-3">Access & Permissions</label>
+                                                <div className="flex gap-6 border-b border-gray-200 dark:border-slate-700">
                                                     <button
                                                         type="button"
                                                         onClick={() =>
                                                             setAccessTab("teams")
                                                         }
                                                         className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-all ${accessTab === "teams"
-                                                            ? "border-indigo-600 text-indigo-700 font-semibold"
-                                                            : "border-transparent text-gray-600 hover:text-indigo-600"
+                                                            ? "border-indigo-600 dark:border-indigo-400 text-indigo-700 dark:text-indigo-300 font-semibold"
+                                                            : "border-transparent text-gray-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300"
                                                             }`}>
                                                         <HiOutlineUsers className="h-5 w-5" />
                                                         <span>Team-Based Access</span>
@@ -245,8 +253,8 @@ const NewProject = ({
                                                             setAccessTab("users")
                                                         }
                                                         className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-all focus:outline-none ${accessTab === "users"
-                                                            ? "border-indigo-600 text-indigo-700 font-semibold"
-                                                            : "border-transparent text-gray-600 hover:text-indigo-600"
+                                                            ? "border-indigo-600 dark:border-indigo-400 text-indigo-700 dark:text-indigo-300 font-semibold"
+                                                            : "border-transparent text-gray-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300"
                                                             }`}>
                                                         <CiUser className="h-5 w-5" />
                                                         <span>Individual User Access</span>
@@ -258,15 +266,15 @@ const NewProject = ({
                                                 <div>
                                                     <div>
                                                         <div className="flex items-start gap-2 mb-3 py-2">
-                                                            <HiOutlineInformationCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                                            <p className="text-xs text-gray-600 leading-relaxed">Grant project access to entire teams. All current and future team members will automatically receive access permissions.</p>
+                                                            <HiOutlineInformationCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                                            <p className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">Grant project access to entire teams. All current and future team members will automatically receive access permissions.</p>
                                                         </div>
 
                                                         <div className="space-y-4">
                                                             <div>
-                                                                <label htmlFor="team-search" className="block text-sm font-medium text-gray-700 mb-1"> Search Teams </label>
+                                                                <label htmlFor="team-search" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"> Search Teams </label>
                                                                 <div className="relative">
-                                                                    <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                                                                    <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-slate-400" />
                                                                     <input
                                                                         id="team-search"
                                                                         value={teamSearch}
@@ -279,18 +287,18 @@ const NewProject = ({
                                                                                 ? "Search teams..."
                                                                                 : "Search users"
                                                                         }
-                                                                        className="w-full pl-10 pr-3 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></input>
+                                                                        className="w-full pl-10 pr-3 py-2 rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 placeholder-gray-400 dark:placeholder-slate-500 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"></input>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex justify-between items-center text-sm text-gray-600">
+                                                            <div className="flex justify-between items-center text-sm text-gray-600 dark:text-slate-400">
                                                                 <span>{selectedTeams.length} selected</span>
                                                                 <span>Total: {filteredTeams.length} teams</span>
                                                             </div>
 
-                                                            <div className="rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                                                            <div className="rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
                                                                 <div className="max-h-80 overflow-y-auto">
-                                                                    <div className="flex items-center px-4 py-3 bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                                                                    <div className="flex items-center px-4 py-3 bg-gray-50 dark:bg-slate-900/60 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10">
                                                                         <div className="flex gap-3 items-center">
                                                                             <div className="flex h-6 shrink-0 items-center">
                                                                                 <div className="group grid size-4 grid-cols-1">
@@ -312,36 +320,36 @@ const NewProject = ({
                                                                                                 setSelectedTeams([])
                                                                                             }
                                                                                         }}
-                                                                                        className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"></input>
+                                                                                        className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"></input>
                                                                                     <MdOutlineCheckBoxOutlineBlank className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25" />
                                                                                 </div>
                                                                             </div>
 
                                                                             <div className="text-sm/6">
-                                                                                <label htmlFor="select-all-teams" className="font-medium text-gray-900">Select all {filteredTeams.length} on this page</label>
+                                                                                <label htmlFor="select-all-teams" className="font-medium text-gray-900 dark:text-slate-200">Select all {filteredTeams.length} on this page</label>
                                                                             </div>
                                                                         </div>
                                                                     </div>
 
-                                                                    <div className="divide-y divide-gray-100">
+                                                                    <div className="divide-y divide-gray-100 dark:divide-slate-700/60">
 
                                                                         {filteredTeams.map((team) => (
                                                                             <div
-                                                                                key={team._id}
-                                                                                className="flex items-center px-4 py-3 hover:bg-gray-50 transition-colors"
+                                                                                key={team._id || team.id}
+                                                                                className="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
                                                                             >
                                                                                 <div className="flex gap-3 items-center">
                                                                                     <input
                                                                                         type="checkbox"
                                                                                         checked={selectedTeams.includes(team.name)}
                                                                                         onChange={() => toggleTeam(team.name)}
-                                                                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                                                        className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
                                                                                     />
 
                                                                                     <label
                                                                                         className={`text-sm cursor-pointer ${selectedTeams.includes(team.name)
-                                                                                            ? "font-semibold text-gray-900"
-                                                                                            : "text-gray-700"
+                                                                                            ? "font-semibold text-gray-900 dark:text-white"
+                                                                                            : "text-gray-700 dark:text-slate-300"
                                                                                             }`}
                                                                                     >
                                                                                         {team.name}
@@ -362,16 +370,16 @@ const NewProject = ({
                                             {accessTab === "users" && (
                                                 <div>
                                                     <div className="flex items-start gap-2 mb-3 py-2">
-                                                        <HiOutlineInformationCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                                                        <p className="text-xs text-gray-600 leading-relaxed">Grant project access to specific individual users. Select users who need direct access to this project.</p>
+                                                        <HiOutlineInformationCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                                        <p className="text-xs text-gray-600 dark:text-slate-400 leading-relaxed">Grant project access to specific individual users. Select users who need direct access to this project.</p>
                                                     </div>
 
                                                     <div className="space-y-4">
                                                         <div className="flex flex-col md:flex-row md:items-end gap-4">
                                                             <div className="flex-1">
-                                                                <label htmlFor="user-search" className="block text-sm font-medium text-gray-700 mb-1">Search Users</label>
+                                                                <label htmlFor="user-search" className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Search Users</label>
                                                                 <div className="relative">
-                                                                    <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                                                                    <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-slate-400" />
                                                                     <input
                                                                         id="user-search"
                                                                         value={userSearch}
@@ -380,14 +388,14 @@ const NewProject = ({
                                                                         }
                                                                         type="text"
                                                                         placeholder="Search by name or email..."
-                                                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></input>
+                                                                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500 placeholder-gray-400 dark:placeholder-slate-500 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></input>
                                                                 </div>
                                                             </div>
 
                                                             <div className="flex-1">
                                                                 <label
                                                                     htmlFor="team-filter"
-                                                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                                                    className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1"
                                                                 >
                                                                     Filter by Team
                                                                 </label>
@@ -399,19 +407,19 @@ const NewProject = ({
                                                                         onClick={() =>
                                                                             setTeamDropdownOpen(!teamDropdownOpen)
                                                                         }
-                                                                        className="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                        className="relative w-full cursor-default rounded-md border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 py-2 pl-3 pr-10 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                     >
                                                                         <span className="block truncate">
                                                                             {selectedFilterTeam}
                                                                         </span>
 
                                                                         <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                                                            <TbSelector className="h-5 w-5 text-gray-400" />
+                                                                            <TbSelector className="h-5 w-5 text-gray-400 dark:text-slate-400" />
                                                                         </span>
                                                                     </button>
 
                                                                     {teamDropdownOpen && (
-                                                                        <div className="absolute z-20 mt-1 w-full rounded-md bg-white shadow-lg border border-gray-200 max-h-60 overflow-auto">
+                                                                        <div className="absolute z-20 mt-1 w-full rounded-md bg-white dark:bg-slate-800 shadow-lg border border-gray-200 dark:border-slate-700 max-h-60 overflow-auto">
 
                                                                             <button
                                                                                 type="button"
@@ -419,20 +427,20 @@ const NewProject = ({
                                                                                     setSelectedFilterTeam("All Teams");
                                                                                     setTeamDropdownOpen(false);
                                                                                 }}
-                                                                                className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                                                                                className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-900 dark:text-slate-100 text-sm"
                                                                             >
                                                                                 All Teams
                                                                             </button>
 
                                                                             {teams.map((team) => (
                                                                                 <button
-                                                                                    key={team._id}
+                                                                                    key={team._id || team.id}
                                                                                     type="button"
                                                                                     onClick={() => {
                                                                                         setSelectedFilterTeam(team.name);
                                                                                         setTeamDropdownOpen(false);
                                                                                     }}
-                                                                                    className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                                                                                    className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-900 dark:text-slate-100 text-sm"
                                                                                 >
                                                                                     {team.name}
                                                                                 </button>
@@ -443,15 +451,15 @@ const NewProject = ({
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex justify-between items-center text-sm text-gray-600">
+                                                        <div className="flex justify-between items-center text-sm text-gray-600 dark:text-slate-400">
                                                             <span>{selectedUsers.length} selected</span>
                                                             <span>Total: {filteredUsers.length} users</span>
                                                         </div>
 
-                                                        <div className="rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                                                        <div className="rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden">
                                                             <div className="max-h-[400px] overflow-y-auto">
-                                                                <table className="min-w-full divide-y divide-gray-200 bg-white text-sm">
-                                                                    <thead className="bg-gray-50 sticky top-0 z-10">
+                                                                <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-800 text-sm">
+                                                                    <thead className="bg-gray-50 dark:bg-slate-900/60 sticky top-0 z-10">
                                                                         <tr>
                                                                             <th className="px-4 py-3 text-left">
                                                                                 <div className="flex gap-3 items-center">
@@ -475,36 +483,38 @@ const NewProject = ({
                                                                                                         setSelectedUsers([])
                                                                                                     }
                                                                                                 }}
-                                                                                                className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"></input>
+                                                                                                className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"></input>
                                                                                             <MdOutlineCheckBoxOutlineBlank className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25" />
                                                                                         </div>
                                                                                     </div>
 
                                                                                     <div className="text-sm/6">
-                                                                                        <label htmlFor="select-all-users" className="font-medium text-gray-900">Select all {filteredUsers.length} on this page</label>
+                                                                                        <label htmlFor="select-all-users" className="font-medium text-gray-900 dark:text-slate-200">Select all {filteredUsers.length} on this page</label>
 
                                                                                     </div>
                                                                                 </div>
                                                                             </th>
 
-                                                                            <th className="px-4 py-3 text-left font-semibold text-gray-700">Team</th>
+                                                                            <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">Team</th>
                                                                         </tr>
                                                                     </thead>
 
-                                                                    <tbody className="divide-y divide-gray-100">
+                                                                    <tbody className="divide-y divide-gray-100 dark:divide-slate-700/60">
 
-                                                                        {filteredUsers.map((user) => (
+                                                                        {filteredUsers.map((user) => {
+                                                                            const userId = user._id || user.id;
+                                                                            return (
                                                                             <tr
-                                                                                key={user._id}
-                                                                                className="hover:bg-gray-50 transition-colors"
+                                                                                key={userId}
+                                                                                className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
                                                                             >
                                                                                 <td className="px-4 py-3">
                                                                                     <div className="flex gap-3 items-center">
                                                                                         <input
                                                                                             type="checkbox"
-                                                                                            checked={selectedUsers.includes(user._id)}
-                                                                                            onChange={() => toggleUser(user._id)}
-                                                                                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                                                            checked={selectedUsers.includes(userId)}
+                                                                                            onChange={() => toggleUser(userId)}
+                                                                                            className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500"
                                                                                         />
 
                                                                                         <div className="flex items-center gap-3">
@@ -527,14 +537,14 @@ const NewProject = ({
                                                                                                 <div
                                                                                                     className={
                                                                                                         selectedUsers.includes(user._id)
-                                                                                                            ? "font-semibold text-gray-900"
-                                                                                                            : "text-gray-700"
+                                                                                                            ? "font-semibold text-gray-900 dark:text-white"
+                                                                                                            : "text-gray-700 dark:text-slate-300"
                                                                                                     }
                                                                                                 >
                                                                                                     {user.firstName} {user.lastName}
                                                                                                 </div>
 
-                                                                                                <div className="text-xs text-gray-500">
+                                                                                                <div className="text-xs text-gray-500 dark:text-slate-400">
                                                                                                     {user.email}
                                                                                                 </div>
                                                                                             </div>
@@ -542,11 +552,12 @@ const NewProject = ({
                                                                                     </div>
                                                                                 </td>
 
-                                                                                <td className="px-4 py-3 text-gray-600">
+                                                                                <td className="px-4 py-3 text-gray-600 dark:text-slate-400">
                                                                                     {user.team || "Default team"}
                                                                                 </td>
                                                                             </tr>
-                                                                        ))}
+                                                                            );
+                                                                        })}
                                                                     </tbody>
                                                                 </table>
                                                             </div>
@@ -560,13 +571,13 @@ const NewProject = ({
                             </div>
 
 
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-slate-700">
                                 <button
                                     type="submit"
-                                    disabled={!projectName.trim()}
+                                    disabled={!projectName.trim() || saving}
                                     className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                                     <Check className="w-4 h-4" />
-                                    <span>{editingProject ? "Update Project" : "Create New Project"}</span>
+                                    <span>{saving ? "Saving..." : (editingProject ? "Update Project" : "Create New Project")}</span>
                                 </button>
                             </div>
                         </form>

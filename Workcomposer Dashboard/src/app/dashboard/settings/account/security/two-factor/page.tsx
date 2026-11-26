@@ -99,20 +99,20 @@ export default function TwoFactorPage() {
 
     return (
         <div className="px-2">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Two Factor Authentication
             </h2>
 
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 Users must verify their identity using a 6-digit code sent to
                 their email each time they log in.
             </p>
 
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
                 Note: Ensure you have the latest WorkComposer desktop app version.
             </p>
 
-            <div className="mt-10 rounded-2xl bg-white shadow-sm border border-gray-200 p-6">
+            <div className="mt-10 rounded-2xl bg-white dark:bg-[#0F172A] shadow-sm border border-gray-200 dark:border-[#22324D] p-6">
                 <div className="space-y-4 max-w-[240px]">
 
                     {roles.map(({ key, label }) => (
@@ -120,7 +120,7 @@ export default function TwoFactorPage() {
                             key={key}
                             className="flex items-center justify-between"
                         >
-                            <h3 className="text-md font-semibold text-gray-900">
+                            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
                                 {label}
                             </h3>
 
@@ -131,7 +131,7 @@ export default function TwoFactorPage() {
                                     onClick={() => handleToggle(key)}
                                     className={`relative h-7 w-14 rounded-full transition-colors ${settings[key]
                                         ? "bg-indigo-600"
-                                        : "bg-gray-300"
+                                        : "bg-gray-300 dark:bg-gray-700"
                                         }`}
                                 >
                                     <span
@@ -142,7 +142,7 @@ export default function TwoFactorPage() {
                                     />
                                 </button>
 
-                                <span className="text-sm text-gray-600">
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
                                     {settings[key] ? "On" : "Off"}
                                 </span>
                             </div>

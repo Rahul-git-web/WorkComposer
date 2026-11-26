@@ -3,7 +3,7 @@
 import { Suspense, useEffect } from "react";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import API from "@/api";
+import API, { ensureCsrfToken, getLastCsrfError } from "@/api";
 import Image from "next/image";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
@@ -11,11 +11,50 @@ import { FaApple } from "react-icons/fa";
 import Microsoft from "@/assets/microsoft.svg";
 import logo from "@/assets/logo.W.png";
 import toast from "react-hot-toast";
+import { reconnectSocketWithToken } from "@/socket/socket";
+
+const DEFAULT_POST_LOGIN_PATH = "/dashboard/time-tracking/home";
+
+function getSafeRedirectUrl(target) {
+  if (!target || typeof target !== "string") {
+    return DEFAULT_POST_LOGIN_PATH;
+  }
+
+  const trimmed = target.trim();
+
+  // Guard against Open Redirects:
+  // Must start with single "/", cannot start with "//" or "/\", and cannot contain protocol scheme
+  if (
+    !trimmed.startsWith("/") ||
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("/\\") ||
+    trimmed.includes("://") ||
+    /^\/[/\\]/.test(trimmed)
+  ) {
+    return DEFAULT_POST_LOGIN_PATH;
+  }
+
+  // Prevent defaulting to Team Report when landing or fallback was intended for Home
+  if (
+    trimmed === "/dashboard/time-tracking/overview" ||
+    trimmed === "/dashboard/time-tracking"
+  ) {
+    return DEFAULT_POST_LOGIN_PATH;
+  }
+
+  // Allow safe internal dashboard paths
+  if (trimmed.startsWith("/dashboard")) {
+    return trimmed;
+  }
+
+  return DEFAULT_POST_LOGIN_PATH;
+}
 
 const SignInContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verified = searchParams.get("verified");
+  const returnUrlParam = searchParams.get("redirect") || searchParams.get("returnUrl") || searchParams.get("from");
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formData, setFormData] = useState({
@@ -28,7 +67,9 @@ const SignInContent = () => {
   const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    setIsDesktop(typeof window !== "undefined" && !!window.electronAPI);
+    const isDesk = typeof window !== "undefined" && !!window.electronAPI;
+    setIsDesktop(isDesk);
+    ensureCsrfToken().catch(() => {});
   }, []);
 
   const handleChange = (e) => {
@@ -45,6 +86,20 @@ const SignInContent = () => {
 
     setIsLoggingIn(true);
 
+    const csrfReady = await ensureCsrfToken();
+    if (!csrfReady) {
+      const csrfErr = typeof getLastCsrfError === "function" ? getLastCsrfError() : null;
+      if (csrfErr?.category === "network") {
+        toast.error("Unable to connect to authentication server. Please ensure the backend is running and try again.");
+      } else if (csrfErr?.category === "timeout") {
+        toast.error("Connection timed out while initializing secure session. Please try again.");
+      } else {
+        toast.error("Unable to initialize secure session. Please refresh the page.");
+      }
+      setIsLoggingIn(false);
+      return;
+    }
+
     if (requiresTwoFactor) {
       try {
         const electronAPI =
@@ -58,11 +113,15 @@ const SignInContent = () => {
 
         toast.success("Signed in successfully!");
 
+        if (res.data?.accessToken) {
+          void reconnectSocketWithToken(res.data.accessToken);
+        }
+
         if (electronAPI) {
           electronAPI.saveToken(res.data.accessToken, res.data.refreshToken);
           router.push("/desktop");
         } else {
-          router.push("/dashboard/time-tracking/overview");
+          router.push(getSafeRedirectUrl(returnUrlParam));
         }
       } catch (err) {
         toast.error(err.response?.data?.message || "Verification failed.");
@@ -88,6 +147,10 @@ const SignInContent = () => {
         return;
       }
 
+      if (res.data?.accessToken) {
+        void reconnectSocketWithToken(res.data.accessToken);
+      }
+
       if (electronAPI) {
         electronAPI.saveToken(res.data.accessToken, res.data.refreshToken);
       } else {
@@ -99,7 +162,7 @@ const SignInContent = () => {
       if (window.electronAPI) {
         router.push("/desktop");
       } else {
-        router.push("/dashboard/time-tracking/overview");
+        router.push(getSafeRedirectUrl(returnUrlParam));
       }
     } catch (err) {
       console.error("LOGIN ERROR:", err);
@@ -122,15 +185,15 @@ const SignInContent = () => {
         <div className="flex w-full flex-col items-center space-y-4 sm:items-end"></div>
       </div>
 
-      <div className="flex min-h-full flex-1 flex-col justify-center py-8 sm:py-10 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white">
+      <div className="relative flex min-h-full flex-1 flex-col justify-center py-8 sm:py-10 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white dark:from-slate-900 dark:to-[#090F1D] transition-colors duration-200">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex items-center justify-center space-x-4">
             <Image src={logo} alt="WorkComposer" width={120} />
             <div className="flex-1">
-              <h2 className="text-2xl font-bold leading-7 text-gray-900">
+              <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white">
                 Welcome back
               </h2>
-              <p className="text-base text-gray-600 mt-0.5">
+              <p className="text-base text-gray-600 dark:text-gray-400 mt-0.5">
                 Sign in to your account to continue
               </p>
             </div>
@@ -138,7 +201,7 @@ const SignInContent = () => {
         </div>
 
         <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-120">
-          <div className="bg-white px-6 py-8 sm:py-10 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100 transition-all duration-300 hover:shadow-xl relative overflow-hidden">
+          <div className="bg-white dark:bg-[#0F172A] px-6 py-8 sm:py-10 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100 dark:border-[#22324D] transition-all duration-300 hover:shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-indigo-600"></div>
 
             {verified && (
@@ -150,7 +213,7 @@ const SignInContent = () => {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium leading-6 text-gray-900"
+                  className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                 >
                   Email address
                 </label>
@@ -171,7 +234,7 @@ const SignInContent = () => {
                     tabIndex={1}
                     value={formData.email}
                     onChange={handleChange}
-                    className="block w-full rounded-lg border-0 py-2 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                    className="block w-full rounded-lg border-0 py-2 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                   />
                   <div id="email-description" className="sr-only">
                     Enter your email address to sign in
@@ -216,7 +279,7 @@ const SignInContent = () => {
                     tabIndex={2}
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full rounded-lg border-0 py-2 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                    className="block w-full rounded-lg border-0 py-2 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                   />
                   <button
                     type="button"

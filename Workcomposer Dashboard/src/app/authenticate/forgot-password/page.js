@@ -33,30 +33,30 @@ const ForgotPassword = () => {
         <div className="flex w-full flex-col items-center space-y-4 sm:items-end"></div>
       </div>
 
-      <div className="flex min-h-full flex-1 flex-col justify-center py-8 sm:py-10 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white">
+      <div className="relative flex min-h-full flex-1 flex-col justify-center py-8 sm:py-10 px-2 sm:px-4 lg:px-6 bg-linear-to-b from-gray-50 to-white dark:from-slate-900 dark:to-[#090F1D] transition-colors duration-200">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="flex items-center justify-center space-x-4">
             <Image className="h-11 w-auto" src={logo} alt="Workcomposer logo" />
             <div className="flex-1">
-              <h2 className="text-2xl font-bold leading-7 text-gray-900">
+              <h2 className="text-2xl font-bold leading-7 text-gray-900 dark:text-white">
                 Forgot your password?
               </h2>
-              <p className="text-base text-gray-600 mt-0.5">
-                Enter your email and we'll send you a reset link.
+              <p className="text-base text-gray-600 dark:text-gray-400 mt-0.5">
+                Enter your email and we&apos;ll send you a reset link.
               </p>
             </div>
           </div>
         </div>
 
         <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-120">
-          <div className="bg-white px-6 py-8 sm:py-10 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100 transition-all duration-300 hover:shadow-xl relative overflow-hidden">
+          <div className="bg-white dark:bg-[#0F172A] px-6 py-8 sm:py-10 shadow-lg sm:rounded-2xl sm:px-10 border border-gray-100 dark:border-[#22324D] transition-all duration-300 hover:shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-indigo-600"></div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-sm font-medium leading-6 text-gray-900"
+                  className="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-200"
                 >
                   Email address
                 </label>
@@ -76,7 +76,7 @@ const ForgotPassword = () => {
                     required
                     placeholder="your.email@example.com"
                     aria-describedby="email-description"
-                    className="block w-full rounded-lg border-0 py-2 pl-12 pr-4 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
+                    className="block w-full rounded-lg border-0 py-2 pl-12 pr-4 text-gray-900 dark:text-white bg-white dark:bg-[#1E293B] shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6 transition-all duration-200"
                   />
 
                   <div id="email-description" className="sr-only">
@@ -97,7 +97,7 @@ const ForgotPassword = () => {
                 </button>
 
                 {message && (
-                  <p className="text-center text-sm text-green-600 mt-2">
+                  <p className="text-center text-sm text-green-600 dark:text-green-400 mt-2">
                     {message}
                   </p>
                 )}
@@ -106,18 +106,18 @@ const ForgotPassword = () => {
           </div>
 
           <div className="mt-6 text-center animate-fadeIn">
-            <p className="text-sm text0gray-600">
-              Remembered your password?
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Remembered your password?{" "}
               <button
                 onClick={() => router.push("/authenticate/login")}
-                className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors duration-200 inline-flex items-center group"
+                className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors duration-200 inline-flex items-center group"
               >
                 Sign in
                 <BsArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform duration-200" />
               </button>
             </p>
 
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               {" "}
               © 2026 WorkComposer. All rights reserved.{" "}
             </p>

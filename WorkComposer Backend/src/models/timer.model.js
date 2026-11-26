@@ -56,4 +56,7 @@ timerSchema.index(
 
 const Timer = mongoose.model("Timer", timerSchema);
 
-export default Timer;
+import { createModelProxy } from "../db/modelProxy.js";
+import { timerRepository } from "../db/repositories/timer.repository.js";
+
+export default createModelProxy(Timer, () => timerRepository);

@@ -103,22 +103,34 @@ const Inbox = ({
         );
     });
 
-    const fetchUsers = async () => {
-        try {
-            const { data } = await API.get("/users");
-
-            setUsers(data);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
     useEffect(() => {
-        fetchRequests();
+        let mounted = true;
+        API.get("/manual-time-requests", {
+            params: {
+                status: requestStatus,
+            },
+        })
+            .then(({ data }) => {
+                if (mounted) setRequests(data);
+            })
+            .catch((err) => console.error(err));
+
+        return () => {
+            mounted = false;
+        };
     }, [requestStatus]);
 
     useEffect(() => {
-        fetchUsers();
+        let mounted = true;
+        API.get("/users")
+            .then(({ data }) => {
+                if (mounted) setUsers(data);
+            })
+            .catch((err) => console.error(err));
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const filteredUsers = users.filter((user: any) => {
@@ -179,9 +191,9 @@ const Inbox = ({
         <>
             <div
                 className={`flex-1 ${desktop
-                    ? "bg-white"
-                    : "bg-gray-100"
-                    }`}
+                    ? "bg-slate-100 dark:bg-[#090F1D]"
+                    : "bg-gray-100 dark:bg-[#090F1D]"
+                    } text-gray-900 dark:text-white transition-colors duration-200`}
             >
                 <div
                     className={
@@ -193,17 +205,17 @@ const Inbox = ({
                     <div className='px-4 sm:px-6 lg:px-8'>
 
 
-                        <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-200">
-                            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <div className="bg-white dark:bg-[#0F172A] shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-[#22324D]">
+                            <div className="px-6 py-4 bg-gray-50 dark:bg-[#162742] border-b border-gray-200 dark:border-[#22324D]">
                                 <div className='mb-4'>
-                                    <h2 className='text-base font-bold text-gray-900 mb-1'>Filter & Search</h2>
-                                    <p className='text-xs text-gray-500'>Refine your view to find specific requests</p>
+                                    <h2 className='text-base font-bold text-gray-900 dark:text-white mb-1'>Filter & Search</h2>
+                                    <p className='text-xs text-gray-500 dark:text-gray-400'>Refine your view to find specific requests</p>
                                 </div>
                                 <div className='flex flex-col lg:flex-row gap-4'>
                                     <div className='w-full lg:w-1/3'>
                                         <div>
-                                            <label htmlFor="" className='block text-sm font-medium text-gray-500 mb-1 flex items-center'>
-                                                <User className='h-4 w-4 mr-1 text-indigo-600' />
+                                            <label htmlFor="" className='block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center'>
+                                                <User className='h-4 w-4 mr-1 text-indigo-600 dark:text-indigo-400' />
                                                 Search User
                                             </label>
                                             <div
@@ -225,7 +237,7 @@ const Inbox = ({
                                                     aria-autocomplete="list"
                                                     type="text"
                                                     role="combobox"
-                                                    className="block w-full bg-white rounded-lg border border-gray-300 py-2 pl-10 pr-10 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-200"
+                                                    className="block w-full bg-white dark:bg-[#1E293B] rounded-lg border border-gray-300 dark:border-gray-700 py-2 pl-10 pr-10 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all duration-200"
                                                     placeholder="All Users or Type a Name..."
                                                 />
                                                 <div className='pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3'>
@@ -241,7 +253,7 @@ const Inbox = ({
                                                 {showUsers && (
                                                     <ul
                                                         role="listbox"
-                                                        className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-gray-200 border border-gray-300"
+                                                        className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white dark:bg-[#1E293B] py-1 text-sm shadow-lg ring-1 ring-gray-200 dark:ring-gray-700 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white"
                                                     >
                                                         <li
                                                             onClick={() => {
@@ -249,14 +261,14 @@ const Inbox = ({
                                                                 setSearchUser("");
                                                                 setShowUsers(false);
                                                             }}
-                                                            className="cursor-pointer py-2 pl-3 pr-8 hover:bg-gray-100"
+                                                            className="cursor-pointer py-2 pl-3 pr-8 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                         >
                                                             <div className="flex items-center">
-                                                                <div className="h-7 w-7 rounded-full bg-gray-100 flex items-center justify-center">
-                                                                    <User className="h-3 w-3 text-gray-500" />
+                                                                <div className="h-7 w-7 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                                                                    <User className="h-3 w-3 text-gray-500 dark:text-gray-400" />
                                                                 </div>
 
-                                                                <span className="ml-2 font-semibold">
+                                                                <span className="ml-2 font-semibold text-gray-900 dark:text-white">
                                                                     All Users
                                                                 </span>
                                                             </div>
@@ -272,7 +284,7 @@ const Inbox = ({
                                                                     );
                                                                     setShowUsers(false);
                                                                 }}
-                                                                className="cursor-pointer py-2 pl-3 pr-8 hover:bg-gray-100"
+                                                                className="cursor-pointer py-2 pl-3 pr-8 hover:bg-gray-100 dark:hover:bg-gray-700"
                                                             >
                                                                 <div className="flex items-center">
                                                                     <img
@@ -280,7 +292,7 @@ const Inbox = ({
                                                                         className="h-7 w-7 rounded-full object-cover"
                                                                     />
 
-                                                                    <span className="ml-2 font-medium">
+                                                                    <span className="ml-2 font-medium text-gray-900 dark:text-white">
                                                                         {user.firstName} {user.lastName}
                                                                     </span>
                                                                 </div>
@@ -293,8 +305,8 @@ const Inbox = ({
                                     </div>
 
                                     <div className='w-full lg:w-1/3'>
-                                        <label htmlFor="" className='block text-sm font-medium text-gray-500 mb-1 flex items-center'>
-                                            <HiOutlineFilter className='h-4 w-4 mr-1 text-indigo-600' />
+                                        <label htmlFor="" className='block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center'>
+                                            <HiOutlineFilter className='h-4 w-4 mr-1 text-indigo-600 dark:text-indigo-400' />
                                             Status Filter
                                         </label>
                                         <div className='flex space-x-2'>
@@ -302,7 +314,7 @@ const Inbox = ({
                                                 onClick={() => setRequestStatus("pending")}
                                                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${requestStatus === "pending"
                                                     ? "bg-indigo-600 text-white border border-indigo-600"
-                                                    : "bg-white text-gray-600 border border-gray-300 hover:border-indigo-500"
+                                                    : "bg-white dark:bg-[#1E293B] text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:border-indigo-500"
                                                     }`}
                                             >
                                                 Pending
@@ -311,7 +323,7 @@ const Inbox = ({
                                                 onClick={() => setRequestStatus("all")}
                                                 className={`rounded-lg px-4 py-2 text-sm font-medium transition ${requestStatus === "all"
                                                     ? "bg-indigo-600 text-white border border-indigo-600"
-                                                    : "bg-white text-gray-600 border border-gray-300 hover:border-indigo-500"
+                                                    : "bg-white dark:bg-[#1E293B] text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 hover:border-indigo-500"
                                                     }`}
                                             >
                                                 All
@@ -322,29 +334,29 @@ const Inbox = ({
                                 </div>
 
                                 {canApprove && selectedRequests.length > 0 && (
-                                    <div className="mt-4 mb-4 p-4 bg-indigo-50 rounded-lg border border-indigo-200">
+                                    <div className="mt-4 mb-4 p-4 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg border border-indigo-200 dark:border-indigo-900">
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                             <div className='flex items-center'>
-                                                <div className="bg-indigo-100 p-1.5 rounded-lg mr-2">
-                                                    <CircleCheck className='h-4 w-4 text-indigo-600' />
+                                                <div className="bg-indigo-100 dark:bg-indigo-900/60 p-1.5 rounded-lg mr-2">
+                                                    <CircleCheck className='h-4 w-4 text-indigo-600 dark:text-indigo-400' />
                                                 </div>
                                                 <div>
-                                                    <p className='text-sm font-semibold text-gray-900'>{selectedRequests.length} item{selectedRequests.length > 1 ? "s" : ""} selected</p>
-                                                    <p className='text-xs text-gray-500'>Choose an action to apply to selected requests</p>
+                                                    <p className='text-sm font-semibold text-gray-900 dark:text-white'>{selectedRequests.length} item{selectedRequests.length > 1 ? "s" : ""} selected</p>
+                                                    <p className='text-xs text-gray-500 dark:text-gray-400'>Choose an action to apply to selected requests</p>
                                                 </div>
                                             </div>
 
                                             <div className="flex flex-wrap gap-2">
                                                 <button
                                                     onClick={approveSelected}
-                                                    className="inline-flex cursor-pointer items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-lg shadow-sm text-green-700 bg-green-50 hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
+                                                    className="inline-flex cursor-pointer items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-lg shadow-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/40 hover:bg-green-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-green-500 transition"
                                                 >
                                                     <CircleCheck className='h-4 w-4 mr-1' />
                                                     Approve Selected
                                                 </button>
                                                 <button
                                                     onClick={() => setShowRejectModal(true)}
-                                                    className="inline-flex cursor-pointer items-center px-4 py-2 border border-red-500 text-sm font-medium rounded-lg shadow-sm text-red-600 bg-red-50 hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition"
+                                                    className="inline-flex cursor-pointer items-center px-4 py-2 border border-red-500 text-sm font-medium rounded-lg shadow-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/40 hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-500 transition"
                                                 >
                                                     <TbCircleX className="h-4 w-4 mr-1" />
                                                     Reject Selected
@@ -354,9 +366,9 @@ const Inbox = ({
                                     </div>
                                 )}
 
-                                <div className='overflow-x-auto min-h-[400px] bg-white mt-4'>
+                                <div className='overflow-x-auto min-h-[400px] bg-white dark:bg-[#0F172A] mt-4'>
                                     <table className='min-w-full'>
-                                        <thead className='bg-gray-100 border-b border-gray-200'>
+                                        <thead className='bg-gray-100 dark:bg-[#162742] border-b border-gray-200 dark:border-[#22324D]'>
                                             <tr>
 
                                                 {canApprove && (
@@ -451,11 +463,11 @@ const Inbox = ({
                                             </tr>
                                         </thead>
 
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white dark:bg-[#0F172A] divide-y divide-gray-200 dark:divide-[#22324D]">
                                             {filteredRequests.map((request: any) => (
                                                 <tr
                                                     key={request._id}
-                                                    className="group hover:bg-gray-50 transition-colors duration-200"
+                                                    className="group hover:bg-gray-50 dark:hover:bg-[#1E293B] transition-colors duration-200"
                                                 >
                                                     {canApprove && (
                                                         <td className='px-3 sm:px-4 lg:px-6 py-4 whitespace-nowrap'>
@@ -472,7 +484,7 @@ const Inbox = ({
                                                                             );
                                                                         }
                                                                     }}
-                                                                    className="col-start-1 row-start-1 appearance-none rounded border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600"
+                                                                    className="col-start-1 row-start-1 appearance-none rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1E293B] checked:border-indigo-600 checked:bg-indigo-600"
                                                                 />
                                                                 <svg
                                                                     className="pointer-events-none col-start-1 row-start-1 size-3 self-center justify-self-center stroke-white"
@@ -498,7 +510,7 @@ const Inbox = ({
                                                                     <img
                                                                         src={getAvatarUrl(request.requestedBy.avatar) || ""}
                                                                         alt=""
-                                                                        className="flex-shrink-0 relative w-10 h-10 cursor-pointer rounded-full object-cover shadow-sm ring-1 ring-gray-300 group-hover:ring-indigo-500 transition-all duration-200"
+                                                                        className="flex-shrink-0 relative w-10 h-10 cursor-pointer rounded-full object-cover shadow-sm ring-1 ring-gray-300 dark:ring-gray-700 group-hover:ring-indigo-500 transition-all duration-200"
                                                                         onError={(e) => {
                                                                             e.currentTarget.style.display = "none";
                                                                             e.currentTarget.nextElementSibling?.classList.remove("hidden");
@@ -506,16 +518,16 @@ const Inbox = ({
                                                                     />
                                                                 ) : null}
 
-                                                                <div className="hidden flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 items-center justify-center font-semibold text-sm shadow-sm ring-1 ring-gray-300">
+                                                                <div className="hidden flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 items-center justify-center font-semibold text-sm shadow-sm ring-1 ring-gray-300 dark:ring-gray-700">
                                                                     {getUserInitials(
                                                                         request.requestedBy.firstName,
                                                                         request.requestedBy.lastName
                                                                     )}
                                                                 </div>
-                                                                <div className='text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors duration-200'>
+                                                                <div className='text-sm font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-200'>
                                                                     <div className='ml-3'>{request.requestedBy.firstName} {request.requestedBy.lastName}</div>
                                                                     <div className='ml-3'>
-                                                                        <div className='text-xs text-gray-500'>{request.requestedBy.team?.name || "No Team"}</div>
+                                                                        <div className='text-xs text-gray-500 dark:text-gray-400'>{request.requestedBy.team?.name || "No Team"}</div>
                                                                     </div>
                                                                 </div>
                                                             </span>
@@ -524,12 +536,12 @@ const Inbox = ({
 
                                                     <td className='px-3 sm:px-4 lg:px-6 py-4 whitespace-nowrap'>
                                                         <div className='flex items-center'>
-                                                            <div className='flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-100 mr-2 shadow-sm'>
-                                                                <Clock3 className='h-4 w-4 text-indigo-600' />
+                                                            <div className='flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-100 dark:bg-indigo-900/40 mr-2 shadow-sm'>
+                                                                <Clock3 className='h-4 w-4 text-indigo-600 dark:text-indigo-400' />
                                                             </div>
                                                             <div>
-                                                                <div className='text-sm font-semibold text-gray-900'>{new Date(request.startTime).toLocaleString()}</div>
-                                                                <div className='text-xs text-gray-500'>to {new Date(request.endTime).toLocaleTimeString()}</div>
+                                                                <div className='text-sm font-semibold text-gray-900 dark:text-white'>{new Date(request.startTime).toLocaleString()}</div>
+                                                                <div className='text-xs text-gray-500 dark:text-gray-400'>to {new Date(request.endTime).toLocaleTimeString()}</div>
                                                             </div>
                                                         </div>
                                                     </td>

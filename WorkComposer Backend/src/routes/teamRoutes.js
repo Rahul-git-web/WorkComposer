@@ -14,8 +14,8 @@ router.post("/", protect, authorizeRoles("owner", "admin"), createTeam);
 
 router.get("/", protect, getTeams);
 
-router.put("/:id", protect, updateTeam);
+router.put("/:id", protect, authorizeRoles("owner", "admin"), updateTeam);
 
-router.delete("/:id", protect, deleteTeam);
+router.delete("/:id", protect, authorizeRoles("owner", "admin"), deleteTeam);
 
 export default router;

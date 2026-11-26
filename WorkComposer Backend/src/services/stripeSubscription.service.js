@@ -99,7 +99,17 @@ export const updateStripeSubscription = async ({
     throw new Error("Stripe subscription not found.");
   }
 
-  const subscriptionItem = existingSubscription.items.data[0];
+  // Cross-tenant security check
+  if (
+    existingSubscription.metadata?.organizationId &&
+    existingSubscription.metadata.organizationId !== organizationId.toString()
+  ) {
+    const error = new Error("Cross-tenant Stripe subscription access denied.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const subscriptionItem = existingSubscription.items?.data?.[0];
 
   if (!subscriptionItem) {
     throw new Error("Stripe subscription item not found.");

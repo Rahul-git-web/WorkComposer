@@ -116,6 +116,92 @@ declare global {
                 sleptMinutes: number;
                 resumedAt: number;
             } | null>;
+
+            // Screenshot Safe-Retain & Capture Status
+            getOfflineQueueStatus: () => Promise<{
+                initialized: boolean;
+                userId?: string | null;
+                readiness?: {
+                    ok: boolean;
+                    status: string;
+                    reason?: string;
+                    warning?: string;
+                    freeBytes?: number;
+                    reserveBytes?: number;
+                    count?: number;
+                    maxCount?: number;
+                    usagePercent?: number;
+                };
+                activeCount?: number;
+                maxCount?: number;
+                policy?: {
+                    enableAdaptiveBackpressure: boolean;
+                    diskReserveBytes: number;
+                };
+            }>;
+
+            onScreenshotCapturePaused: (
+                callback: (data: {
+                    ok: boolean;
+                    status: string;
+                    reason: string;
+                    warning?: string;
+                    freeBytes?: number;
+                    reserveBytes?: number;
+                    count?: number;
+                    maxCount?: number;
+                    usagePercent?: number;
+                }) => void
+            ) => () => void;
+
+            onScreenshotCaptureThrottled: (
+                callback: (data: {
+                    ok: boolean;
+                    status: string;
+                    reason: string;
+                    warning?: string;
+                    usagePercent?: number;
+                    count?: number;
+                    maxCount?: number;
+                }) => void
+            ) => () => void;
+
+            onScreenshotCaptureResumed: (
+                callback: (data: {
+                    ok: boolean;
+                    status: string;
+                    previousReason?: string;
+                }) => void
+            ) => () => void;
+
+            startIntegrationOAuth?: (
+                provider: "jira" | "asana" | "slack"
+            ) => Promise<{
+                started: boolean;
+                provider?: "jira" | "asana" | "slack";
+                error?: string;
+                message?: string;
+            }>;
+
+            consumePendingIntegrationOAuthResult?: () => Promise<{
+                provider: "jira" | "asana" | "slack";
+                status: "connected" | "cancelled" | "error";
+                connected: boolean;
+                workspaceName?: string;
+                error?: string | null;
+                message?: string | null;
+            } | null>;
+
+            onIntegrationOAuthResult?: (
+                callback: (data: {
+                    provider: "jira" | "asana" | "slack";
+                    status: "connected" | "cancelled" | "error";
+                    connected: boolean;
+                    workspaceName?: string;
+                    error?: string | null;
+                    message?: string | null;
+                }) => void
+            ) => () => void;
         };
     }
 }

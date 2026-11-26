@@ -1,5 +1,5 @@
 import express from "express";
-import multer from "multer";
+import { logoUploadGuard } from "../middleware/fileUploadGuard.middleware.js";
 import { protect } from "../middleware/auth.middleware.js";
 import {
   deleteOrganization,
@@ -21,9 +21,7 @@ import { updateOrganizationNotifications } from "../controllers/notification.con
 
 const router = express.Router();
 
-const upload = multer({
-  dest: "uploads/",
-});
+
 
 router.get("/", protect, requirePermission("manage_settings"), getOrganization);
 
@@ -38,7 +36,7 @@ router.post(
   "/upload-logo",
   protect,
   requirePermission("manage_settings"),
-  upload.single("logo"),
+  logoUploadGuard,
   uploadLogo,
 );
 
@@ -110,6 +108,13 @@ router.get(
   protect,
   requirePermission("manage_settings"),
   getOrganizationNotifications,
+);
+
+router.put(
+  "/notifications",
+  protect,
+  requirePermission("manage_settings"),
+  updateOrganizationNotifications,
 );
 
 router.patch(

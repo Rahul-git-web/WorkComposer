@@ -61,4 +61,7 @@ const projectSchema = new mongoose.Schema(
 
 const Project = mongoose.model("Project", projectSchema);
 
-export default Project;
+import { createModelProxy } from "../db/modelProxy.js";
+import { projectRepository } from "../db/repositories/project.repository.js";
+
+export default createModelProxy(Project, () => projectRepository);

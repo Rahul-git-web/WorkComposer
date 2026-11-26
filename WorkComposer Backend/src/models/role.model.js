@@ -47,4 +47,9 @@ const roleSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("Role", roleSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { roleRepository } from "../db/repositories/role.repository.js";
+
+const _Model = mongoose.model("Role", roleSchema);
+export default createModelProxy(_Model, () => roleRepository);

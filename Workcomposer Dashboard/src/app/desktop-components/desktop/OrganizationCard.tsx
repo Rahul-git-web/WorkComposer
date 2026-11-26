@@ -3,134 +3,131 @@
 import { useDashboard } from "@/context/DashboardContext";
 import { Building2, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { EffectiveTheme } from "./ThemeSelector";
 
-export default function OrganizationCard() {
+interface Props {
+    effectiveTheme?: EffectiveTheme;
+}
+
+export default function OrganizationCard({ effectiveTheme = "dark" }: Props) {
     const { user } = useDashboard();
-
     const [now, setNow] = useState<Date | null>(null);
 
     useEffect(() => {
         setNow(new Date());
-
         const interval = setInterval(() => {
             setNow(new Date());
         }, 1000);
-
         return () => clearInterval(interval);
     }, []);
 
-    const currentTime = now
-        ? now.toLocaleTimeString("en-IN", {
-              timeZone:
-                  user?.organization?.timezone || "Asia/Kolkata",
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: true,
-          })
-        : "--:--:--";
+    const orgTimezone =
+        user?.organization?.timezone ||
+        (user?.reportTimezone && user.reportTimezone !== "Browser timezone"
+            ? user.reportTimezone
+            : null) ||
+        "Asia/Kolkata";
 
-    const timezone =
-        user?.reportTimezone === "Browser timezone"
-            ? Intl.DateTimeFormat().resolvedOptions().timeZone
-            : user?.reportTimezone || "Asia/Kolkata";
+    let currentTime = "--:--:--";
+    if (now) {
+        try {
+            currentTime = now.toLocaleTimeString("en-US", {
+                timeZone: orgTimezone,
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+            });
+        } catch {
+            currentTime = now.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+            });
+        }
+    }
+
+    const isDark = effectiveTheme === "dark";
+    const orgName = user?.organization?.name || "Organization";
 
     return (
-        <div className="relative h-[220px] overflow-hidden rounded-xl border border-[#22324D] bg-[#17253D] p-4 transition-shadow duration-300 hover:shadow-[0_0_25px_rgba(22,163,74,0.25)]">
+        <div
+            className={`relative min-h-[175px] overflow-hidden rounded-2xl border p-5 transition-all duration-300 ${
+                isDark
+                    ? "border-[#1E293B] border-t-2 border-t-blue-500 bg-gradient-to-br from-[#0F1E36] via-[#0D182B] to-[#0A1220] shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_0_25px_rgba(59,130,246,0.25)]"
+                    : "border-gray-200 border-t-2 border-t-blue-600 bg-gradient-to-br from-blue-50/70 via-white to-white shadow-sm hover:shadow-md"
+            }`}
+        >
+            {/* Ambient background glow (Dark mode only) */}
+            {isDark && (
+                <>
+                    <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-blue-500/15 blur-3xl animate-pulse" />
+                    <div className="pointer-events-none absolute -bottom-16 -left-8 h-36 w-36 rounded-full bg-indigo-500/10 blur-3xl" />
+                </>
+            )}
 
-            {/* ========================= */}
-            {/* BACKGROUND EFFECT */}
-            {/* ========================= */}
-
-            {/* Top-right green glow */}
-            <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-green-500/20 blur-3xl animate-pulse" />
-
-            {/* Bottom-left emerald glow */}
-            <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-emerald-500/10 blur-3xl" />
-
-            {/* Moving center glow */}
-            <div className="pointer-events-none absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-400/5 blur-2xl organization-float" />
-
-            {/* Subtle grid */}
-            <div className="pointer-events-none absolute inset-0 opacity-[0.035] organization-grid" />
-
-            {/* ========================= */}
-            {/* CONTENT */}
-            {/* ========================= */}
-
-            <div className="relative z-10">
-
+            <div className="relative z-10 flex flex-col justify-between h-full gap-3">
                 {/* Header */}
                 <div className="flex items-center gap-3">
-                    <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-green-600 shadow-[0_0_12px_rgba(22,163,74,0.6)]">
-                        <Building2 className="h-4 w-4 text-white" />
+                    <div
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-md ${
+                            isDark
+                                ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-[0_0_12px_rgba(59,130,246,0.3)]"
+                                : "bg-blue-600 text-white shadow-blue-500/20"
+                        }`}
+                    >
+                        <Building2 className="h-4 w-4" />
                     </div>
 
-                    <h3 className="mb-2 text-xs font-semibold uppercase text-gray-400">
-                        ORGANIZATION
-                    </h3>
+                    <div>
+                        <h3
+                            className={`text-[11px] font-bold uppercase tracking-wider ${
+                                isDark ? "text-gray-400" : "text-gray-500"
+                            }`}
+                        >
+                            ORGANIZATION
+                        </h3>
+                    </div>
                 </div>
 
                 {/* Organization name */}
-                <p className="mb-3 text-sm font-bold text-white">
-                    {user?.organization?.name ||
-                        "Unknown Organization"}
-                </p>
-
-                {/* Timezone / Current time */}
-                <div className="mt-3 flex border-t border-[#263852] pt-2">
-                    <Clock className="mr-2 mt-1 h-3.5 w-3.5 shrink-0 text-green-500" />
-
-                    <p className="min-w-0 truncate text-sm text-gray-400">
-                        {timezone} •
+                <div className="my-1">
+                    <p
+                        className={`text-lg font-bold truncate leading-tight ${
+                            isDark ? "text-white" : "text-gray-900"
+                        }`}
+                        title={orgName}
+                    >
+                        {orgName}
                     </p>
+                </div>
 
-                    <span className="ml-2 shrink-0 text-sm font-normal text-white">
+                {/* Timezone / Current Local Time */}
+                <div
+                    className={`mt-auto flex items-center justify-between border-t pt-3 text-xs ${
+                        isDark ? "border-[#1E293B]" : "border-gray-100"
+                    }`}
+                >
+                    <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                        <Clock className={`h-3.5 w-3.5 shrink-0 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
+                        <span
+                            className={`truncate text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}
+                            title={orgTimezone}
+                        >
+                            {orgTimezone}
+                        </span>
+                    </div>
+
+                    <span
+                        className={`shrink-0 font-mono text-xs font-semibold ${
+                            isDark ? "text-white" : "text-gray-900"
+                        }`}
+                    >
                         {currentTime}
                     </span>
                 </div>
             </div>
-
-            {/* ========================= */}
-            {/* ANIMATION */}
-            {/* ========================= */}
-
-            <style jsx>{`
-                .organization-float {
-                    animation: organizationFloat 6s ease-in-out infinite;
-                }
-
-                .organization-grid {
-                    background-image:
-                        linear-gradient(
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        ),
-                        linear-gradient(
-                            90deg,
-                            rgba(255, 255, 255, 0.5) 1px,
-                            transparent 1px
-                        );
-                    background-size: 24px 24px;
-                }
-
-                @keyframes organizationFloat {
-                    0%,
-                    100% {
-                        transform: translate(-50%, -50%) scale(1);
-                    }
-
-                    50% {
-                        transform: translate(-42%, -58%) scale(1.15);
-                    }
-                }
-
-                @media (prefers-reduced-motion: reduce) {
-                    .organization-float {
-                        animation: none;
-                    }
-                }
-            `}</style>
         </div>
     );
 }

@@ -200,7 +200,12 @@ const timeTrackingSettingsSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model(
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { timeTrackingSettingsRepository } from "../db/repositories/timeTrackingSettings.repository.js";
+
+const _Model = mongoose.model(
   "TimeTrackingSettings",
   timeTrackingSettingsSchema,
 );
+export default createModelProxy(_Model, () => timeTrackingSettingsRepository);

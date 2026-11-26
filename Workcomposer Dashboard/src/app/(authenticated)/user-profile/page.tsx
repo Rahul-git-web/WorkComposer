@@ -17,7 +17,7 @@ export default function Page() {
     const profileUser = mapUserToProfileData(user);
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-gray-100">
+        <main className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-slate-900">
             <button
                 onClick={() => setOpen(true)}
                 className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"

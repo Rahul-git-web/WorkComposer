@@ -1,74 +1,88 @@
 import cron from "node-cron";
-import Integration from "../models/integration.model.js";
-import User from "../models/user.model.js";
+import {
+  integrationRepository,
+  organizationRepository,
+  userRepository,
+} from "../db/repositories/index.js";
 import { notifyWeeklySummary } from "./notification.service.js";
+import {
+  resolveUserTimezone,
+  getTodayInTimezone,
+  getZonedDayRange,
+  isValidTimezone,
+  normalizeTimezone,
+  DEFAULT_TIMEZONE,
+} from "../utils/timezone.js";
 
 export const startWeeklySummaryScheduler = () => {
-  cron.schedule("*/5 * * * *", async () => {
+  cron.schedule("*/15 * * * *", async () => {
     try {
-      const integrations = await Integration.find({
+      const integrations = await integrationRepository.find({
         provider: "slack",
         connected: true,
-      }).select("organization lastWeeklySummarySent");
+      });
 
       for (const integration of integrations) {
-        const owner = await User.findOne({
-          organization: integration.organization,
-          role: "owner",
-        }).select("reportTimezone");
+        try {
+          const orgId = integration.organization || integration.organizationId;
+          if (!orgId) continue;
 
-        if (!owner) continue;
+          const organization = await organizationRepository.findById(orgId);
+          if (!organization) continue;
 
-        let timezone = owner.reportTimezone;
+          const owner = await userRepository.findOne({
+            organization: orgId,
+            role: "owner",
+          });
 
-        if (!timezone || timezone === "Browser timezone") {
-          timezone = "Asia/Kolkata";
+          const timezone = owner
+            ? resolveUserTimezone(owner)
+            : (organization.timezone && isValidTimezone(organization.timezone)
+                ? normalizeTimezone(organization.timezone)
+                : DEFAULT_TIMEZONE);
+
+          const now = new Date();
+          const formatter = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone,
+            weekday: "short",
+            hour: "numeric",
+            hour12: false,
+          });
+
+          const parts = formatter.formatToParts(now);
+          const weekday = parts.find((p) => p.type === "weekday")?.value;
+          const hour = parseInt(
+            parts.find((p) => p.type === "hour")?.value || "0",
+            10,
+          );
+
+          // Monday 8:00 PM or later
+          if (weekday !== "Mon" || hour < 20) {
+            continue;
+          }
+
+          // Idempotency: Prevent duplicate weekly summary for current Monday cycle
+          const todayStr = getTodayInTimezone(timezone);
+          const { start: mondayStart } = getZonedDayRange(todayStr, timezone);
+
+          if (
+            integration.lastWeeklySummarySent &&
+            new Date(integration.lastWeeklySummarySent) >= mondayStart
+          ) {
+            continue;
+          }
+
+          await notifyWeeklySummary(orgId);
+
+          await integrationRepository.findByIdAndUpdate(integration.id, {
+            lastWeeklySummarySent: new Date(),
+          });
+        } catch (err) {
+          console.error(
+            `Failed to evaluate weekly summary for integration ${integration.id}:`,
+            err.message,
+          );
         }
-
-        const formatter = new Intl.DateTimeFormat("en-US", {
-          timeZone: timezone,
-          weekday: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        });
-
-        const parts = formatter.formatToParts(new Date());
-
-        const weekday = parts.find((p) => p.type === "weekday")?.value;
-
-        const hour = parseInt(
-          parts.find((p) => p.type === "hour")?.value || "0",
-        );
-
-        const minute = parseInt(
-          parts.find((p) => p.type === "minute")?.value || "0",
-        );
-
-        // Monday 8:00 PM
-        if (weekday !== "Mon" || hour !== 20 || minute >= 5) {
-          continue;
-        }
-
-        // Prevent duplicate weekly summary
-        const now = new Date();
-
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - 7);
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        if (
-          integration.lastWeeklySummarySent &&
-          integration.lastWeeklySummarySent >= startOfWeek
-        ) {
-          continue;
-        }
-
-
-        await notifyWeeklySummary(integration.organization);
-
-        integration.lastWeeklySummarySent = new Date();
-        await integration.save();
       }
     } catch (error) {
       console.error("Weekly summary scheduler error:", error);

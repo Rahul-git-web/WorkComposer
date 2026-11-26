@@ -57,4 +57,9 @@ const invoiceSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("Invoice", invoiceSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { invoiceRepository } from "../db/repositories/invoice.repository.js";
+
+const _Model = mongoose.model("Invoice", invoiceSchema);
+export default createModelProxy(_Model, () => invoiceRepository);

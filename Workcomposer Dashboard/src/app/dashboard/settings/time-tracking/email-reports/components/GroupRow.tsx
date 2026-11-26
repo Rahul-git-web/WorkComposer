@@ -18,7 +18,7 @@ export default function GroupRow({
 
             {/* Left */}
             <div>
-                <h4 className="text-base font-medium text-gray-900">
+                <h4 className="text-base font-medium text-gray-900 dark:text-white">
                     {title}
                 </h4>
             </div>
@@ -33,7 +33,7 @@ export default function GroupRow({
                 {configure && (
                     <button
                         onClick={onConfigure}
-                        className="text-sm font-medium text-indigo-600 hover:underline"
+                        className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
                     >
                         Configure per user
                     </button>

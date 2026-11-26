@@ -17,7 +17,7 @@ export default function ToggleRow({
                 type="button"
                 disabled={disabled}
                 onClick={() => onChange(!checked)}
-                className={`relative flex h-7 w-14 items-center rounded-full transition-colors duration-200 ${checked ? "bg-[#4F46E5]" : "bg-gray-200"
+                className={`relative flex h-7 w-14 items-center rounded-full transition-colors duration-200 ${checked ? "bg-[#4F46E5]" : "bg-gray-200 dark:bg-gray-700"
                     }`}
             >
                 <span
@@ -28,8 +28,8 @@ export default function ToggleRow({
 
             <span
                 className={`min-w-[28px] text-base font-medium ${checked
-                        ? "text-[#4F46E5]"
-                        : "text-gray-500"
+                        ? "text-[#4F46E5] dark:text-indigo-400"
+                        : "text-gray-500 dark:text-gray-400"
                     }`}
             >
                 {checked ? "On" : "Off"}

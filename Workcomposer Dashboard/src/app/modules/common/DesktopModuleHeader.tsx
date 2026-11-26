@@ -38,14 +38,14 @@ useEffect(() => {
 
 
     return (
-        <div className="border-b border-gray-700 px-6 py-5">
+        <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-5">
             <Image
                 src={logo}
                 alt="WorkComposer"
                 className="h-6 w-auto"
             />
 
-            <p className="mt-2 text-xs font-semibold text-white">
+            <p className="mt-2 text-xs font-semibold text-gray-900 dark:text-white">
                 {realOrganizationName}
             </p>
         </div>

@@ -1,6 +1,6 @@
 import express from "express";
 import { requirePermission } from "../middleware/permission.middleware.js";
-import multer from "multer";
+import { userImportUploadGuard } from "../middleware/fileUploadGuard.middleware.js";
 import {
   acceptInvite,
   archiveUser,
@@ -39,9 +39,12 @@ import {
 } from "../controllers/user.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
+import {
+  emailRequestIpLimiter,
+  emailRequestIdentityLimiter,
+} from "../middleware/authRateLimit.middleware.js";
 
 const router = express.Router();
-const upload = multer({ dest: "uploads/" });
 
 router.get("/", protect, authorizeRoles("owner", "admin", "manager"), getUsers);
 
@@ -99,7 +102,7 @@ router.post(
   "/import-users",
   protect,
   authorizeRoles("owner", "admin"),
-  upload.single("file"),
+  userImportUploadGuard,
   importUsers,
 );
 
@@ -110,7 +113,13 @@ router.get(
   exportUsers,
 );
 
-router.put("/:id/email-request", protect, requestEmailChange);
+router.put(
+  "/:id/email-request",
+  protect,
+  emailRequestIpLimiter,
+  emailRequestIdentityLimiter,
+  requestEmailChange,
+);
 
 router.get("/verify-email-change/:token", verifyEmailChange);
 
@@ -144,7 +153,6 @@ router.put(
 router.put(
   "/:id/configure-setting",
   protect,
-  authorizeRoles("owner", "admin"),
   updateUserSetting,
 );
 

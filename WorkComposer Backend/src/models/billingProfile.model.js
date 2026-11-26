@@ -59,4 +59,9 @@ const billingProfileSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("BillingProfile", billingProfileSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { billingProfileRepository } from "../db/repositories/billingProfile.repository.js";
+
+const _Model = mongoose.model("BillingProfile", billingProfileSchema);
+export default createModelProxy(_Model, () => billingProfileRepository);

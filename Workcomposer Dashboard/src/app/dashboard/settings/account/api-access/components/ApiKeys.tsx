@@ -8,7 +8,11 @@ import EditApiKeyModal from "./EditApiKeyModal";
 import DeleteApiKeyModal from "./DeleteApiKeyModal";
 import useApiKeys from "../hooks/useApiKeys";
 
-export default function ApiKeys() {
+type ApiKeysProps = {
+    onOpenDocs?: () => void;
+};
+
+export default function ApiKeys({ onOpenDocs }: ApiKeysProps) {
 
     const {
         apiKeys,
@@ -65,9 +69,13 @@ export default function ApiKeys() {
 
                 {/* Documentation */}
                 <div className="mt-8">
-                    <p className="text-[15px] text-gray-700">
+                    <p className="text-[15px] text-gray-700 dark:text-gray-300">
                         Read the API documentation here:{" "}
-                        <button className="inline-flex font-medium text-[#2F6BFF] hover:underline">
+                        <button
+                            type="button"
+                            onClick={() => onOpenDocs?.()}
+                            className="inline-flex font-medium text-[#2F6BFF] hover:underline cursor-pointer"
+                        >
                             WorkComposer API Documentation
                             <TbExternalLink className="w-4 h-4 ml-1.5 mt-1"/>
                         </button>

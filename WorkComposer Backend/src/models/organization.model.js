@@ -184,4 +184,7 @@ const organizationSchema = new mongoose.Schema(
 
 const Organization = mongoose.model("Organization", organizationSchema);
 
-export default Organization;
+import { createModelProxy } from "../db/modelProxy.js";
+import { organizationRepository } from "../db/repositories/organization.repository.js";
+
+export default createModelProxy(Organization, () => organizationRepository);

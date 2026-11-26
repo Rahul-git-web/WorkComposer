@@ -85,4 +85,9 @@ const taskSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-export default mongoose.model("Task", taskSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { taskRepository } from "../db/repositories/task.repository.js";
+
+const _Model = mongoose.model("Task", taskSchema);
+export default createModelProxy(_Model, () => taskRepository);

@@ -108,7 +108,8 @@ export default function TaskManagement({
             const res = await API.get("/tasks");
 
             const formattedTasks = res.data.map((task: any) => ({
-                id: task._id,
+                id: task._id || task.id,
+                _id: task._id || task.id,
 
                 title: task.title,
                 description: task.description,
@@ -119,7 +120,8 @@ export default function TaskManagement({
                 updatedAt: task.updatedAt,
 
                 project: {
-                    _id: task.project?._id,
+                    id: task.project?.id || task.project?._id,
+                    _id: task.project?._id || task.project?.id,
                     name: task.project?.name || "Default Project",
                 },
 
@@ -312,7 +314,7 @@ export default function TaskManagement({
                                 onChange={(e) =>
                                     setSearch(e.target.value)
                                 }
-                                className="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder-gray-400 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6">
+                                className="block w-full rounded-md bg-white dark:bg-[#1E293B] px-3 py-1.5 text-base text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6">
                             </input>
                             <Search className='absolute right-3 top-2 h-5 w-5 text-gray-400 pointer-events-none' />
                         </div>
@@ -325,13 +327,13 @@ export default function TaskManagement({
                                     setStatusOpen(!statusOpen)
                                 }
                                 type='button'
-                                className='grid w-full cursor-default grid-cols-1 rounded-md bg-white py-1.5 pr-2 pl-3 text-left text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
+                                className='grid w-full cursor-default grid-cols-1 rounded-md bg-white dark:bg-[#1E293B] py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
                                 <span className='col-start-1 row-start-1 truncate pr-6'>{selectedStatus}</span>
                                 <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4' />
                             </button>
 
                             {statusOpen && (
-                                <ul className='absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm'>
+                                <ul className='absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-[#1E293B] py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 text-gray-900 dark:text-white sm:text-sm'>
                                     {statuses.map((status) =>
                                     (
                                         <li
@@ -371,7 +373,7 @@ export default function TaskManagement({
                                     setAssigneeOpen(!assigneeOpen)
                                 }
                                 type='button'
-                                className='grid w-full cursor-default grid-cols-1 rounded-md bg-white py-1.5 pr-2 pl-3 text-left text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
+                                className='grid w-full cursor-default grid-cols-1 rounded-md bg-white dark:bg-[#1E293B] py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
                                 <span className='col-start-1 row-start-1 truncate pr-6'>
                                     {selectedAssignees.length === 0
                                         ? "All assignees"
@@ -382,18 +384,18 @@ export default function TaskManagement({
                             </button>
 
                             {assigneeOpen && (
-                                <ul className='absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm'>
+                                <ul className='absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-[#1E293B] py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 text-gray-900 dark:text-white sm:text-sm'>
 
                                     {assignees.map((assignee) => (
                                         <li
                                             key={assignee}
                                             onClick={() => toggleAssignee(assignee)}
-                                            className='flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer'
+                                            className='flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'
                                         >
                                             <span className={
                                                 selectedAssignees.includes(assignee)
-                                                    ? "font-semibold text-gray-900"
-                                                    : "text-gray-500"
+                                                    ? "font-semibold text-gray-900 dark:text-white"
+                                                    : "text-gray-500 dark:text-gray-400"
                                             }>{assignee}</span>
 
                                             {selectedAssignees.includes(assignee) && (
@@ -415,13 +417,13 @@ export default function TaskManagement({
                                     setTypeOpen(!typeOpen)
                                 }
                                 type='button'
-                                className='grid w-full cursor-default grid-cols-1 rounded-md bg-white py-1.5 pr-2 pl-3 text-left text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
+                                className='grid w-full cursor-default grid-cols-1 rounded-md bg-white dark:bg-[#1E293B] py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
                                 <span className='col-start-1 row-start-1 truncate pr-6'>{selectedType}</span>
                                 <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4' />
                             </button>
 
                             {typeOpen && (
-                                <ul className='absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 sm:text-sm'>
+                                <ul className='absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white dark:bg-[#1E293B] py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-white/10 border border-transparent dark:border-gray-700 sm:text-sm'>
 
                                     {taskTypes.map((type) => (
                                         <li
@@ -430,16 +432,16 @@ export default function TaskManagement({
                                                 setSelectedType(type)
                                                 setTypeOpen(false);
                                             }}
-                                            className='text-gray-900 relative cursor-pointer select-none py-2 pr-9 pl-3'>
+                                            className='text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 relative cursor-pointer select-none py-2 pr-9 pl-3'>
                                             <span
                                                 className={`font-semibold block truncate ${selectedType === type
-                                                    ? "font-semibold"
+                                                    ? "font-semibold text-indigo-600 dark:text-indigo-400"
                                                     : "font-normal"
                                                     }`}
                                             >{type}</span>
 
                                             {selectedType === type && (
-                                                <span className='text-indigo-600 absolute inset-y-0 right-0 flex items-center pr-4'>
+                                                <span className='text-indigo-600 dark:text-indigo-400 absolute inset-y-0 right-0 flex items-center pr-4'>
                                                     <IoCheckmark className='size-5' />
                                                 </span>
                                             )}
@@ -460,19 +462,19 @@ export default function TaskManagement({
                                     setMoreOpen(!moreOpen)
                                 }
                                 type='button'
-                                className='inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100'>
+                                className='inline-flex items-center gap-1 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'>
                                 More
                                 <ChevronDown className='h-4 w-4' />
                             </button>
 
                             {moreOpen && (
-                                <div role='menu' className='absolute right-0 mt-2 w-48 rounded-md border border-gray-200 bg-white shadow-lg z-20'>
+                                <div role='menu' className='absolute right-0 mt-2 w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E293B] shadow-lg z-20'>
                                     <button
                                         onClick={() => {
                                             setMoreOpen(false);
                                             setShowRecentlyDeleted(true);
                                         }}
-                                        className='w-full text-left px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100'
+                                        className='w-full text-left px-3 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                                         role='menuitem'
                                     >
                                         Recently Deleted
@@ -486,56 +488,56 @@ export default function TaskManagement({
 
                 {/* TASK AREA */}
 
-                <div className='sm:px-6 lg:px-8 my-2 pt-5 min-h-[calc(100vh-230px)] max-h-[calc(100vh-180px)] overflow-y-auto rounded-lg bg-white shadow px-6 py-8'>
+                <div className='sm:px-6 lg:px-8 my-2 pt-5 min-h-[calc(100vh-230px)] max-h-[calc(100vh-180px)] overflow-y-auto rounded-lg bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] shadow px-6 py-8 text-gray-900 dark:text-white transition-colors duration-200'>
 
                     <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6'>
 
-                        <div className='rounded-lg border border-gray-200 bg-white p-4 shadow-sm'>
-                            <p className='text-sm text-gray-500'>
+                        <div className='rounded-lg border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] p-4 shadow-sm'>
+                            <p className='text-sm text-gray-500 dark:text-gray-400'>
                                 Total Tasks
                             </p>
 
-                            <h3 className='mt-2 text-2xl font-bold text-gray-900'>
+                            <h3 className='mt-2 text-2xl font-bold text-gray-900 dark:text-white'>
                                 {totalTasks}
                             </h3>
                         </div>
 
-                        <div className='rounded-lg border border-gray-200 bg-white p-4 shadow-sm'>
-                            <p className='text-sm text-gray-500'>
+                        <div className='rounded-lg border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] p-4 shadow-sm'>
+                            <p className='text-sm text-gray-500 dark:text-gray-400'>
                                 Todo
                             </p>
 
-                            <h3 className='mt-2 text-2xl font-bold text-gray-700'>
+                            <h3 className='mt-2 text-2xl font-bold text-gray-700 dark:text-gray-300'>
                                 {todoTasks}
                             </h3>
                         </div>
 
-                        <div className='rounded-lg border border-gray-200 bg-white p-4 shadow-sm'>
-                            <p className='text-sm text-gray-500'>
+                        <div className='rounded-lg border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] p-4 shadow-sm'>
+                            <p className='text-sm text-gray-500 dark:text-gray-400'>
                                 In Progress
                             </p>
 
-                            <h3 className='mt-2 text-2xl font-bold text-blue-600'>
+                            <h3 className='mt-2 text-2xl font-bold text-blue-600 dark:text-blue-400'>
                                 {inProgressTasks}
                             </h3>
                         </div>
 
-                        <div className='rounded-lg border border-gray-200 bg-white p-4 shadow-sm'>
-                            <p className='text-sm text-gray-500'>
+                        <div className='rounded-lg border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] p-4 shadow-sm'>
+                            <p className='text-sm text-gray-500 dark:text-gray-400'>
                                 Done
                             </p>
 
-                            <h3 className='mt-2 text-2xl font-bold text-green-600'>
+                            <h3 className='mt-2 text-2xl font-bold text-green-600 dark:text-green-400'>
                                 {doneTasks}
                             </h3>
                         </div>
 
-                        <div className='rounded-lg border border-gray-200 bg-white p-4 shadow-sm'>
-                            <p className='text-sm text-gray-500'>
+                        <div className='rounded-lg border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] p-4 shadow-sm'>
+                            <p className='text-sm text-gray-500 dark:text-gray-400'>
                                 Overdue
                             </p>
 
-                            <h3 className='mt-2 text-2xl font-bold text-red-600'>
+                            <h3 className='mt-2 text-2xl font-bold text-red-600 dark:text-red-400'>
                                 {overdueTasks}
                             </h3>
                         </div>
@@ -543,7 +545,7 @@ export default function TaskManagement({
                     </div>
 
                     <div className='flex items-center justify-between mt-4'>
-                        <h3 className='text-lg font-semibold text-gray-900'>Project: {currentProject}</h3>
+                        <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>Project: {currentProject}</h3>
                         {canManageTasks && (
                             <button
                                 onClick={() => setShowNewTaskModal(true)}
@@ -583,7 +585,7 @@ export default function TaskManagement({
                                 </svg>
                             </div>
 
-                            <label htmlFor='select-all' className='text-sm font-medium text-gray-900'>Select all</label>
+                            <label htmlFor='select-all' className='text-sm font-medium text-gray-900 dark:text-white'>Select all</label>
 
                             {canManageTasks && selectedTasks.length > 0 && (
                                 <button
@@ -598,7 +600,7 @@ export default function TaskManagement({
                                             console.error(err);
                                         }
                                     }}
-                                    className='cursor-pointer rounded-sm bg-red-50 px-2 py-1 text-sm font-semibold text-red-600 shadow-xs hover:bg-red-100'
+                                    className='cursor-pointer rounded-sm bg-red-50 dark:bg-red-950/40 px-2 py-1 text-sm font-semibold text-red-600 dark:text-red-400 shadow-xs hover:bg-red-100 dark:hover:bg-red-900/50'
                                 >
                                     Delete Selected
                                 </button>
@@ -627,7 +629,7 @@ export default function TaskManagement({
                                                 setSelectedTask(task);
                                                 setShowTaskModal(true);
                                             }}
-                                            className={`rounded-lg border p-4 cursor-pointer ${isOverdue ? "bg-red-50 border-red-200" : "bg-white border-gray-200"
+                                            className={`rounded-lg border p-4 cursor-pointer ${isOverdue ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900" : "bg-white dark:bg-[#1E293B] border-gray-200 dark:border-gray-700"
                                                 }`}
                                         >
                                             <div className='flex items-start justify-between gap-2'>
@@ -644,7 +646,7 @@ export default function TaskManagement({
                                                                     setSelectedTasks((prev) => prev.filter((id) => id !== task.id));
                                                                 }
                                                             }}
-                                                            className='col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600'
+                                                            className='col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1E293B] checked:border-indigo-600 checked:bg-indigo-600'
                                                         />
                                                         <svg className='pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white' viewBox='0 0 14 14' fill='none'>
                                                             <path className='opacity-0 group-has-checked:opacity-100' d='M3 8L6 11L11 3.5' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round' />
@@ -652,10 +654,10 @@ export default function TaskManagement({
                                                     </div>
 
                                                     <div className='min-w-0'>
-                                                        <p className='text-sm font-medium text-gray-900 truncate'>{task.title}</p>
+                                                        <p className='text-sm font-medium text-gray-900 dark:text-white truncate'>{task.title}</p>
 
                                                         {(commentCounts?.[task.id] ?? 0) > 0 && (
-                                                            <div className='mt-0.5 flex items-center gap-1 text-xs text-gray-500'>
+                                                            <div className='mt-0.5 flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400'>
                                                                 <MessageCircle className='h-3.5 w-3.5' />
                                                                 <span>{commentCounts?.[task.id] ?? 0}</span>
                                                             </div>
@@ -667,44 +669,47 @@ export default function TaskManagement({
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            if (!user?._id) return;
+                                                            const currentUserId = user?._id || user?.id;
+                                                            if (!currentUserId) return;
 
-                                                            if (timer?.task?._id === task.id) {
+                                                            const activeTaskId = timer?.task?._id || timer?.task?.id;
+                                                            if (activeTaskId === task.id) {
                                                                 setSelectedProject(null);
                                                                 setTrackingTask(null);
                                                                 switchTask(null, null);
                                                                 return;
                                                             }
 
-                                                            setSelectedProject(task.project._id);
+                                                            const projId = task.project?._id || task.project?.id;
+                                                            setSelectedProject(projId);
                                                             setTrackingTask(task.id);
 
                                                             if (!isTracking) {
-                                                                start(user._id, task.project._id, task.id);
+                                                                start(currentUserId, projId, task.id);
                                                             } else {
-                                                                switchTask(task.project._id, task.id);
+                                                                switchTask(projId, task.id);
                                                             }
                                                         }}
-                                                        className='shrink-0 rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50'
+                                                        className='shrink-0 rounded-md border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                                                     >
-                                                        {timer?.task?._id === task.id ? "Done" : "Start"}
+                                                        {(timer?.task?._id || timer?.task?.id) === task.id ? "Done" : "Start"}
                                                     </button>
                                                 )}
                                             </div>
 
                                             <div className='mt-3 flex flex-wrap items-center gap-2'>
                                                 <span className={`text-xs px-2 py-0.5 rounded-full ${task.priority === "Low"
-                                                        ? "bg-gray-200 text-gray-700"
+                                                        ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                                                         : task.priority === "Medium"
-                                                            ? "bg-blue-200 text-blue-700"
-                                                            : "bg-red-200 text-red-700"
+                                                            ? "bg-blue-200 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+                                                            : "bg-red-200 dark:bg-red-900/50 text-red-700 dark:text-red-300"
                                                     }`}>
                                                     {task.priority}
                                                 </span>
 
-                                                <span className='text-xs text-gray-600'>{task.status}</span>
+                                                <span className='text-xs text-gray-600 dark:text-gray-400'>{task.status}</span>
 
-                                                <span className={`text-xs ${isOverdue ? "text-red-600 font-semibold" : "text-gray-500"}`}>
+                                                <span className={`text-xs ${isOverdue ? "text-red-600 dark:text-red-400 font-semibold" : "text-gray-500 dark:text-gray-400"}`}>
                                                     {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date"}
                                                 </span>
                                             </div>
@@ -726,26 +731,26 @@ export default function TaskManagement({
                                                                 {task.assignedTo.firstName?.charAt(0).toUpperCase()}
                                                             </div>
                                                         )}
-                                                        <span className='ml-1.5 text-xs text-gray-700'>
+                                                        <span className='ml-1.5 text-xs text-gray-700 dark:text-gray-300'>
                                                             {task.assignedTo.firstName} {task.assignedTo.lastName}
                                                         </span>
                                                     </>
                                                 ) : (
-                                                    <span className='text-xs text-gray-400 italic'>Unassigned</span>
+                                                    <span className='text-xs text-gray-400 dark:text-gray-500 italic'>Unassigned</span>
                                                 )}
                                             </div>
                                         </div>
                                     );
                                 })
                             ) : (
-                                <p className='py-10 text-center text-gray-500'>No tasks found</p>
+                                <p className='py-10 text-center text-gray-500 dark:text-gray-400'>No tasks found</p>
                             )}
                         </div>
 
                         {/* DESKTOP: table (sm and up) */}
                         <div className='hidden sm:block mt-4 flow-root overflow-x-auto -mx-4 sm:-mx-6 lg:-mx-8'>
                             <div className='inline-block min-w-full py-2 align-middle px-4 sm:px-6 lg:px-8'>
-                                <table className='min-w-full divide-y divide-gray-300'>
+                                <table className='min-w-full divide-y divide-gray-300 dark:divide-gray-700'>
                                     <thead className='sr-only'>
                                         <tr>
                                             <th>Select + Title</th>
@@ -757,7 +762,7 @@ export default function TaskManagement({
                                         </tr>
                                     </thead>
 
-                                    <tbody className='divide-y divide-gray-200'>
+                                    <tbody className='divide-y divide-gray-200 dark:divide-gray-800'>
                                         {filteredTasks.length > 0 ? (
                                             filteredTasks.map((task) => (
                                                 <tr key={task.id}
@@ -771,8 +776,8 @@ export default function TaskManagement({
                                                         setSelectedTask(task);
                                                         setShowTaskModal(true);
                                                     }}
-                                                    className={`hover:bg-gray-50 cursor-pointer ${task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "Done"
-                                                            ? "bg-red-50"
+                                                    className={`hover:bg-gray-50 dark:hover:bg-[#1E293B] cursor-pointer ${task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "Done"
+                                                            ? "bg-red-50 dark:bg-red-950/20"
                                                             : ""
                                                         }`}
                                                 >
@@ -790,7 +795,7 @@ export default function TaskManagement({
                                                                             setSelectedTasks((prev) => prev.filter((id) => id !== task.id));
                                                                         }
                                                                     }}
-                                                                    className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600"
+                                                                    className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1E293B] checked:border-indigo-600 checked:bg-indigo-600"
                                                                 />
                                                                 <svg className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white" viewBox="0 0 14 14" fill="none">
                                                                     <path className="opacity-0 group-has-checked:opacity-100" d="M3 8L6 11L11 3.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -798,9 +803,9 @@ export default function TaskManagement({
                                                             </div>
 
                                                             <div className="ml-2 flex items-center gap-2">
-                                                                <span className="text-sm font-medium text-gray-900">{task.title}</span>
+                                                                <span className="text-sm font-medium text-gray-900 dark:text-white">{task.title}</span>
                                                                 {(commentCounts?.[task.id] ?? 0) > 0 && (
-                                                                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                                    <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
                                                                         <MessageCircle className="h-3.5 w-3.5" />
                                                                         <span>{commentCounts?.[task.id] ?? 0}</span>
                                                                     </div>
@@ -809,31 +814,31 @@ export default function TaskManagement({
                                                         </div>
                                                     </td>
 
-                                                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-500'>
+                                                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                                                         <span className={`px-2 py-0.5 rounded-full ${task.priority === "Low"
-                                                                ? "bg-gray-200 text-gray-700"
+                                                                ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                                                                 : task.priority === "Medium"
-                                                                    ? "bg-blue-200 text-blue-700"
-                                                                    : "bg-red-200 text-red-700"
+                                                                    ? "bg-blue-200 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
+                                                                    : "bg-red-200 dark:bg-red-900/50 text-red-700 dark:text-red-300"
                                                             }`}>
                                                             {task.priority}
                                                         </span>
                                                     </td>
 
-                                                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-500'>
-                                                        <span className='text-gray-600'>{task.status}</span>
+                                                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
+                                                        <span className='text-gray-600 dark:text-gray-300'>{task.status}</span>
                                                     </td>
 
                                                     <td className={`px-3 py-4 whitespace-nowrap text-sm ${task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "Done"
-                                                            ? "text-red-600 font-semibold"
-                                                            : "text-gray-500"
+                                                            ? "text-red-600 dark:text-red-400 font-semibold"
+                                                            : "text-gray-500 dark:text-gray-400"
                                                         }`}>
                                                         {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "-"}
                                                     </td>
 
-                                                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-500'>
+                                                    <td className='px-3 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
                                                         {task.assignees.length === 0 ? (
-                                                            <div className='text-gray-400'>Not assigned</div>
+                                                            <div className='text-gray-400 dark:text-gray-500'>Not assigned</div>
                                                         ) : (
                                                             <div className="flex items-center">
                                                                 {task.assignedTo ? (
@@ -845,14 +850,14 @@ export default function TaskManagement({
                                                                                 width={28}
                                                                                 height={28}
                                                                                 unoptimized
-                                                                                className="h-7 w-7 rounded-full border-2 border-white object-cover"
+                                                                                className="h-7 w-7 rounded-full border-2 border-white dark:border-gray-800 object-cover"
                                                                             />
                                                                         ) : (
-                                                                            <div className="h-7 w-7 rounded-full border-2 border-white bg-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
+                                                                            <div className="h-7 w-7 rounded-full border-2 border-white dark:border-gray-800 bg-indigo-500 flex items-center justify-center text-white text-xs font-semibold">
                                                                                 {task.assignedTo.firstName?.charAt(0).toUpperCase()}
                                                                             </div>
                                                                         )}
-                                                                        <span className="ml-2 mr-3 text-sm text-gray-700">
+                                                                        <span className="ml-2 mr-3 text-sm text-gray-700 dark:text-gray-300">
                                                                             {task.assignedTo.firstName} {task.assignedTo.lastName}
                                                                         </span>
                                                                     </>
@@ -868,26 +873,29 @@ export default function TaskManagement({
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    if (!user?._id) return;
+                                                                    const currentUserId = user?._id || user?.id;
+                                                                    if (!currentUserId) return;
 
-                                                                    if (timer?.task?._id === task.id) {
+                                                                    const activeTaskId = timer?.task?._id || timer?.task?.id;
+                                                                    if (activeTaskId === task.id) {
                                                                         setSelectedProject(null);
                                                                         setTrackingTask(null);
                                                                         switchTask(null, null);
                                                                         return;
                                                                     }
 
-                                                                    setSelectedProject(task.project._id);
+                                                                    const projId = task.project?._id || task.project?.id;
+                                                                    setSelectedProject(projId);
                                                                     setTrackingTask(task.id);
 
                                                                     if (!isTracking) {
-                                                                        start(user._id, task.project._id, task.id);
+                                                                        start(currentUserId, projId, task.id);
                                                                     } else {
-                                                                        switchTask(task.project._id, task.id);
+                                                                        switchTask(projId, task.id);
                                                                     }
                                                                 }}
                                                             >
-                                                                {timer?.task?._id === task.id ? "Done" : "Start"}
+                                                                {(timer?.task?._id || timer?.task?.id) === task.id ? "Done" : "Start"}
                                                             </button>
                                                         )}
                                                     </td>

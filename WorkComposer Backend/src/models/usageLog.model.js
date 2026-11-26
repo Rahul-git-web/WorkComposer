@@ -53,4 +53,9 @@ const usageLogSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("UsageLog", usageLogSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { usageLogRepository } from "../db/repositories/usageLog.repository.js";
+
+const _Model = mongoose.model("UsageLog", usageLogSchema);
+export default createModelProxy(_Model, () => usageLogRepository);

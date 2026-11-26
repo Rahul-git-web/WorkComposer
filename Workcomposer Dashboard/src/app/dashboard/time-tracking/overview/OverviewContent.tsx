@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { IoIosPause } from "react-icons/io";
 import { FaRegEdit } from "react-icons/fa";
-import { Clock3, ChevronDown, Info, ArrowDownToLine, Code2, X, User, Check, Copy } from "lucide-react";
+import { Clock3, ChevronDown, Info, ArrowDownToLine, Code2, X, User, Check, Copy, HelpCircle } from "lucide-react";
 import Papa from "papaparse";
 import { FiPlusCircle, FiMinusCircle } from "react-icons/fi";
 import { useOptionalTimer } from "@/context/TimerContext";
@@ -17,6 +17,13 @@ import UserProfileTrigger from "@/components/UserProfileTrigger";
 import { isTeamReportAccess } from "@/utils/reportAccess";
 import toast from "react-hot-toast";
 
+export type ActivityTrendBucket = {
+  key: string;
+  label: string;
+  value: number;
+  tracked?: boolean;
+};
+
 type DataItem = {
   id: string;
   name: string;
@@ -27,6 +34,11 @@ type DataItem = {
   breakTime: string;
   status: string;
   lastSync: string;
+  lastSyncAt?: string | null;
+  isOnline?: boolean;
+  activityScore?: number | null;
+  activityDelta?: number | null;
+  activityBuckets?: ActivityTrendBucket[];
 };
 
 type Props = {
@@ -35,6 +47,8 @@ type Props = {
   allUsers: any[];
   productivityMap?: Record<string, number>;
   activityMap?: Record<string, number>;
+  activityDeltaMap?: Record<string, number | null>;
+  activityTrendMap?: Record<string, ActivityTrendBucket[]>;
 
   reportRange: {
     type: string;
@@ -46,11 +60,131 @@ type Props = {
   onRemoveTime: () => void;
 };
 
+function formatRelativeLastSeen(lastSyncAt?: string | null, fallbackText?: string): string {
+  if (!lastSyncAt) return fallbackText || "No recent sync";
+  const ms = new Date(lastSyncAt).getTime();
+  if (!Number.isFinite(ms)) return fallbackText || "No recent sync";
+
+  const diffSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (diffSec < 45) return "just now";
+  if (diffSec < 90) return "a minute ago";
+  const mins = Math.round(diffSec / 60);
+  if (mins < 45) return `${mins} minutes ago`;
+  if (mins < 90) return "an hour ago";
+  const hours = Math.round(diffSec / 3600);
+  if (hours < 22) return `${hours} hours ago`;
+  if (hours < 36) return "a day ago";
+  const days = Math.round(diffSec / 86400);
+  if (days < 25) return `${days} days ago`;
+
+  return new Date(ms).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function HeaderTooltip({ label, tip }: { label: string; tip: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 relative group">
+      <span>{label}</span>
+      <span
+        tabIndex={0}
+        aria-label={tip}
+        className="inline-flex items-center text-gray-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 cursor-help"
+      >
+        <HelpCircle className="w-3.5 h-3.5" />
+      </span>
+      <span className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150 absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-48 px-2.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-normal normal-case tracking-normal leading-snug shadow-lg border border-slate-700 z-50 text-left">
+        {tip}
+      </span>
+    </span>
+  );
+}
+
+function TrendSparkline({
+  slots,
+  alignBelow = false,
+}: {
+  slots: ActivityTrendBucket[];
+  alignBelow?: boolean;
+}) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  if (!slots || slots.length === 0) {
+    return (
+      <div className="text-center text-xs text-gray-400 dark:text-slate-500">
+        —
+      </div>
+    );
+  }
+
+  const hoveredSlot = hoveredIdx !== null ? slots[hoveredIdx] : null;
+  const hoveredLeftPct =
+    hoveredIdx !== null && slots.length > 0
+      ? ((hoveredIdx + 0.5) / slots.length) * 100
+      : 50;
+
+  return (
+    <div
+      className="relative flex items-end gap-[1.5px] h-7 w-full max-w-[140px] mx-auto px-0.5 select-none"
+      onMouseLeave={() => setHoveredIdx(null)}
+    >
+      {slots.map((slot, idx) => {
+        const isActive = slot.value > 0;
+        const heightPct = isActive
+          ? Math.max(20, Math.min(100, slot.value))
+          : slot.tracked
+          ? 18
+          : 14;
+        const barColor = isActive
+          ? hoveredIdx === idx
+            ? "bg-emerald-400 dark:bg-emerald-300"
+            : "bg-emerald-500 dark:bg-emerald-400"
+          : slot.tracked
+          ? "bg-emerald-200 dark:bg-emerald-800/60"
+          : "bg-slate-200 dark:bg-slate-700/70";
+
+        return (
+          <div
+            key={slot.key || idx}
+            onMouseEnter={() => setHoveredIdx(idx)}
+            className="flex-1 h-full flex items-end cursor-pointer"
+          >
+            <div
+              style={{ height: `${heightPct}%` }}
+              className={`w-full rounded-t-[1px] transition-all duration-100 ${barColor}`}
+            />
+          </div>
+        );
+      })}
+
+      {hoveredSlot && (
+        <div
+          style={{ left: `${Math.min(88, Math.max(12, hoveredLeftPct))}%` }}
+          className={`pointer-events-none absolute -translate-x-1/2 whitespace-nowrap z-50 px-2 py-1 rounded-md text-[10px] font-medium bg-slate-900 dark:bg-slate-800 text-white shadow-lg border border-slate-700 ${
+            alignBelow ? "top-full mt-1.5" : "bottom-full mb-1.5"
+          }`}
+        >
+          {hoveredSlot.label} ·{" "}
+          {hoveredSlot.value > 0
+            ? `${hoveredSlot.value}% active`
+            : hoveredSlot.tracked
+            ? "0% active"
+            : "untracked"}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function OverviewContent({
   data = [],
   loading = false,
   productivityMap = {},
   activityMap = {},
+  activityDeltaMap = {},
+  activityTrendMap = {},
   reportRange,
   onAddManualTime,
   onRemoveTime,
@@ -151,10 +285,19 @@ export default function OverviewContent({
   };
 
   const formatTime = (time: string) => {
-    if (!time) return "0h 0m";
-    if (time.includes("h") || time.includes("m")) return time;
-    const [hours, minutes] = time.split(":");
-    return `${Number(hours || 0)}h ${minutes || "0"}m`;
+    if (!time) return "0h 00m";
+    const hMatch = time.match(/(\d+)\s*h/i);
+    const mMatch = time.match(/(\d+)\s*m/i);
+    if (hMatch || mMatch) {
+      const h = Number(hMatch?.[1] || 0);
+      const m = String(Number(mMatch?.[1] || 0)).padStart(2, "0");
+      return `${h}h ${m}m`;
+    }
+    if (time.includes(":")) {
+      const [hours, minutes] = time.split(":");
+      return `${Number(hours || 0)}h ${String(Number(minutes || 0)).padStart(2, "0")}m`;
+    }
+    return time;
   };
 
   const showTimeline =
@@ -211,7 +354,7 @@ export default function OverviewContent({
         return formatTime(item.workTime);
       })();
 
-      const userActivity = activityMap?.[item.id];
+      const userActivity = activityMap?.[item.id] ?? item.activityScore;
       const activityDisplay = typeof userActivity === "number" ? `${userActivity}%` : "—";
 
       const userProd = productivityMap?.[item.id];
@@ -255,10 +398,13 @@ export default function OverviewContent({
     totalWorkedFormatted,
     totalBreakFormatted,
     breakPercentageOfWorked,
+    avgActivityFormatted,
   } = useMemo(() => {
     let workedSec = 0;
     let breakSec = 0;
     let contributors = 0;
+    let activitySum = 0;
+    let activityCount = 0;
 
     for (const item of data) {
       const isCurrentUser = String(item.id) === String(user?._id || user?.id);
@@ -273,6 +419,12 @@ export default function OverviewContent({
 
       if (itemWorked > 0) {
         contributors += 1;
+      }
+
+      const actScore = activityMap?.[item.id] ?? item.activityScore;
+      if (typeof actScore === "number" && Number.isFinite(actScore)) {
+        activitySum += actScore;
+        activityCount += 1;
       }
     }
 
@@ -291,8 +443,9 @@ export default function OverviewContent({
       totalWorkedFormatted: formatDuration(workedSec),
       totalBreakFormatted: formatDuration(breakSec),
       breakPercentageOfWorked: breakRatio,
+      avgActivityFormatted: activityCount > 0 ? `${Math.round(activitySum / activityCount)}%` : "—",
     };
-  }, [data, user, isSingleDayToday, isTracking, displayedWorkSeconds]);
+  }, [data, user, isSingleDayToday, isTracking, displayedWorkSeconds, activityMap]);
 
   return (
     <div className="min-h-[calc(100vh-250px)] rounded-2xl bg-white dark:bg-[#0F172A] shadow-xs border border-gray-200 dark:border-[#22324D] overflow-hidden">
@@ -321,9 +474,9 @@ export default function OverviewContent({
               <button
                 type="button"
                 onClick={handleExport}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-[#273549] shadow-2xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs transition-colors cursor-pointer"
               >
-                <ArrowDownToLine className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />
+                <ArrowDownToLine className="w-3.5 h-3.5 text-white" />
                 <span>Export</span>
               </button>
 
@@ -368,7 +521,7 @@ export default function OverviewContent({
                   ACTIVITY (RANGE)
                 </div>
                 <div className="text-2xl sm:text-3xl font-bold font-mono tabular-nums text-gray-900 dark:text-white mt-1.5">
-                  —
+                  {avgActivityFormatted}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-slate-400 mt-2">
                   of computer time
@@ -450,23 +603,41 @@ export default function OverviewContent({
           )}
 
           {/* 9-Column Table Container */}
-          <div className="w-full rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] overflow-hidden shadow-xs">
+          <div className="w-full rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] overflow-visible shadow-xs">
 
             {/* Table Column Header (9 Columns on large screens) */}
-            <div className="hidden lg:grid grid-cols-12 gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 border-b border-gray-200 dark:border-[#22324D] bg-gray-50/80 dark:bg-[#1E293B]/70">
-              <div className="col-span-3">Person</div>
-              <div className="col-span-2">STATUS NOW</div>
-              <div className="col-span-1 text-right">Worked</div>
-              <div className="col-span-1 text-right">Break</div>
-              <div className="col-span-1 text-center">Activity</div>
-              <div className="col-span-1 text-center">Prod</div>
-              <div className="col-span-1 text-center">TREND</div>
-              <div className="col-span-2 text-right">Actions</div>
+            <div className="hidden lg:grid lg:grid-cols-[minmax(190px,2.2fr)_minmax(108px,1.1fr)_minmax(78px,0.85fr)_minmax(74px,0.8fr)_minmax(128px,1.5fr)_minmax(98px,1.15fr)_minmax(120px,1.45fr)_auto] gap-3 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400 border-b border-gray-200 dark:border-[#22324D] bg-gray-50/80 dark:bg-[#1E293B]/70 rounded-t-2xl">
+              <div className="flex items-center gap-1">
+                <span>Person</span>
+                <span className="text-[10px] text-indigo-500 dark:text-indigo-400">▲</span>
+              </div>
+              <div>STATUS NOW</div>
+              <div className="text-right">
+                <HeaderTooltip
+                  label="Worked"
+                  tip="Total tracked work time for the selected date range."
+                />
+              </div>
+              <div className="text-right">Break</div>
+              <div className="text-center">
+                <HeaderTooltip
+                  label="Activity"
+                  tip="Average keyboard & mouse activity level across active intervals, compared against baseline."
+                />
+              </div>
+              <div className="text-center">
+                <HeaderTooltip
+                  label="Prod"
+                  tip="Share of tracked computer time categorized as productive."
+                />
+              </div>
+              <div className="text-center">TREND</div>
+              <div className="text-right min-w-[74px]">Actions</div>
             </div>
 
             {/* EMPTY / LOADING / DATA STATES */}
             {loading ? (
-              <div className="flex min-h-[180px] items-center justify-center p-6">
+              <div className="flex min-h-[180px] items-center justify-center p-6 rounded-b-2xl">
                 <div className="flex flex-col items-center">
                   <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 dark:border-gray-700 border-t-indigo-600" />
                   <p className="mt-3 text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -475,7 +646,7 @@ export default function OverviewContent({
                 </div>
               </div>
             ) : data.length === 0 ? (
-              <div className="text-center my-8 py-8 px-4 bg-gray-50/50 dark:bg-[#1E293B]/20">
+              <div className="text-center my-8 py-8 px-4 bg-gray-50/50 dark:bg-[#1E293B]/20 rounded-b-2xl">
                 <Clock3 className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-2" />
                 <h4 className="text-gray-700 dark:text-gray-300 font-semibold mb-1">
                   No tracking data available
@@ -485,7 +656,7 @@ export default function OverviewContent({
                 </p>
               </div>
             ) : (
-              data.map((item) => {
+              data.map((item, rowIndex) => {
                 const isExpanded = Boolean(expandedUsers[item.id]);
                 const isInitialized = Boolean(initializedUsers[item.id]);
 
@@ -493,6 +664,7 @@ export default function OverviewContent({
                 const isItemTracking = isCurrentUser
                   ? isTracking
                   : Boolean(item.status?.includes("running"));
+                const isItemOnline = Boolean(item.isOnline || isItemTracking);
                 const rowTrackingStatus = isItemTracking ? "Tracking running" : "Tracking stopped";
 
                 const displayWorkTime = (() => {
@@ -504,21 +676,39 @@ export default function OverviewContent({
                   return formatTime(item.workTime);
                 })();
 
-                const userActivity = activityMap?.[item.id];
-                const activityDisplay = typeof userActivity === "number" ? `${userActivity}%` : "—";
+                const userActivity = activityMap?.[item.id] ?? item.activityScore ?? null;
+                const hasActivity = typeof userActivity === "number" && Number.isFinite(userActivity);
+                const activityPct = hasActivity ? Math.max(0, Math.min(100, userActivity)) : 0;
+                const activityDisplay = hasActivity ? `${activityPct}%` : "—";
+
+                const userDelta = activityDeltaMap?.[item.id] ?? item.activityDelta ?? null;
+                const hasDelta = typeof userDelta === "number" && Number.isFinite(userDelta);
 
                 const userProd = productivityMap?.[item.id];
-                const prodDisplay = typeof userProd === "number" ? `${userProd}%` : "—";
+                const hasProd = typeof userProd === "number" && Number.isFinite(userProd);
+                const prodPct = hasProd ? Math.max(0, Math.min(100, userProd)) : 0;
+                const prodDisplay = hasProd ? `${prodPct}%` : "—";
+
+                const trendBuckets = activityTrendMap?.[item.id] ?? item.activityBuckets ?? [];
+
+                const teamLabel = typeof item.team === "object" ? item.team?.name : item.team;
+                const lastSeenLabel = formatRelativeLastSeen(
+                  isItemTracking ? new Date().toISOString() : item.lastSyncAt,
+                  teamLabel || "No recent sync"
+                );
+                const lastSeenTitle = item.lastSyncAt
+                  ? `Last synced: ${new Date(item.lastSyncAt).toLocaleString()}`
+                  : teamLabel || "";
 
                 return (
                   <div
                     key={item.id}
-                    className="w-full min-w-0 border-b border-gray-100 dark:border-[#22324D]/80 last:border-b-0 p-4 sm:p-5 transition-colors hover:bg-gray-50/50 dark:hover:bg-[#1E293B]/20"
+                    className="w-full min-w-0 border-b border-gray-100 dark:border-[#22324D]/80 last:border-b-0 last:rounded-b-2xl p-4 sm:p-5 transition-colors hover:bg-gray-50/50 dark:hover:bg-[#1E293B]/20"
                   >
                     {/* Large Screen 9-Column Row */}
-                    <div className="hidden lg:grid grid-cols-12 gap-3 items-center">
-                      {/* 1. Person (col-span-3) */}
-                      <div className="col-span-3 flex items-center gap-3 min-w-0">
+                    <div className="hidden lg:grid lg:grid-cols-[minmax(190px,2.2fr)_minmax(108px,1.1fr)_minmax(78px,0.85fr)_minmax(74px,0.8fr)_minmax(128px,1.5fr)_minmax(98px,1.15fr)_minmax(120px,1.45fr)_auto] gap-3 items-center">
+                      {/* 1. Person */}
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="flex-shrink-0">
                           <div className="relative w-10 h-10">
                             <div
@@ -556,6 +746,16 @@ export default function OverviewContent({
                                 )}
                               </UserProfileTrigger>
                             </div>
+
+                            {/* Online Status Dot */}
+                            <span
+                              title={isItemOnline ? "Online" : "Offline"}
+                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-[#0F172A] ${
+                                isItemOnline
+                                  ? "bg-emerald-500"
+                                  : "bg-slate-400 dark:bg-slate-600"
+                              }`}
+                            />
                           </div>
                         </div>
 
@@ -572,18 +772,19 @@ export default function OverviewContent({
                             {item.name}
                           </UserProfileTrigger>
 
-                          {item.team && (
-                            <div className="text-[11px] text-gray-500 dark:text-slate-400 truncate">
-                              {typeof item.team === "object" ? item.team?.name : item.team}
-                            </div>
-                          )}
+                          <div
+                            title={lastSeenTitle}
+                            className="text-[11px] text-gray-500 dark:text-slate-400 truncate"
+                          >
+                            {lastSeenLabel}
+                          </div>
                         </div>
                       </div>
 
-                      {/* 2. STATUS NOW (col-span-2) */}
-                      <div className="col-span-2 flex items-center">
+                      {/* 2. STATUS NOW */}
+                      <div className="flex items-center">
                         <span
-                          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border inline-flex items-center gap-1.5 ${
+                          className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border inline-flex items-center gap-1.5 whitespace-nowrap ${
                             isItemTracking
                               ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60"
                               : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 border-gray-200 dark:border-slate-700"
@@ -598,33 +799,78 @@ export default function OverviewContent({
                         </span>
                       </div>
 
-                      {/* 3. Worked (col-span-1) */}
-                      <div className="col-span-1 text-right font-mono font-bold tabular-nums text-gray-900 dark:text-white text-sm whitespace-nowrap">
+                      {/* 3. Worked */}
+                      <div className="text-right font-mono font-bold tabular-nums text-gray-900 dark:text-white text-sm whitespace-nowrap">
                         {displayWorkTime}
                       </div>
 
-                      {/* 4. Break (col-span-1) */}
-                      <div className="col-span-1 text-right font-mono font-semibold tabular-nums text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
+                      {/* 4. Break */}
+                      <div className="text-right font-mono font-semibold tabular-nums text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
                         {formatTime(item.breakTime)}
                       </div>
 
-                      {/* 5. Activity (col-span-1) */}
-                      <div className="col-span-1 text-center font-mono text-sm text-gray-700 dark:text-slate-300 whitespace-nowrap">
-                        {activityDisplay}
+                      {/* 5. Activity (Bar + % + Delta) */}
+                      <div className="flex flex-col items-center justify-center gap-1 px-1">
+                        <div className="flex items-center gap-1.5 w-full max-w-[116px]">
+                          <div className="flex-1 h-1.5 rounded-full bg-gray-200 dark:bg-slate-700/80 overflow-hidden">
+                            <div
+                              style={{ width: `${activityPct}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                activityPct >= 60
+                                  ? "bg-emerald-500"
+                                  : activityPct >= 30
+                                  ? "bg-amber-500"
+                                  : "bg-indigo-500"
+                              }`}
+                            />
+                          </div>
+                          <span className="font-mono font-semibold tabular-nums text-xs text-gray-800 dark:text-slate-200 w-8 text-right">
+                            {activityDisplay}
+                          </span>
+                        </div>
+
+                        {hasDelta && (
+                          <span
+                            className={`text-[10px] font-semibold tabular-nums leading-none ${
+                              userDelta > 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : userDelta < 0
+                                ? "text-rose-600 dark:text-rose-400"
+                                : "text-gray-400 dark:text-slate-500"
+                            }`}
+                          >
+                            {userDelta > 0
+                              ? `▲ ${userDelta} pts`
+                              : userDelta < 0
+                              ? `▼ ${Math.abs(userDelta)} pts`
+                              : "0 pts"}
+                          </span>
+                        )}
                       </div>
 
-                      {/* 6. Prod (col-span-1) */}
-                      <div className="col-span-1 text-center font-mono text-sm font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                        {prodDisplay}
+                      {/* 6. Prod (Bar + %) */}
+                      <div className="flex items-center justify-center gap-1.5 px-1">
+                        <div className="w-12 h-1.5 rounded-full bg-gray-200 dark:bg-slate-700/80 overflow-hidden">
+                          <div
+                            style={{ width: `${prodPct}%` }}
+                            className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                          />
+                        </div>
+                        <span className="font-mono text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400 w-8 text-right">
+                          {prodDisplay}
+                        </span>
                       </div>
 
-                      {/* 7. TREND (col-span-1) */}
-                      <div className="col-span-1 text-center text-xs text-gray-400 dark:text-slate-500 whitespace-nowrap">
-                        —
+                      {/* 7. TREND */}
+                      <div className="flex items-center justify-center">
+                        <TrendSparkline
+                          slots={trendBuckets}
+                          alignBelow={rowIndex === 0}
+                        />
                       </div>
 
-                      {/* 8 & 9. Actions (Edit & Accordion) (col-span-2) */}
-                      <div className="col-span-2 flex items-center justify-end gap-2">
+                      {/* 8 & 9. Actions (Compact Edit Pencil & Accordion Chevron) */}
+                      <div className="flex items-center justify-end gap-1.5 min-w-[74px]">
                         {/* Edit Time Menu */}
                         <div
                           className="relative"
@@ -634,18 +880,16 @@ export default function OverviewContent({
                         >
                           <button
                             type="button"
-                            title="Edit time"
+                            title="Add / edit time"
+                            aria-label={`Add or edit time for ${item.name}`}
                             onClick={() => {
                               setOpenMenuId(
                                 openMenuId === item.id ? null : item.id
                               );
                             }}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] hover:bg-gray-50 dark:hover:bg-[#273549] text-gray-700 dark:text-slate-200 rounded-xl transition-colors cursor-pointer shadow-2xs"
+                            className="flex items-center justify-center p-1.5 border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] hover:bg-gray-50 dark:hover:bg-[#273549] text-gray-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-colors cursor-pointer shadow-2xs"
                           >
-                            <FaRegEdit className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-                            <span className="text-xs font-semibold">
-                              Edit
-                            </span>
+                            <FaRegEdit className="w-3.5 h-3.5" />
                           </button>
 
                           {openMenuId === item.id && (
@@ -714,7 +958,7 @@ export default function OverviewContent({
                               avatar: item.avatar,
                             }}
                             trackingStatus={rowTrackingStatus}
-                            className="block"
+                            className="block relative"
                           >
                             <div className="relative w-10 h-10 rounded-full overflow-hidden bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">
                               {item.avatar?.trim() ? (
@@ -729,6 +973,11 @@ export default function OverviewContent({
                                 item.name?.charAt(0).toUpperCase()
                               )}
                             </div>
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-[#0F172A] ${
+                                isItemOnline ? "bg-emerald-500" : "bg-slate-400 dark:bg-slate-600"
+                              }`}
+                            />
                           </UserProfileTrigger>
 
                           <div className="min-w-0">
@@ -743,36 +992,45 @@ export default function OverviewContent({
                             >
                               {item.name}
                             </UserProfileTrigger>
-                            {item.team && (
-                              <div className="text-[11px] text-gray-500 dark:text-slate-400 truncate">
-                                {typeof item.team === "object" ? item.team?.name : item.team}
-                              </div>
-                            )}
+                            <div className="text-[11px] text-gray-500 dark:text-slate-400 truncate">
+                              {lastSeenLabel}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Accordion toggle on mobile */}
-                        <button
-                          type="button"
-                          title={isExpanded ? "Hide analytics" : "Show analytics"}
-                          aria-label={isExpanded ? `Hide analytics for ${item.name}` : `Show analytics for ${item.name}`}
-                          aria-expanded={isExpanded}
-                          aria-controls={`user-analytics-${item.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleUserExpansion(item.id);
-                          }}
-                          className="p-1.5 rounded-xl border border-gray-200 dark:border-[#22324D] bg-gray-50 dark:bg-[#1E293B] text-gray-700 dark:text-slate-200"
-                        >
-                          <ChevronDown
-                            className={`w-4 h-4 text-gray-600 dark:text-slate-300 transition-transform duration-200 ${
-                              isExpanded ? "rotate-180" : ""
-                            }`}
-                          />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            title="Add / edit time"
+                            onClick={() => onAddManualTime()}
+                            className="p-1.5 rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#1E293B] text-gray-600 dark:text-slate-300"
+                          >
+                            <FaRegEdit className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Accordion toggle on mobile */}
+                          <button
+                            type="button"
+                            title={isExpanded ? "Hide analytics" : "Show analytics"}
+                            aria-label={isExpanded ? `Hide analytics for ${item.name}` : `Show analytics for ${item.name}`}
+                            aria-expanded={isExpanded}
+                            aria-controls={`user-analytics-${item.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleUserExpansion(item.id);
+                            }}
+                            className="p-1.5 rounded-xl border border-gray-200 dark:border-[#22324D] bg-gray-50 dark:bg-[#1E293B] text-gray-700 dark:text-slate-200"
+                          >
+                            <ChevronDown
+                              className={`w-4 h-4 text-gray-600 dark:text-slate-300 transition-transform duration-200 ${
+                                isExpanded ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-gray-100 dark:border-[#22324D]/60 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-gray-100 dark:border-[#22324D]/60 text-xs">
                         <div>
                           <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">Status: </span>
                           <span className={`font-semibold ${isItemTracking ? "text-emerald-600" : "text-gray-500"}`}>
@@ -788,10 +1046,29 @@ export default function OverviewContent({
                           <span className="font-mono text-amber-600 dark:text-amber-400">{formatTime(item.breakTime)}</span>
                         </div>
                         <div>
+                          <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">Activity: </span>
+                          <span className="font-mono font-semibold text-gray-800 dark:text-slate-200">{activityDisplay}</span>
+                          {hasDelta && (
+                            <span
+                              className={`ml-1 text-[10px] font-semibold ${
+                                userDelta > 0 ? "text-emerald-600" : userDelta < 0 ? "text-rose-600" : "text-gray-400"
+                              }`}
+                            >
+                              {userDelta > 0 ? `▲${userDelta}` : userDelta < 0 ? `▼${Math.abs(userDelta)}` : "0"}
+                            </span>
+                          )}
+                        </div>
+                        <div>
                           <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase">Prod: </span>
                           <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">{prodDisplay}</span>
                         </div>
                       </div>
+
+                      {trendBuckets.length > 0 && (
+                        <div className="pt-1">
+                          <TrendSparkline slots={trendBuckets} alignBelow={rowIndex === 0} />
+                        </div>
+                      )}
                     </div>
 
                     {/* Accordion Expansion (UserAnalyticsSection) */}

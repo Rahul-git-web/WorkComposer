@@ -38,4 +38,9 @@ const commentSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("Comment", commentSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { commentRepository } from "../db/repositories/comment.repository.js";
+
+const _Model = mongoose.model("Comment", commentSchema);
+export default createModelProxy(_Model, () => commentRepository);

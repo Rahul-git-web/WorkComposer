@@ -30,4 +30,9 @@ const syncStatusSchema = new mongoose.Schema(
   },
 );
 
-export default mongoose.model("SyncStatus", syncStatusSchema);
+
+import { createModelProxy } from "../db/modelProxy.js";
+import { syncStatusRepository } from "../db/repositories/syncStatus.repository.js";
+
+const _Model = mongoose.model("SyncStatus", syncStatusSchema);
+export default createModelProxy(_Model, () => syncStatusRepository);
