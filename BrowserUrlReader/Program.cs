@@ -4,6 +4,11 @@ class Program
 {
     static void Main()
     {
+        Console.WriteLine("Switch to Arc now...");
+        Console.WriteLine("Reading active window in 5 seconds...");
+
+        Thread.Sleep(5000);
+
         var reader = new BrowserReader();
 
         BrowserInfo? browser = reader.GetActiveBrowser();

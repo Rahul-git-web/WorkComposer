@@ -42,6 +42,7 @@
     ],
     "allowJs": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "incremental": true,
     "esModuleInterop": true,
     "moduleResolution": "bundler",

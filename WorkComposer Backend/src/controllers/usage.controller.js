@@ -7,13 +7,18 @@ import { getAvatarUrl } from "../utils/avatar.js";
 import { getReportUserIds } from "../utils/reportAccess.js";
 import {
   getUserTimezone,
+  resolveUserTimezone,
+  getZonedDayRange,
   getDateRangeUTC,
   getTodayInTimezone,
+  calculateIntervalOverlap,
 } from "../utils/timezone.js";
 import { sendErrorResponse } from "../utils/sendErrorResponse.js";
 import { userRepository } from "../db/repositories/user.repository.js";
 import { projectRepository } from "../db/repositories/project.repository.js";
 import { taskRepository } from "../db/repositories/task.repository.js";
+import { sessionRepository } from "../db/repositories/session.repository.js";
+import { timerRepository } from "../db/repositories/timer.repository.js";
 import { timeTrackingSettingsRepository } from "../db/repositories/timeTrackingSettings.repository.js";
 import resolveTrackingSettings from "../utils/resolveTrackingSettings.js";
 import { normalizeId } from "../security/effectiveAuthContext.js";
@@ -102,11 +107,26 @@ export const trackAppUsage = async (req, res) => {
     const { appName, windowTitle, duration, project, task } = req.body;
 
     const normalizedAppName = appName?.trim().toLowerCase();
+    if (!normalizedAppName) {
+      return res.status(400).json({
+        message: "Application name is required",
+      });
+    }
 
-    const classification = await AppClassification.findOne({
-      organization: req.user.organization,
-      appName: normalizedAppName,
-    });
+    const parsedDuration = Number(duration);
+    if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) {
+      return res.status(400).json({
+        message: "Valid positive duration is required",
+      });
+    }
+    const boundedDuration = Math.min(Math.round(parsedDuration), 3600);
+
+    const classification = callerOrgId
+      ? await AppClassification.findOne({
+          organization: callerOrgId,
+          appName: normalizedAppName,
+        })
+      : null;
 
     if (classification?.productivity === "blacklisted") {
       return res.json({
@@ -117,11 +137,11 @@ export const trackAppUsage = async (req, res) => {
     }
 
     if (classification) {
-      const excludedUsers = (classification.excludedUsers || []).map((id) =>
-        id.toString(),
-      );
+      const excludedUsers = (classification.excludedUsers || [])
+        .map((id) => normalizeId(id))
+        .filter(Boolean);
 
-      if (excludedUsers.includes(req.user._id.toString())) {
+      if (excludedUsers.includes(callerUserId)) {
         return res.json({
           success: true,
           skipped: true,
@@ -129,11 +149,12 @@ export const trackAppUsage = async (req, res) => {
         });
       }
 
-      const excludedTeams = (classification.excludedTeams || []).map((id) =>
-        id.toString(),
-      );
+      const excludedTeams = (classification.excludedTeams || [])
+        .map((id) => normalizeId(id))
+        .filter(Boolean);
+      const userTeamId = normalizeId(req.user.team?._id || req.user.team?.id || req.user.team);
 
-      if (req.user.team && excludedTeams.includes(req.user.team.toString())) {
+      if (userTeamId && excludedTeams.includes(userTeamId)) {
         return res.json({
           success: true,
           skipped: true,
@@ -142,13 +163,7 @@ export const trackAppUsage = async (req, res) => {
       }
     }
 
-    if (!normalizedAppName) {
-      return res.status(400).json({
-        message: "Application name is required",
-      });
-    }
-
-    const user = await User.findById(req.user._id).select("reportTimezone");
+    const user = await User.findById(callerUserId).select("reportTimezone organization");
 
     if (!user) {
       return res.status(404).json({
@@ -156,13 +171,13 @@ export const trackAppUsage = async (req, res) => {
       });
     }
 
-    const timezone = getUserTimezone(user);
+    const timezone = resolveUserTimezone(user, req);
 
     const date = getTodayInTimezone(timezone);
 
     const startTime = new Date();
 
-    const endTime = new Date(startTime.getTime() + duration * 1000);
+    const endTime = new Date(startTime.getTime() + boundedDuration * 1000);
 
     let resolvedProjectId = null;
     if (project) {
@@ -187,7 +202,7 @@ export const trackAppUsage = async (req, res) => {
     });
 
     if (usage) {
-      usage.duration += duration;
+      usage.duration += boundedDuration;
       usage.windowTitle = windowTitle;
 
       await usage.save();
@@ -196,7 +211,7 @@ export const trackAppUsage = async (req, res) => {
         user: callerUserId,
         appName: normalizedAppName,
         windowTitle,
-        duration,
+        duration: boundedDuration,
         date,
       });
     }
@@ -207,7 +222,7 @@ export const trackAppUsage = async (req, res) => {
       project: resolvedProjectId || null,
       task: resolvedTaskId || null,
 
-      appName,
+      appName: appName.trim(),
 
       windowTitle,
 
@@ -215,7 +230,7 @@ export const trackAppUsage = async (req, res) => {
 
       endTime,
 
-      duration,
+      duration: boundedDuration,
 
       date,
     });
@@ -284,27 +299,29 @@ export const getUsageData = async (req, res) => {
     if (startDate && endDate) {
       for (const user of users) {
         const uid = normalizeId(user._id || user.id);
-        const tz = getUserTimezone(user);
-        const { start, end } = getDateRangeUTC(startDate, endDate, tz);
+        const tz = resolveUserTimezone(user, req);
+        const start = getZonedDayRange(startDate, tz).start;
+        const end = getZonedDayRange(endDate, tz).end;
         userRanges.set(uid, { start, end });
         if (!globalMinStart || start < globalMinStart) globalMinStart = start;
         if (!globalMaxEnd || end > globalMaxEnd) globalMaxEnd = end;
       }
     }
 
-    // 1. Bulk Sessions Query (replaces N per-user queries with 1 bulk query)
+    // 1. Bulk Overlapping Sessions Query (replaces N per-user queries with 1 bulk query)
     let bulkSessions = [];
     if (userIds.length > 0) {
-      const sessionQuery = {
-        userId: { in: userIds },
-      };
       if (globalMinStart && globalMaxEnd) {
-        sessionQuery.startTime = {
-          $gte: globalMinStart,
-          $lte: globalMaxEnd,
-        };
+        bulkSessions = await sessionRepository.findOverlappingSessions({
+          userIds,
+          periodStart: globalMinStart,
+          periodEnd: globalMaxEnd,
+        });
+      } else {
+        bulkSessions = await sessionRepository.find({
+          userId: { in: userIds },
+        });
       }
-      bulkSessions = await Session.find(sessionQuery);
     }
 
     const sessionsByUser = new Map();
@@ -312,6 +329,21 @@ export const getUsageData = async (req, res) => {
       const uid = normalizeId(s.userId || s.user);
       if (!sessionsByUser.has(uid)) sessionsByUser.set(uid, []);
       sessionsByUser.get(uid).push(s);
+    }
+
+    // 1b. Bulk Active Timers Query (so running sessions contribute live Work Time)
+    let bulkTimers = [];
+    if (userIds.length > 0) {
+      bulkTimers = await timerRepository.find({
+        user: { in: userIds },
+        status: "running",
+      });
+    }
+
+    const activeTimerByUser = new Map();
+    for (const t of bulkTimers) {
+      const uid = normalizeId(t.userId || t.user);
+      if (!activeTimerByUser.has(uid)) activeTimerByUser.set(uid, t);
     }
 
     // 2. Bulk AppUsage Query (replaces N per-user queries with 1 bulk query)
@@ -336,36 +368,107 @@ export const getUsageData = async (req, res) => {
       usagesByUser.get(uid).push(u);
     }
 
+    const classifications = callerOrgId
+      ? await AppClassification.find({ organization: callerOrgId })
+      : [];
+    const classificationMap = new Map();
+    for (const item of classifications) {
+      const key = item.appName?.trim().toLowerCase();
+      if (key) {
+        classificationMap.set(key, item);
+      }
+    }
+
+    const evalNow = new Date();
+
     const usageData = users.map((user) => {
       const userId = normalizeId(user._id || user.id);
+      const userTeamId = normalizeId(user.team?._id || user.team?.id || user.team);
       const range = userRanges.get(userId);
 
       const userAllSessions = sessionsByUser.get(userId) || [];
-      let sessions = userAllSessions;
+      let sessions;
       if (range) {
         sessions = userAllSessions.filter((s) => {
-          const st = new Date(s.startTime);
-          return st >= range.start && st <= range.end;
+          const sStart = new Date(s.startTime);
+          const sEnd = s.endTime ? new Date(s.endTime) : null;
+          return sStart < range.end && (!sEnd || sEnd > range.start);
         });
+      } else {
+        sessions = [...userAllSessions];
       }
 
-      const workSeconds = sessions
-        .filter((s) => s.type === "work")
-        .reduce((sum, s) => sum + (s.duration || 0), 0);
+      const activeTimer = activeTimerByUser.get(userId);
+      if (activeTimer?.startTime && !sessions.some((s) => !s.endTime)) {
+        const timerStart = new Date(activeTimer.startTime);
+        if (!range || timerStart < range.end) {
+          sessions.push({
+            userId,
+            startTime: timerStart,
+            endTime: null,
+            type: "work",
+          });
+        }
+      }
 
-      const breakSeconds = sessions
-        .filter((s) => s.type === "break")
-        .reduce((sum, s) => sum + (s.duration || 0), 0);
+      let workSeconds = 0;
+      let breakSeconds = 0;
+
+      if (range) {
+        for (const s of sessions) {
+          const { overlapSeconds } = calculateIntervalOverlap(
+            s,
+            range.start,
+            range.end,
+            evalNow
+          );
+          if (s.type === "work") {
+            workSeconds += overlapSeconds;
+          } else if (s.type === "break") {
+            breakSeconds += overlapSeconds;
+          }
+        }
+      } else {
+        workSeconds = sessions
+          .filter((s) => s.type === "work")
+          .reduce((sum, s) => sum + (s.duration || 0), 0);
+
+        breakSeconds = sessions
+          .filter((s) => s.type === "break")
+          .reduce((sum, s) => sum + (s.duration || 0), 0);
+      }
 
       const usages = usagesByUser.get(userId) || [];
       const appMap = {};
 
       usages.forEach((usage) => {
-        if (!appMap[usage.appName]) {
-          appMap[usage.appName] = 0;
+        const normalizedName = (usage.appName || "").trim().toLowerCase();
+        if (!normalizedName) return;
+
+        const classification = classificationMap.get(normalizedName);
+        if (classification?.productivity === "blacklisted") {
+          return;
+        }
+        if (classification) {
+          const excludedUsers = (classification.excludedUsers || [])
+            .map((id) => normalizeId(id))
+            .filter(Boolean);
+          if (excludedUsers.includes(userId)) {
+            return;
+          }
+          const excludedTeams = (classification.excludedTeams || [])
+            .map((id) => normalizeId(id))
+            .filter(Boolean);
+          if (userTeamId && excludedTeams.includes(userTeamId)) {
+            return;
+          }
         }
 
-        appMap[usage.appName] += usage.duration;
+        if (!appMap[normalizedName]) {
+          appMap[normalizedName] = 0;
+        }
+
+        appMap[normalizedName] += Number(usage.duration) || 0;
       });
 
       const apps = Object.entries(appMap)
@@ -462,18 +565,21 @@ export const getUsageDetails = async (req, res) => {
 
     const { startDate, endDate } = req.query;
 
-    const timezone = getUserTimezone(targetUser);
+    const timezone = resolveUserTimezone(targetUser, req);
 
     const query = {
       user: targetUserId,
     };
 
     if (startDate && endDate) {
-      const { start, end } = getDateRangeUTC(startDate, endDate, timezone);
+      const start = getZonedDayRange(startDate, timezone).start;
+      const end = getZonedDayRange(endDate, timezone).end;
 
       query.startTime = {
-        $gte: start,
-        $lte: end,
+        $lt: end,
+      };
+      query.endTime = {
+        $gt: start,
       };
     }
 
@@ -484,27 +590,30 @@ export const getUsageDetails = async (req, res) => {
     const groupedLogs = [];
 
     for (const log of logs) {
+      const plainLog = typeof log.toObject === "function" ? log.toObject() : { ...log };
       const lastLog = groupedLogs[groupedLogs.length - 1];
 
       if (!lastLog) {
-        groupedLogs.push({
-          ...log.toObject(),
-        });
-
+        groupedLogs.push(plainLog);
         continue;
       }
 
-      if (
-        lastLog.appName === log.appName &&
-        lastLog.windowTitle === log.windowTitle
-      ) {
-        lastLog.endTime = log.endTime;
+      const sameApp =
+        (lastLog.appName || "").trim().toLowerCase() ===
+        (plainLog.appName || "").trim().toLowerCase();
+      const sameTitle =
+        (lastLog.windowTitle || "").trim() ===
+        (plainLog.windowTitle || "").trim();
+      const gapMs = Math.abs(
+        new Date(plainLog.startTime).getTime() -
+          new Date(lastLog.endTime).getTime()
+      );
 
-        lastLog.duration += log.duration;
+      if (sameApp && sameTitle && gapMs <= 60 * 1000) {
+        lastLog.endTime = plainLog.endTime;
+        lastLog.duration = (Number(lastLog.duration) || 0) + (Number(plainLog.duration) || 0);
       } else {
-        groupedLogs.push({
-          ...log.toObject(),
-        });
+        groupedLogs.push(plainLog);
       }
     }
 

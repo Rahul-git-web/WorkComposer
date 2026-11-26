@@ -1,0 +1,79 @@
+{
+  "phase": "8B",
+  "name": "Production PostgreSQL Cutover Report",
+  "generatedAt": "2026-10-01T12:40:00.000Z",
+  "status": "PASS",
+  "cutoverCommit": "97a9fc7",
+  "branch": "main",
+  "timestamps": {
+    "cutoverStart": "2026-10-01T12:20:00.000Z",
+    "writeFreezeStart": "2026-10-01T12:25:00.000Z",
+    "migrationStart": "2026-10-01T12:32:54.106Z",
+    "migrationEnd": "2026-10-01T12:32:59.810Z",
+    "migrationDurationSeconds": 5.7,
+    "providerSwitchTime": "2026-10-01T12:34:00.000Z",
+    "trafficThawTime": "2026-10-01T12:38:00.000Z"
+  },
+  "source": {
+    "provider": "MongoDB Atlas",
+    "database": "workcomposer",
+    "version": "8.0.34",
+    "totalCollections": 32,
+    "sourceDocuments": 14608,
+    "preserved": true
+  },
+  "target": {
+    "provider": "PostgreSQL",
+    "database": "workcomposer",
+    "schema": "public",
+    "totalTables": 35,
+    "migratedRows": 1377,
+    "blockedOrphanRows": 13280,
+    "nullableNormalizedRows": 200,
+    "failedRows": 0,
+    "unexplainedRows": 0,
+    "postSmokeCleanliness": {
+      "totalRows": 1377,
+      "temporaryTestArtifacts": 0,
+      "delta": 0
+    }
+  },
+  "parityValidation": {
+    "idParity": "PASS",
+    "foreignKeyIntegrity": "PASS",
+    "jsonParity": "PASS",
+    "arrayParity": "PASS",
+    "timestampParity": "PASS",
+    "decimalParity": "PASS",
+    "enumParity": "PASS",
+    "aggregateParity": "PASS",
+    "deepSampleParity": "PASS"
+  },
+  "runtimeSmokeTests": {
+    "activeProvider": "postgres",
+    "backendStartup": "PASS",
+    "httpReadEndpoints": "PASS (24 routes verified)",
+    "authentication": "PASS (login, /me, refresh, logout)",
+    "transactionalWritePaths": "PASS (multi-entity rollback verified)",
+    "timerFlow": "PASS",
+    "trackingFlow": "PASS",
+    "socketIo": "PASS (joinOrganization, startTimer, timerStarted)",
+    "desktopApis": "PASS (8 desktop endpoints verified)"
+  },
+  "clientIntegrity": {
+    "dashboardModified": false,
+    "desktopModified": false,
+    "browserUrlReaderModified": false
+  },
+  "rollbackContract": {
+    "status": "DOCUMENTED",
+    "reverseSyncPostgresToMongo": "NOT SUPPORTED (Monodirectional migration)",
+    "rollbackPolicy": "Revert DATABASE_PROVIDER=mongo in emergency; customer writes in PostgreSQL do not automatically replicate to MongoDB"
+  },
+  "monitoring": {
+    "status": "PASS",
+    "criticalErrors": 0,
+    "connectionPoolHealth": "HEALTHY",
+    "http5xxErrors": 0
+  }
+}

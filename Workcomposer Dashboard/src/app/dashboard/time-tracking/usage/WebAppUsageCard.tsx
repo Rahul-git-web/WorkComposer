@@ -74,18 +74,26 @@ export default function WebAppUsageCard({
     ),
   ].sort();
 
+  const normalizedSearchApp = searchApp.trim().toLowerCase();
+
   const filteredApps = appNames.filter((app) =>
-    app.toLowerCase().includes(searchApp.toLowerCase())
+    app.toLowerCase().includes(normalizedSearchApp)
   );
 
   const filteredUsageData =
-    searchApp === ""
+    normalizedSearchApp === ""
       ? usageData
       : usageData.filter((user) =>
         user.apps.some(
-          (app: any) => app.name === searchApp
+          (app: any) => (app.name || "").trim().toLowerCase() === normalizedSearchApp
         )
       );
+
+  const activeFullListUser = selectedFullListUser
+    ? usageData.find(
+        (u) => (u._id || u.id) === (selectedFullListUser._id || selectedFullListUser.id)
+      ) || selectedFullListUser
+    : null;
 
   const generateUsageReport = async () => {
     try {
@@ -173,7 +181,7 @@ export default function WebAppUsageCard({
 
                         {filteredApps.length === 0 ? (
 
-                          <div className="px-3 py-2 text-sm text-gray-500">
+                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
                             No apps found
                           </div>
 
@@ -186,9 +194,9 @@ export default function WebAppUsageCard({
                                 setSearchApp("");
                                 setShowDropdown(false);
                               }}
-                              className={`px-3 py-2 cursor-pointer border-b transition-colors ${searchApp === ""
-                                ? "bg-indigo-100 text-indigo-700 font-medium"
-                                : "hover:bg-indigo-50 text-gray-700"
+                              className={`px-3 py-2 cursor-pointer border-b dark:border-slate-700 transition-colors ${searchApp === ""
+                                ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-medium"
+                                : "hover:bg-indigo-50 dark:hover:bg-slate-700/60 text-gray-700 dark:text-slate-200"
                                 }`}
                             >
                               All Apps
@@ -202,9 +210,9 @@ export default function WebAppUsageCard({
                                   setSearchApp(app);
                                   setShowDropdown(false);
                                 }}
-                                className={`px-3 py-2 cursor-pointer transition-colors ${searchApp === app
-                                  ? "bg-indigo-100 text-indigo-700 font-medium"
-                                  : "hover:bg-indigo-50"
+                                className={`px-3 py-2 cursor-pointer transition-colors ${searchApp.toLowerCase() === app.toLowerCase()
+                                  ? "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-medium"
+                                  : "hover:bg-indigo-50 dark:hover:bg-slate-700/60 text-gray-700 dark:text-slate-200"
                                   }`}
                               >
                                 {app}
@@ -254,10 +262,10 @@ export default function WebAppUsageCard({
               filteredUsageData.map((user) => {
 
                 const filteredUserApps =
-                  searchApp === ""
+                  normalizedSearchApp === ""
                     ? user.apps
                     : user.apps.filter(
-                      (app: any) => app.name === searchApp
+                      (app: any) => (app.name || "").trim().toLowerCase() === normalizedSearchApp
                     );
 
                 return (
@@ -322,21 +330,21 @@ export default function WebAppUsageCard({
                           <div className='flex items-center space-x-4'>
 
                             <div className='flex items-center border-l-2 border-blue-500 pl-2'>
-                              <span className='text-gray-500 font-medium'>
+                              <span className='text-gray-500 dark:text-slate-400 font-medium'>
                                 Work Time
                               </span>
 
-                              <span className='font-semibold text-gray-800 ml-2'>
+                              <span className='font-semibold text-gray-800 dark:text-slate-200 ml-2'>
                                 {user.workTime}
                               </span>
                             </div>
 
                             <div className='flex items-center border-l-2 border-amber-500 pl-2'>
-                              <span className='text-gray-500 font-medium'>
+                              <span className='text-gray-500 dark:text-slate-400 font-medium'>
                                 Break Time
                               </span>
 
-                              <span className='font-semibold text-gray-800 ml-2'>
+                              <span className='font-semibold text-gray-800 dark:text-slate-200 ml-2'>
                                 {user.breakTime}
                               </span>
                             </div>
@@ -351,7 +359,7 @@ export default function WebAppUsageCard({
                             setSelectedUser(user);
                             setOpenModal(true);
                           }}
-                          className="px-4 py-2 font-medium cursor-pointer border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm transition-colors"
+                          className="px-4 py-2 font-medium cursor-pointer border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 text-sm transition-colors"
                         >
                           Detailed log
                         </button>
@@ -371,17 +379,36 @@ export default function WebAppUsageCard({
                     </div>
 
                     {filteredUserApps.length === 0 ? (
-                      <div className='text-center text-gray-500 py-8 bg-gray-50 rounded-lg'>
-                        <CiViewColumn className='h-8 w-8 mx-auto text-gray-300 mb-2' />
+                      <div className='text-center text-gray-500 dark:text-slate-400 py-8 bg-gray-50 dark:bg-slate-900/50 rounded-lg'>
+                        <CiViewColumn className='h-8 w-8 mx-auto text-gray-300 dark:text-slate-600 mb-2' />
                         <p>No app usage data available</p>
-                        <p className='text-sm text-gray-400 mt-1'>
+                        <p className='text-sm text-gray-400 dark:text-slate-500 mt-1'>
                           Data will appear once apps are used.
                         </p>
                       </div>
                     ) : (
-                      <AppUsageChart
-                        apps={filteredUserApps}
-                      />
+                      <div>
+                        {filteredUserApps.length > 12 && (
+                          <div className="mb-2 flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
+                            <span>
+                              Showing top 12 of {filteredUserApps.length} items
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedFullListUser(user);
+                                setOpenFullList(true);
+                              }}
+                              className="font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                            >
+                              View full list
+                            </button>
+                          </div>
+                        )}
+                        <AppUsageChart
+                          apps={filteredUserApps}
+                        />
+                      </div>
                     )}
 
                   </div>
@@ -397,12 +424,13 @@ export default function WebAppUsageCard({
         onClose={() => setOpenModal(false)}
         user={selectedUser}
         reportRange={reportRange}
+        timezone={timezone}
       />
 
       <FullListModal
         open={openFullList}
         onClose={() => setOpenFullList(false)}
-        user={selectedFullListUser}
+        user={activeFullListUser}
       />
 
       <ReportsModal

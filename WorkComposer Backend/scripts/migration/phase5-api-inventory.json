@@ -1,0 +1,3431 @@
+{
+  "generatedAt": "2026-09-22T12:19:35.800Z",
+  "totalRoutes": 216,
+  "classificationSummary": {
+    "AUTHENTICATION": 8,
+    "PUBLIC_READ": 12,
+    "AUTHENTICATED_WRITE": 75,
+    "AUTHENTICATED_READ": 64,
+    "ADMIN/MANAGER": 17,
+    "EXTERNAL_INTEGRATION": 31,
+    "WEBHOOK": 3,
+    "DESKTOP_SYNC": 6
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/auth/register",
+      "file": "src/routes/authRoutes.js",
+      "controller": "registerUser",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "file": "src/routes/authRoutes.js",
+      "controller": "loginUser",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/google",
+      "file": "src/routes/authRoutes.js",
+      "controller": "googleLogin",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/google/callback",
+      "file": "src/routes/authRoutes.js",
+      "controller": "googleCallback",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/google-signup-info",
+      "file": "src/routes/authRoutes.js",
+      "controller": "getGoogleSignupInfo",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/microsoft",
+      "file": "src/routes/authRoutes.js",
+      "controller": "microsoftLogin",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/microsoft/callback",
+      "file": "src/routes/authRoutes.js",
+      "controller": "microsoftCallback",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/microsoft-signup-info",
+      "file": "src/routes/authRoutes.js",
+      "controller": "getMicrosoftSignupInfo",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/refresh",
+      "file": "src/routes/authRoutes.js",
+      "controller": "refreshAccessToken",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "file": "src/routes/authRoutes.js",
+      "controller": "logoutUser",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/verify/:token",
+      "file": "src/routes/authRoutes.js",
+      "controller": "verifyEmail",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "token"
+      ],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/resend-verification",
+      "file": "src/routes/authRoutes.js",
+      "controller": "resendVerification",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "file": "src/routes/authRoutes.js",
+      "controller": "\"name timezone\")\r\n      .populate\r\n      .select(\"-password -refreshToken\"",
+      "middleware": [
+        "protect",
+        "async (req",
+        "res) => {\r\n  try {\r\n    const user = await User.findById(req.user._id)\r\n      .populate(\"organization\""
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/forgot-password",
+      "file": "src/routes/authRoutes.js",
+      "controller": "forgotPassword",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/reset-password",
+      "file": "src/routes/authRoutes.js",
+      "controller": "resetPassword",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/verify-two-factor",
+      "file": "src/routes/authRoutes.js",
+      "controller": "verifyTwoFactor",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/create",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "createSession",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "getSessions",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/sessions/delete-range",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "deleteSessionsInRange",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/preview-range",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "previewSessionsInRange",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/overview",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "getOverviewData",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/today",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "getTodaySummary",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/today-task-summary",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "getTodayTaskSummary",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/stats",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "getWorkTimeStats",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/today-chart",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "getTodayChartData",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/last-30-days-chart",
+      "file": "src/routes/sessionRoutes.js",
+      "controller": "getLast30DaysChart",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Session",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "file": "src/routes/userRoutes.js",
+      "controller": "getUsers",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\"",
+        "\"manager\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\"",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/invite",
+      "file": "src/routes/userRoutes.js",
+      "controller": "inviteUser",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\"",
+        "\"manager\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\"",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/create-user",
+      "file": "src/routes/userRoutes.js",
+      "controller": "createUser",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\"",
+        "\"manager\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\"",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/accept-invite",
+      "file": "src/routes/userRoutes.js",
+      "controller": "acceptInvite",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/invite/:token",
+      "file": "src/routes/userRoutes.js",
+      "controller": "getInviteDetails",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "token"
+      ],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/invites",
+      "file": "src/routes/userRoutes.js",
+      "controller": "getInvites",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\"",
+        "\"manager\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\"",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/bulk-invite",
+      "file": "src/routes/userRoutes.js",
+      "controller": "bulkInvitesUsers",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/export/users",
+      "file": "src/routes/userRoutes.js",
+      "controller": "exportUsersCsv",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/export/hierarchy-users",
+      "file": "src/routes/userRoutes.js",
+      "controller": "exportUsersHierarchy",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/export/hierarchy-managers",
+      "file": "src/routes/userRoutes.js",
+      "controller": "exportManagersHierarchy",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/export/devices",
+      "file": "src/routes/userRoutes.js",
+      "controller": "exportDevices",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/import-users",
+      "file": "src/routes/userRoutes.js",
+      "controller": "importUsers",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")",
+        "upload.single(\"file\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/export-users",
+      "file": "src/routes/userRoutes.js",
+      "controller": "exportUsers",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/email-request",
+      "file": "src/routes/userRoutes.js",
+      "controller": "requestEmailChange",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/verify-email-change/:token",
+      "file": "src/routes/userRoutes.js",
+      "controller": "verifyEmailChange",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "token"
+      ],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/email",
+      "file": "src/routes/userRoutes.js",
+      "controller": "updateUserEmail",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/archive",
+      "file": "src/routes/userRoutes.js",
+      "controller": "archiveUser",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/unarchive",
+      "file": "src/routes/userRoutes.js",
+      "controller": "unarchiveUser",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/device",
+      "file": "src/routes/userRoutes.js",
+      "controller": "registerUserDevice",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/device/:deviceId/status",
+      "file": "src/routes/userRoutes.js",
+      "controller": "checkUserDevice",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "deviceId"
+      ],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/device/:deviceId/tracking",
+      "file": "src/routes/userRoutes.js",
+      "controller": "updateUserDeviceTracking",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "deviceId"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/devices",
+      "file": "src/routes/userRoutes.js",
+      "controller": "getUserDevices",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/:id/devices/:deviceId/logout",
+      "file": "src/routes/userRoutes.js",
+      "controller": "logoutUserDevice",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id",
+        "deviceId"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id",
+      "file": "src/routes/userRoutes.js",
+      "controller": "updateUser",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/users/:id",
+      "file": "src/routes/userRoutes.js",
+      "controller": "deleteUser",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/role",
+      "file": "src/routes/userRoutes.js",
+      "controller": "updateUserRole",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/configure-setting",
+      "file": "src/routes/userRoutes.js",
+      "controller": "updateUserSetting",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id/shift-settings",
+      "file": "src/routes/userRoutes.js",
+      "controller": "updateUserShiftSettings",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/:id/assign-manager",
+      "file": "src/routes/userRoutes.js",
+      "controller": "assignManager",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/:id/manager-assignments",
+      "file": "src/routes/userRoutes.js",
+      "controller": "getManagerAssignments",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/users/invite/:id/role",
+      "file": "src/routes/userRoutes.js",
+      "controller": "updateInviteRole",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "POST",
+      "path": "/api/users/resend-invite",
+      "file": "src/routes/userRoutes.js",
+      "controller": "resendInvite",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/profile/:id",
+      "file": "src/routes/userRoutes.js",
+      "controller": "getUserProfile",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/all-users",
+      "file": "src/routes/userRoutes.js",
+      "controller": "getAllUsersWithInvites",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_users\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "User",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/teams",
+      "file": "src/routes/teamRoutes.js",
+      "controller": "createTeam",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "Team",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "GET",
+      "path": "/api/teams",
+      "file": "src/routes/teamRoutes.js",
+      "controller": "getTeams",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Team",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/teams/:id",
+      "file": "src/routes/teamRoutes.js",
+      "controller": "updateTeam",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Team",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/teams/:id",
+      "file": "src/routes/teamRoutes.js",
+      "controller": "deleteTeam",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Team",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tasks",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "createTask",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Task",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "getTasks",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Task",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks/recently-deleted",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "getRecentlyDeletedTasks",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Task",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/tasks/recently-deleted/:id/restore",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "restoreTask",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Task",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tasks/recently-deleted/:id",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "permanentlyDeleteTask",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Task",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tasks/delete-multiple",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "deleteMultipleTasks",
+      "middleware": [
+        "protect",
+        "authorizeRoles(\"owner\"",
+        "\"admin\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "\"admin\")",
+      "routeParams": [],
+      "domainModel": "Task",
+      "operationType": "WRITE",
+      "classification": "ADMIN/MANAGER"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/tasks/:id",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "updateTask",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Task",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tasks/:id",
+      "file": "src/routes/taskRoutes.js",
+      "controller": "deleteTask",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Task",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/projects",
+      "file": "src/routes/projectRoutes.js",
+      "controller": "createProject",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Project",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects",
+      "file": "src/routes/projectRoutes.js",
+      "controller": "getProjects",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Project",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/projects/:id",
+      "file": "src/routes/projectRoutes.js",
+      "controller": "updateProject",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Project",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/projects/:id",
+      "file": "src/routes/projectRoutes.js",
+      "controller": "deleteProject",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Project",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/timers/active",
+      "file": "src/routes/timerRoutes.js",
+      "controller": "\"title\"",
+      "middleware": [
+        "async (req",
+        "res) => {\r\n  try {\r\n    const timer = await Timer.findOne({\r\n      status: \"running\"",
+        "})\r\n      .populate(\"project\"",
+        "\"name\")\r\n      .populate(\"task\""
+      ],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Timer",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/timers/active/:userId",
+      "file": "src/routes/timerRoutes.js",
+      "controller": "\"title\"",
+      "middleware": [
+        "async (req",
+        "res) => {\r\n  try {\r\n    const timer = await Timer.findOne({\r\n      user: req.params.userId",
+        "status: \"running\"",
+        "})\r\n      .populate(\"project\"",
+        "\"name\")\r\n      .populate(\"task\""
+      ],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "userId"
+      ],
+      "domainModel": "Timer",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/screenshots/upload",
+      "file": "src/routes/screenshotRoutes.js",
+      "controller": "uploadScreenshot",
+      "middleware": [
+        "protect",
+        "upload.single(\"screenshot\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Screenshot",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screenshots",
+      "file": "src/routes/screenshotRoutes.js",
+      "controller": "getScreenshots",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Screenshot",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screenshots/export-zip",
+      "file": "src/routes/screenshotRoutes.js",
+      "controller": "exportScreenshotsZip",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Screenshot",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screenshots/:userId",
+      "file": "src/routes/screenshotRoutes.js",
+      "controller": "getUserScreenshots",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "userId"
+      ],
+      "domainModel": "Screenshot",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/activity",
+      "file": "src/routes/activityRoutes.js",
+      "controller": "trackActivity",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Activity",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/activity/session-details",
+      "file": "src/routes/activityRoutes.js",
+      "controller": "getSessionDetails",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Activity",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/activity/:userId",
+      "file": "src/routes/activityRoutes.js",
+      "controller": "getActivity",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "userId"
+      ],
+      "domainModel": "Activity",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/activity/timeline/:userId",
+      "file": "src/routes/activityRoutes.js",
+      "controller": "getActivityTimeline",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "userId"
+      ],
+      "domainModel": "Activity",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/usage",
+      "file": "src/routes/usageRoutes.js",
+      "controller": "getUsageData",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "AppUsage / UsageLog",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/usage/track",
+      "file": "src/routes/usageRoutes.js",
+      "controller": "trackAppUsage",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "AppUsage / UsageLog",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/usage/top-apps/:userId",
+      "file": "src/routes/usageRoutes.js",
+      "controller": "getTopApps",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "userId"
+      ],
+      "domainModel": "AppUsage / UsageLog",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/usage/details/:userId",
+      "file": "src/routes/usageRoutes.js",
+      "controller": "getUsageDetails",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "userId"
+      ],
+      "domainModel": "AppUsage / UsageLog",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/attendance",
+      "file": "src/routes/attendanceRoutes.js",
+      "controller": "getAttendanceData",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Attendance",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/attendance/summary/:userId",
+      "file": "src/routes/attendanceRoutes.js",
+      "controller": "getUserAttendanceSummary",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "userId"
+      ],
+      "domainModel": "Attendance",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/attendance/daily-report",
+      "file": "src/routes/attendanceRoutes.js",
+      "controller": "getDailyWorkReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Attendance",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/attendance/finish",
+      "file": "src/routes/attendanceRoutes.js",
+      "controller": "finishAttendance",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Attendance",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/attendance-overview",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "createAttendanceOverviewReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "getReports",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/test-csv",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "testCSV",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/attendance-detailed",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "createAttendanceDetailedReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/usage",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "createUsageReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/usageCSV",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "generateUsageCSV",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/productivity",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "getProductivityReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/productivity",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "createProductivityReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/project-user",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "createProjectUserReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/project",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "createProjectReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports/classify-app",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "classifyApp",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/reports/:id",
+      "file": "src/routes/reportRoutes.js",
+      "controller": "deleteReport",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Report",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/project-tracking/track",
+      "file": "src/routes/projectTrackingRoutes.js",
+      "controller": "trackProject",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ProjectTracking",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/project-tracking",
+      "file": "src/routes/projectTrackingRoutes.js",
+      "controller": "getProjectTracking",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ProjectTracking",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/project-tracking/task/:taskId",
+      "file": "src/routes/projectTrackingRoutes.js",
+      "controller": "getTaskDetails",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "taskId"
+      ],
+      "domainModel": "ProjectTracking",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings/profile",
+      "file": "src/routes/settingsRoutes.js",
+      "controller": "updateProfile",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "TimeTrackingSettings",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings/change-password",
+      "file": "src/routes/settingsRoutes.js",
+      "controller": "changePassword",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "TimeTrackingSettings",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/settings/preferences",
+      "file": "src/routes/settingsRoutes.js",
+      "controller": "updatePreferences",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "TimeTrackingSettings",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/avatar",
+      "file": "src/routes/settingsRoutes.js",
+      "controller": "uploadAvatar",
+      "middleware": [
+        "protect",
+        "uploadAvatarMiddleware.single(\"avatar\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "TimeTrackingSettings",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "getOrganization",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/organization",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "updateOrganization",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/organization/upload-logo",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "uploadLogo",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")",
+        "upload.single(\"logo\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/organization",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "deleteOrganization",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization/two-factor",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "getTwoFactorSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/organization/two-factor",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "updateTwoFactorSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization/app-updates",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "getAppUpdateSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/organization/app-updates",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "updateAppUpdateSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization/email-reports",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "getEmailReportSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/organization/email-reports",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "updateEmailReportSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization/task-management",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "getTaskManagementSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/organization/task-management",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "updateTaskManagementSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization/notifications",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "getOrganizationNotifications",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/organization/notifications",
+      "file": "src/routes/organizationRoutes.js",
+      "controller": "updateOrganizationNotifications",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Organization",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auditLog",
+      "file": "src/routes/auditLogRoutes.js",
+      "controller": "getAuditLogs",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "AuditLog",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/roles",
+      "file": "src/routes/roleRoutes.js",
+      "controller": "updateRole",
+      "middleware": [
+        "protect",
+        "getRoles)\r\nrouter.put(\"/:id\"",
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Role",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/roles/:id",
+      "file": "src/routes/roleRoutes.js",
+      "controller": "getRoleById",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Role",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/jira/connect",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "connectJira",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/jira/callback",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "jiraCallback",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/jira/webhook",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "jiraWebhook",
+      "middleware": [
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "WEBHOOK"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/jira/projects",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getJiraProjects",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/jira/status",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getJiraStatus",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/jira/sync-projects",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "syncJiraProjects",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "DESKTOP_SYNC"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/jira/sync-issues/:projectId",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "syncJiraIssues",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "projectId"
+      ],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "DESKTOP_SYNC"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/asana/connect",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "connectAsana",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/asana/callback",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "asanaCallback",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/asana/webhook",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "asanaWebhook",
+      "middleware": [
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "WEBHOOK"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/asana",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getAsanaIntegration",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/integrations/asana",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "disconnectAsana",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/asana/workspaces",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getAsanaWorkspaces",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/asana/workspaces/:workspace/projects",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getAsanaProjects",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "workspace"
+      ],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/asana/workspaces/:workspace/import-projects",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "importAsanaProjects",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "workspace"
+      ],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/slack/connect",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "connectSlack",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/slack/callback",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "slackCallback",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/slack",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getSlackIntegration",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/integrations/slack",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "disconnectSlack",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/slack/channels",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getSlackChannels",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/integrations/slack/channel",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "saveSlackChannel",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/slack/test-message",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "sendTestSlackMessage",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/integrations/slack/notifications",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "updateSlackNotifications",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/slack/interactions",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "handleSlackInteraction",
+      "middleware": [
+        "verifySlackSignature"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/bamboohr/connect",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "connectBambooHR",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/bamboohr",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getBambooHRIntegration",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/integrations/bamboohr",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "disconnectBambooHR",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/bamboohr/employees",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getBambooHREmployees",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/bamboohr/sync-employees",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "syncBambooHREmployees",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "DESKTOP_SYNC"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/bamboohr/time-off",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getBambooHRTimeOff",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/keka/connect",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "connectKeka",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/keka",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getKekaIntegration",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/integrations/keka",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "disconnectKeka",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/keka/employees",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getKekaEmployees",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "POST",
+      "path": "/api/integrations/keka/sync-employees",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "syncKekaEmployees",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "WRITE",
+      "classification": "DESKTOP_SYNC"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/keka/leaves",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getKekaLeaves",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/integrations/status-summary",
+      "file": "src/routes/integrationRoutes.js",
+      "controller": "getAllIntegrationStatuses",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Integration",
+      "operationType": "READ",
+      "classification": "EXTERNAL_INTEGRATION"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sync/status",
+      "file": "src/routes/syncRoutes.js",
+      "controller": "getSyncStatus",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "SyncStatus",
+      "operationType": "READ",
+      "classification": "DESKTOP_SYNC"
+    },
+    {
+      "method": "GET",
+      "path": "/api/api-keys",
+      "file": "src/routes/apiKeyRoutes.js",
+      "controller": "getApiKeys",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ApiKey",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/api-keys",
+      "file": "src/routes/apiKeyRoutes.js",
+      "controller": "generateApiKey",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ApiKey",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/api-keys/:id",
+      "file": "src/routes/apiKeyRoutes.js",
+      "controller": "updateApiKey",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "ApiKey",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/api-keys/:id",
+      "file": "src/routes/apiKeyRoutes.js",
+      "controller": "deleteApiKey",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "ApiKey",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "file": "src/routes/api/apiRoutes.js",
+      "controller": "getProjects",
+      "middleware": [
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "READ",
+      "classification": "PUBLIC_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/tasks",
+      "file": "src/routes/api/apiRoutes.js",
+      "controller": "createTask",
+      "middleware": [],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/api-logs",
+      "file": "src/routes/apiLogRoutes.js",
+      "controller": "getApiLogs",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ApiLog",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/overview",
+      "file": "src/routes/billingRoutes.js",
+      "controller": "getBillingOverview",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "BillingProfile / Subscription / Invoice",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/subscription",
+      "file": "src/routes/billingRoutes.js",
+      "controller": "getSubscription",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "BillingProfile / Subscription / Invoice",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/invoices",
+      "file": "src/routes/billingRoutes.js",
+      "controller": "getInvoices",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "BillingProfile / Subscription / Invoice",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/billing/billing-profile",
+      "file": "src/routes/billingRoutes.js",
+      "controller": "updateBillingProfile",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "BillingProfile / Subscription / Invoice",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/create-checkout-session",
+      "file": "src/routes/billingRoutes.js",
+      "controller": "createCheckoutSession",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "BillingProfile / Subscription / Invoice",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/sync-checkout-session",
+      "file": "src/routes/billingRoutes.js",
+      "controller": "syncCheckoutSession",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "BillingProfile / Subscription / Invoice",
+      "operationType": "WRITE",
+      "classification": "DESKTOP_SYNC"
+    },
+    {
+      "method": "POST",
+      "path": "/api/billing/change-plan",
+      "file": "src/routes/billingRoutes.js",
+      "controller": "changeStripePlan",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "BillingProfile / Subscription / Invoice",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/time-tracking/settings",
+      "file": "src/routes/timeTrackingSettingsRoutes.js",
+      "controller": "getTimeTrackingSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "TimeTrackingSettings",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/time-tracking/settings",
+      "file": "src/routes/timeTrackingSettingsRoutes.js",
+      "controller": "updateTimeTrackingSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "TimeTrackingSettings",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/time-tracking/settings/effective",
+      "file": "src/routes/timeTrackingSettingsRoutes.js",
+      "controller": "getEffectiveTimeTrackingSettings",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "TimeTrackingSettings",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screen-capture/settings",
+      "file": "src/routes/screenCaptureRoutes.js",
+      "controller": "getScreenCaptureSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/screen-capture/settings",
+      "file": "src/routes/screenCaptureRoutes.js",
+      "controller": "updateScreenCaptureSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/manual-time/settings",
+      "file": "src/routes/manualTimeRoutes.js",
+      "controller": "getManualTimeSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/manual-time/settings",
+      "file": "src/routes/manualTimeRoutes.js",
+      "controller": "updateManualTimeSettings",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/shift/settings",
+      "file": "src/routes/shiftRoutes.js",
+      "controller": "getShiftSettings",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/shift/settings",
+      "file": "src/routes/shiftRoutes.js",
+      "controller": "updateShiftSettings",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app-classifications",
+      "file": "src/routes/appClassificationRoutes.js",
+      "controller": "getAppClassifications",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "AppClassification",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app-classifications/stats",
+      "file": "src/routes/appClassificationRoutes.js",
+      "controller": "getClassificationStats",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "AppClassification",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/app-classifications",
+      "file": "src/routes/appClassificationRoutes.js",
+      "controller": "createAppClassification",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "AppClassification",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/app-classifications/:id",
+      "file": "src/routes/appClassificationRoutes.js",
+      "controller": "updateAppClassification",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "AppClassification",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/app-classifications/:id",
+      "file": "src/routes/appClassificationRoutes.js",
+      "controller": "deleteAppClassification",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "AppClassification",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/app-classifications/check-break-mode",
+      "file": "src/routes/appClassificationRoutes.js",
+      "controller": "checkBreakMode",
+      "middleware": [
+        "protect",
+        "requirePermission(\"manage_settings\")"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "AppClassification",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks/:taskId/comments",
+      "file": "src/routes/commentRoutes.js",
+      "controller": "getComments",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "taskId"
+      ],
+      "domainModel": "Comment",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/tasks/:taskId/comments",
+      "file": "src/routes/commentRoutes.js",
+      "controller": "addComment",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "taskId"
+      ],
+      "domainModel": "Comment",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/tasks/comment/:commentId",
+      "file": "src/routes/commentRoutes.js",
+      "controller": "updateComment",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "commentId"
+      ],
+      "domainModel": "Comment",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/tasks/comment/:commentId",
+      "file": "src/routes/commentRoutes.js",
+      "controller": "deleteComment",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "commentId"
+      ],
+      "domainModel": "Comment",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks/:taskId/comments/unread-count",
+      "file": "src/routes/commentRoutes.js",
+      "controller": "getUnreadCommentCount",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "taskId"
+      ],
+      "domainModel": "Comment",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/tasks/:taskId/comments/read",
+      "file": "src/routes/commentRoutes.js",
+      "controller": "markCommentsAsRead",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "taskId"
+      ],
+      "domainModel": "Comment",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "POST",
+      "path": "/api/locations",
+      "file": "src/routes/locationRoutes.js",
+      "controller": "saveLocation",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Location",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations",
+      "file": "src/routes/locationRoutes.js",
+      "controller": "getLocations",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Location",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/manual-time-requests",
+      "file": "src/routes/manualTimeRequestRoutes.js",
+      "controller": "createRequest",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ManualTimeRequest",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/manual-time-requests",
+      "file": "src/routes/manualTimeRequestRoutes.js",
+      "controller": "getRequests",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ManualTimeRequest",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/manual-time-requests/:id/approve",
+      "file": "src/routes/manualTimeRequestRoutes.js",
+      "controller": "approveRequest",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "ManualTimeRequest",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/manual-time-requests/:id/reject",
+      "file": "src/routes/manualTimeRequestRoutes.js",
+      "controller": "rejectRequest",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "ManualTimeRequest",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "GET",
+      "path": "/api/manual-time-requests/count",
+      "file": "src/routes/manualTimeRequestRoutes.js",
+      "controller": "getPendingCount",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "ManualTimeRequest",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "POST",
+      "path": "/api/stripe/webhook",
+      "file": "src/routes/stripeWebhookRoutes.js",
+      "controller": "handleStripeWebhook",
+      "middleware": [
+        "express.raw({ type: \"application/json\" })"
+      ],
+      "authentication": "OPTIONAL_OR_NONE",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Unknown",
+      "operationType": "WRITE",
+      "classification": "WEBHOOK"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "file": "src/routes/notificationRoutes.js",
+      "controller": "getNotifications",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Notification",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/unread-count",
+      "file": "src/routes/notificationRoutes.js",
+      "controller": "getUnreadNotificationCount",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Notification",
+      "operationType": "READ",
+      "classification": "AUTHENTICATED_READ"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications/:id/read",
+      "file": "src/routes/notificationRoutes.js",
+      "controller": "markNotificationAsRead",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [
+        "id"
+      ],
+      "domainModel": "Notification",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications/read-all",
+      "file": "src/routes/notificationRoutes.js",
+      "controller": "markAllNotificationsAsRead",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Notification",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/notifications/notifications",
+      "file": "src/routes/notificationRoutes.js",
+      "controller": "updateOrganizationNotifications",
+      "middleware": [
+        "protect"
+      ],
+      "authentication": "REQUIRED",
+      "authorization": "STANDARD_USER",
+      "routeParams": [],
+      "domainModel": "Notification",
+      "operationType": "WRITE",
+      "classification": "AUTHENTICATED_WRITE"
+    }
+  ]
+}

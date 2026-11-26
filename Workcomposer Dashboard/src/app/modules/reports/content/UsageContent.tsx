@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import API from "@/api";
 import type { ReportContentProps } from "../types";
 import WebAppUsageCard from "@/app/dashboard/time-tracking/usage/WebAppUsageCard";
@@ -51,9 +51,11 @@ export default function UsageContent({
         fetchAllUsers();
     }, []);
 
-    const fetchUsage = async () => {
+    const fetchUsage = useCallback(async (showSpinner = true) => {
         try {
-            setLoading(true);
+            if (showSpinner) {
+                setLoading(true);
+            }
 
             const startDate = formatDateForApi(
                 reportRange.startDate,
@@ -88,21 +90,15 @@ export default function UsageContent({
         } catch (err) {
             console.error(err);
         } finally {
-            setLoading(false);
+            if (showSpinner) {
+                setLoading(false);
+            }
         }
-    };
+    }, [reportRange, selectedUsers, selectedTeams, sortBy, order, timezone]);
 
     useEffect(() => {
-        fetchUsage();
-    }, [
-        reportRange,
-        selectedUsers,
-        selectedTeams,
-        sortBy,
-        order,
-        refreshKey,
-        timezone,
-    ]);
+        fetchUsage(true);
+    }, [fetchUsage, refreshKey]);
 
     useEffect(() => {
         const selectedDate = formatDateForApi(
@@ -120,33 +116,33 @@ export default function UsageContent({
         }
 
         const interval = setInterval(() => {
-            fetchUsage();
+            fetchUsage(false);
         }, 30000);
 
         return () => clearInterval(interval);
 
-    }, [reportRange]);
+    }, [reportRange, timezone, fetchUsage]);
 
     return (
         <>
             {loading || isRefreshing ? (
-                <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-200 bg-white">
+                <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A]">
                     <div className="flex flex-col items-center justify-center">
                         <div className="relative h-12 w-12">
-                            <div className="absolute inset-0 rounded-full border-4 border-gray-100" />
+                            <div className="absolute inset-0 rounded-full border-4 border-gray-100 dark:border-slate-700" />
 
                             <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-indigo-600 border-r-indigo-400" />
 
-                            <div className="absolute inset-2 rounded-full bg-white" />
+                            <div className="absolute inset-2 rounded-full bg-white dark:bg-[#0F172A]" />
 
                             <div className="absolute inset-[14px] animate-pulse rounded-full bg-indigo-600" />
                         </div>
 
-                        <p className="mt-4 text-sm font-semibold text-gray-700">
+                        <p className="mt-4 text-sm font-semibold text-gray-700 dark:text-slate-200">
                             Fetching content...
                         </p>
 
-                        <p className="mt-1 text-xs text-gray-400">
+                        <p className="mt-1 text-xs text-gray-400 dark:text-slate-400">
                             Please wait while we update the usage
                         </p>
                     </div>

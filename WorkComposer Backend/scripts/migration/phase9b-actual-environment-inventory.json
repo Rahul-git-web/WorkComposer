@@ -1,0 +1,175 @@
+{
+  "phase": "9B",
+  "auditTitle": "Actual Production Environment Discovery & PostgreSQL Readiness Inventory",
+  "auditTimestamp": "2026-10-03T10:45:00.000Z",
+  "actualProductionEnvironmentStatus": "NOT VERIFIED",
+  "historicalDemoDeployments": {
+    "render": "Historical demo deployment only (workcomposer-backend.onrender.com) — not current production",
+    "vercel": "Historical demo deployment only (work-composer-frontend.vercel.app) — not current production"
+  },
+  "backend": {
+    "hosting": "NOT VERIFIED (No production deployment configuration, Dockerfile, CI/CD, or server spec in repo)",
+    "runtime": "Node.js (v20+ / ES Modules)",
+    "startCommand": "node server.js (npm start)",
+    "devCommand": "nodemon server.js (npm run dev)",
+    "port": "process.env.PORT || 5000",
+    "hostBinding": "0.0.0.0",
+    "publicApiUrl": "NOT VERIFIED",
+    "reverseProxy": "NOT VERIFIED",
+    "tls": "NOT VERIFIED",
+    "processManager": "NOT VERIFIED (No PM2, Docker, systemd, or supervisor config in repo)",
+    "instanceCount": "Single instance assumed based on in-process node-cron schedulers without distributed locks",
+    "healthEndpoint": "None currently implemented (documented for future Phase 9C readiness)"
+  },
+  "frontend": {
+    "component": "Workcomposer Dashboard",
+    "hosting": "NOT VERIFIED",
+    "framework": "Next.js 16 (React 19 + TypeScript + Tailwind CSS)",
+    "buildCommand": "next build",
+    "startCommand": "next start",
+    "localUrl": "http://localhost:3000",
+    "productionUrl": "NOT VERIFIED",
+    "apiUrl": "process.env.NEXT_PUBLIC_API_URL || http://localhost:5000/api",
+    "socketUrl": "process.env.NEXT_PUBLIC_SOCKET_URL || http://localhost:5000"
+  },
+  "desktop": {
+    "component": "WorkComposer Desktop",
+    "framework": "Electron (v42.3.0)",
+    "distribution": "electron-builder (Windows NSIS .exe, macOS DMG)",
+    "apiUrl": "http://localhost:5000/api (Configured locally; historical demo toggle removed in 97a9fc7)",
+    "socketUrl": "http://localhost:5000",
+    "productionConfiguration": "NOT VERIFIED (Hardcoded local URL in current main.js)",
+    "storage": "electron-store with safeStorage OS credential encryption",
+    "nativeBundledTools": [
+      "BrowserUrlReader.exe",
+      "LocationReader.exe",
+      "MacBrowserReader"
+    ]
+  },
+  "browserUrlReader": {
+    "component": "BrowserUrlReader",
+    "framework": ".NET 8 C# Console Application",
+    "communication": "Local standard I/O (invoked via child_process.execFile by Electron Desktop main.js)",
+    "networkDependencies": "None (zero HTTP/WebSocket or external network calls)",
+    "databaseDependencies": "None (zero database access)",
+    "deploymentDependencies": "None (bundled directly into Desktop resources directory)"
+  },
+  "database": {
+    "mongo": {
+      "provider": "MongoDB Atlas",
+      "host": "authentication.yphin3e.mongodb.net",
+      "database": "workcomposer",
+      "credentialSource": "Local .env file (MONGO_URI)",
+      "totalCollections": 32,
+      "totalDocuments": 14608,
+      "status": "ACTIVE_PRODUCTION_SOURCE",
+      "preservation": "100% Intact (0 writes, 0 deletes, verified read-only)"
+    },
+    "postgresLocal": {
+      "host": "localhost:5432",
+      "database": "workcomposer",
+      "schema": "public",
+      "status": "LOCAL_MIGRATED_REFERENCE",
+      "tablesCount": 35,
+      "indexesCount": 77,
+      "migratedCoreRows": 1377,
+      "normalizedRelationalRows": 49,
+      "blockedHistoricalOrphans": 13280,
+      "failedRows": 0,
+      "unexplainedRows": 0
+    },
+    "postgresProduction": {
+      "status": "NOT PROVISIONED",
+      "provider": "PENDING_OPERATOR_INPUT",
+      "targetDatabase": "workcomposer",
+      "targetSchema": "public"
+    }
+  },
+  "externalServices": [
+    {
+      "name": "Stripe",
+      "purpose": "Subscription billing, payment methods, checkout sessions, invoice webhooks",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Cloudinary",
+      "purpose": "Cloud image & screenshot hosting, avatars, organization logos",
+      "cloudName": "dsrezhcyo",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Brevo",
+      "purpose": "Transactional emails, team invitations, daily & weekly work tracking reports",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Google OAuth",
+      "purpose": "Single Sign-On authentication for web and desktop",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Microsoft OAuth",
+      "purpose": "Single Sign-On authentication for web and desktop",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Apple OAuth",
+      "purpose": "Sign in with Apple",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Slack",
+      "purpose": "Daily and weekly summary notification broadcasts to team channels",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Jira",
+      "purpose": "OAuth integration and recurring sync for projects and tasks",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Asana",
+      "purpose": "OAuth integration and recurring sync for projects and tasks",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "BambooHR",
+      "purpose": "HR organization and employee synchronization",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "Keka",
+      "purpose": "HR organization and employee synchronization",
+      "secrets": ["<REDACTED>"]
+    },
+    {
+      "name": "IPInfo",
+      "purpose": "Geolocation lookup for desktop client telemetry",
+      "secrets": ["<REDACTED>"]
+    }
+  ],
+  "migrationReadiness": {
+    "prismaSchemaValid": true,
+    "prismaClientGenerated": true,
+    "prismaModelsCount": 35,
+    "prismaEnumsCount": 18,
+    "migrationToolingAvailable": true,
+    "orphanPolicy": "block",
+    "idPreservation": "Strict 24-character hexadecimal ObjectId preservation",
+    "testsExecuted": {
+      "prismaValidation": "PASS",
+      "prismaGeneration": "PASS",
+      "migrationToolingSuite": "25/25 PASS",
+      "repositoryCompatibilitySuite": "41/41 PASS",
+      "apiCompatibilitySuite": "48/48 PASS"
+    }
+  },
+  "safetyAudit": {
+    "mongoProductionWrites": 0,
+    "postgresProductionWrites": 0,
+    "productionProviderSwitch": "NOT PERFORMED",
+    "productionMigration": "NOT PERFORMED",
+    "clientChanges": 0
+  },
+  "finalStatus": "BLOCKED — PRODUCTION ENVIRONMENT NOT VERIFIED"
+}

@@ -102,18 +102,38 @@
 /* Existing WorkComposer map / popup styles — preserved */
 .employee-popup .leaflet-popup-content-wrapper {
   padding: 0;
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
+  background: #ffffff;
+  color: #0f172a;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
 }
 
 .employee-popup .leaflet-popup-content {
   margin: 0;
-  width: 320px !important;
+  width: min(340px, calc(100vw - 2.5rem)) !important;
+  max-width: calc(100vw - 2rem);
 }
 
 .employee-popup .leaflet-popup-tip-container {
   margin-top: -1px;
+}
+
+.employee-popup .leaflet-popup-tip {
+  background: #ffffff;
+}
+
+[data-theme="dark"] .employee-popup .leaflet-popup-content-wrapper {
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .employee-popup .leaflet-popup-tip {
+  background: #1e293b;
+  border-right: 1px solid #334155;
+  border-bottom: 1px solid #334155;
 }
 
 .employee-popup .leaflet-popup-close-button {

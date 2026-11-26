@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties, Ref } from "react";
 import {
     Bell,
     CheckCheck,
@@ -19,6 +20,8 @@ type Props = {
     onNotificationClick?: (
         notification: Notification,
     ) => void;
+    style?: CSSProperties | undefined;
+    ref?: Ref<HTMLDivElement> | undefined;
 };
 
 export default function NotificationDropdown({
@@ -29,6 +32,8 @@ export default function NotificationDropdown({
     onMarkAllRead,
     onViewAll,
     onNotificationClick,
+    style,
+    ref,
 }: Props) {
 
     // NotificationItem expects onClick to always exist.
@@ -36,11 +41,19 @@ export default function NotificationDropdown({
     const handleNotificationClick =
         onNotificationClick ?? (() => { });
 
+    const positioningClasses = style
+        ? "fixed z-[9999]"
+        : "absolute right-0 top-full z-[9999] mt-3 w-[calc(100vw-2rem)] max-w-[390px]";
+
     return (
-        <div className="absolute right-0 top-full z-[100] mt-3 w-[calc(100vw-2rem)] max-w-[390px] overflow-hidden rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl">
+        <div
+            ref={ref}
+            style={style}
+            className={`${positioningClasses} flex flex-col max-h-[min(520px,calc(100vh-5rem))] overflow-hidden rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl`}
+        >
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 px-4 py-3">
+            <div className="shrink-0 flex items-center justify-between border-b border-gray-200 dark:border-slate-700 px-4 py-3">
                 <div>
                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                         Notifications
@@ -66,7 +79,7 @@ export default function NotificationDropdown({
             </div>
 
             {/* Content */}
-            <div className="max-h-[420px] overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                 {loading ? (
                     <div className="flex h-40 items-center justify-center">
                         <Loader2 className="h-5 w-5 animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -99,7 +112,7 @@ export default function NotificationDropdown({
 
             {/* Footer */}
             {notifications.length > 0 && (
-                <div className="border-t border-gray-200 dark:border-slate-700 p-2">
+                <div className="shrink-0 border-t border-gray-200 dark:border-slate-700 p-2">
                     <button
                         type="button"
                         onClick={onViewAll}

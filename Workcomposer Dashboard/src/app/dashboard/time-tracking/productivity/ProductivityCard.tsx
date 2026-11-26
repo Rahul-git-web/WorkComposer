@@ -379,7 +379,7 @@ const ProductivityCard = ({
                                                                     alt={user.name}
                                                                     width={48}
                                                                     height={48}
-                                                                    className="rounded-full object-cover ring-2 ring-white shadow-md hover:ring-indigo-400 transition"
+                                                                    className="rounded-full object-cover ring-2 ring-white dark:ring-slate-700 shadow-md hover:ring-indigo-400 transition"
                                                                     unoptimized
                                                                 />
                                                             </UserProfileTrigger>
@@ -396,7 +396,7 @@ const ProductivityCard = ({
                                                                 className="ml-3 text-left"
                                                             >
                                                                 <div className="cursor-pointer">
-                                                                    <h3 className="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors">{user.name}</h3>
+                                                                    <h3 className="text-base font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-indigo-400 transition-colors">{user.name}</h3>
                                                                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5"> Total Tracked: {user.totalTracked} </p>
                                                                 </div>
                                                             </UserProfileTrigger>
@@ -406,7 +406,7 @@ const ProductivityCard = ({
                                                     <div className="flex items-center gap-6">
                                                         <div className="relative w-16 h-16 flex-shrink-0">
                                                             <svg className="w-16 h-16 transform -rotate-90">
-                                                                <circle cx={32} cy={32} r={28} stroke="#f3f4f6" strokeWidth={6} fill="none"></circle>
+                                                                <circle cx={32} cy={32} r={28} strokeWidth={6} fill="none" className="stroke-gray-100 dark:stroke-slate-700"></circle>
                                                                 <circle
                                                                     cx={32}
                                                                     cy={32}
@@ -438,7 +438,7 @@ const ProductivityCard = ({
                                                         <div className="flex gap-6">
                                                             <div className="text-center min-w-[80px]">
                                                                 <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1 uppercase tracking-wide"> Productive </div>
-                                                                <div className="text-lg font-bold text-green-600 transition-all duration-500">{user.productivePercent}%</div>
+                                                                <div className="text-lg font-bold text-green-600 dark:text-green-400 transition-all duration-500">{user.productivePercent}%</div>
                                                                 <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                                                     {user.productiveTime}
                                                                 </div>
@@ -452,7 +452,7 @@ const ProductivityCard = ({
                                                             </div>
                                                             <div className="text-center min-w-[80px]">
                                                                 <div className="text-xs font-medium text-gray-500 dark:text-slate-400 mb-1 uppercase tracking-wide"> Unproductive </div>
-                                                                <div className="text-lg font-bold text-red-600">{user.unproductivePercent}%</div>
+                                                                <div className="text-lg font-bold text-red-600 dark:text-red-400">{user.unproductivePercent}%</div>
                                                                 <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">
                                                                     {user.unproductiveTime}
                                                                 </div>
@@ -472,7 +472,7 @@ const ProductivityCard = ({
                                                     </div>
                                                     <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[180px] overflow-y-auto scrollable-column">
                                                         {user.productiveApps.length === 0 ? (
-                                                            <div className="px-5 py-8 text-center text-sm text-gray-400">
+                                                            <div className="px-5 py-8 text-center text-sm text-gray-400 dark:text-slate-400">
                                                                 No productive apps
                                                             </div>
                                                         ) : (
@@ -535,7 +535,7 @@ const ProductivityCard = ({
                                                     </div>
                                                     <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[180px] overflow-y-auto scrollable-column">
                                                         {user.neutralApps.length === 0 ? (
-                                                            <div className="px-5 py-8 text-center text-sm text-gray-400">
+                                                            <div className="px-5 py-8 text-center text-sm text-gray-400 dark:text-slate-400">
                                                                 No neutral apps
                                                             </div>
                                                         ) : (
@@ -560,11 +560,11 @@ const ProductivityCard = ({
                                                                                     : ""
                                                                                     }`}
                                                                             >
-                                                                                <span className="font-medium">
+                                                                                <span className="font-medium text-gray-900 dark:text-gray-200">
                                                                                     {app.name}
                                                                                 </span>
 
-                                                                                <span className="text-gray-500">
+                                                                                <span className="text-gray-500 dark:text-gray-400">
                                                                                     {" - "}
                                                                                     {app.time}
                                                                                 </span>
@@ -572,7 +572,7 @@ const ProductivityCard = ({
 
                                                                             {movingApp?.name === app.name && (
                                                                                 <div className="mt-1 flex items-center gap-2">
-                                                                                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                                                                    <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/60 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
                                                                                         → Moved to {movingApp?.target}
                                                                                     </span>
 
@@ -589,30 +589,30 @@ const ProductivityCard = ({
                                                     </div>
                                                 </div>
 
-                                                <div className="bg-white">
-                                                    <div className="px-5 py-2 bg-red-50 border-b border-red-100">
+                                                <div className="bg-white dark:bg-[#0F172A]">
+                                                    <div className="px-5 py-2 bg-red-50 dark:bg-red-950/40 border-b border-red-100 dark:border-red-900/50">
                                                         <div className="flex items-center justify-between">
-                                                            <h4 className="text-xs font-semibold text-red-700 uppercase tracking-wide"> Unproductive </h4>
-                                                            <span className="text-xs font-semibold text-red-700 bg-red-100 px-2.5 py-1 rounded-md">{user.unproductiveApps.length}</span>
+                                                            <h4 className="text-xs font-semibold text-red-700 dark:text-red-300 uppercase tracking-wide"> Unproductive </h4>
+                                                            <span className="text-xs font-semibold text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/60 px-2.5 py-1 rounded-md">{user.unproductiveApps.length}</span>
                                                         </div>
                                                     </div>
-                                                    <div className="divide-y divide-gray-100 max-h-[180px] overflow-y-auto scrollable-column">
+                                                    <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[180px] overflow-y-auto scrollable-column">
                                                         {user.unproductiveApps.length === 0 ? (
-                                                            <div className="px-5 py-8 text-center text-sm text-gray-400">
+                                                            <div className="px-5 py-8 text-center text-sm text-gray-400 dark:text-slate-400">
                                                                 No unproductive apps
                                                             </div>
                                                         ) : (
                                                             user.unproductiveApps.map((app: any, index: number) => (
                                                                 <div
                                                                     key={index}
-                                                                    className={`px-5 py-2.5 group relative hover:bg-gray-50 transition-all duration-700 ${movingApp?.name === app.name
-                                                                        ? "opacity-50 scale-[0.98] bg-green-50"
+                                                                    className={`px-5 py-2.5 group relative hover:bg-gray-50 dark:hover:bg-[#1E293B]/70 transition-all duration-700 ${movingApp?.name === app.name
+                                                                        ? "opacity-50 scale-[0.98] bg-green-50 dark:bg-green-950/40"
                                                                         : "opacity-100 scale-100"
                                                                         }`}
                                                                     title={`${app.name} - ${app.time}`}
                                                                 >
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+                                                                        <div className="w-5 h-5 flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-400">
                                                                             <FaDesktop className="w-5 h-5 rounded" />
                                                                         </div>
 
@@ -623,11 +623,11 @@ const ProductivityCard = ({
                                                                                     : ""
                                                                                     }`}
                                                                             >
-                                                                                <span className="font-medium">
+                                                                                <span className="font-medium text-gray-900 dark:text-gray-200">
                                                                                     {app.name}
                                                                                 </span>
 
-                                                                                <span className="text-gray-500">
+                                                                                <span className="text-gray-500 dark:text-gray-400">
                                                                                     {" - "}
                                                                                     {app.time}
                                                                                 </span>
@@ -635,7 +635,7 @@ const ProductivityCard = ({
 
                                                                             {movingApp?.name === app.name && (
                                                                                 <div className="mt-1 flex items-center gap-2">
-                                                                                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                                                                                    <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/60 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300">
                                                                                         → Moved to {movingApp?.target}
                                                                                     </span>
 

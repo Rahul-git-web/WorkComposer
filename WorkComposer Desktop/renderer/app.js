@@ -1,1 +1,1 @@
-console.log("WorkComposer Desktop Running");
+console.info("WorkComposer Desktop Running");

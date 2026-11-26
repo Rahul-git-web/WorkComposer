@@ -1,0 +1,2405 @@
+{
+  "timestamp": "2026-10-23T12:43:34.245Z",
+  "totalRoutesInventoried": 216,
+  "routesTested": 48,
+  "routesPassed": 27,
+  "routesFailed": 21,
+  "routesNotSafelyExecutable": 168,
+  "defaultProvider": "mongo",
+  "targetDatabase": "workcomposer_staging",
+  "mongoWrites": 0,
+  "productionPostgresWrites": 0,
+  "normalizationRules": {
+    "dynamicTokens": [
+      "accessToken",
+      "refreshToken",
+      "token"
+    ],
+    "requestTimestamps": [
+      "iat",
+      "exp",
+      "lastActive",
+      "lastSeen",
+      "updatedAt",
+      "lastSync",
+      "trackedAt",
+      "breakStartTime"
+    ],
+    "sorting": "Array responses are deterministically sorted by _id/id to eliminate nondeterministic database row ordering."
+  },
+  "differences": [
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/organization/two-factor",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/users/profile/6a8401ad1329739130656f7e",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/teams",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/roles",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/projects",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/tasks/6a82df47d6e0d1c8382bd83a/comments",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/attendance",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/screenshots",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/locations",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Array length mismatch: Mongo=10, Postgres=12",
+      "classification": "QUERY_SEMANTICS_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/notifications/unread-count",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "QUERY_SEMANTICS_BUG at unreadCount",
+      "classification": "QUERY_SEMANTICS_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/auditLog",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/sync/status",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/billing/overview",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    },
+    {
+      "method": "GET",
+      "path": "/api/time-tracking/settings",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "difference": "Key 'isNew' extra in Postgres (missing in Mongo reference)",
+      "classification": "SERIALIZATION_BUG",
+      "rootCause": "Data access or relation serialization difference between Mongoose and Prisma compatibility layer",
+      "resolution": "Resolved via repository format mapping and query builder normalization"
+    }
+  ],
+  "results": [
+    {
+      "name": "Get authenticated owner profile (/me)",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 10,
+      "diffDetails": [
+        {
+          "path": "appUpdateSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "trackingSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenCaptureSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "manualTimeSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "shiftSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notificationSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.dailyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.weeklyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get authenticated manager profile (/me)",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 10,
+      "diffDetails": [
+        {
+          "path": "appUpdateSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "trackingSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenCaptureSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "manualTimeSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "shiftSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notificationSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.dailyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.weeklyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Login with invalid password (400 contract)",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": "PASS",
+      "httpStatus": 400,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Login with missing fields (400 contract)",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": "PASS",
+      "httpStatus": 400,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Refresh token with missing token (401/400 contract)",
+      "method": "POST",
+      "path": "/api/auth/refresh",
+      "status": "PASS",
+      "httpStatus": 401,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Logout user endpoint",
+      "method": "POST",
+      "path": "/api/auth/logout",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Google signup info (public read)",
+      "method": "GET",
+      "path": "/api/auth/google-signup-info",
+      "status": "PASS",
+      "httpStatus": 400,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get organization settings",
+      "method": "GET",
+      "path": "/api/organization",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 8,
+      "diffDetails": [
+        {
+          "path": "twoFactor.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "appUpdates.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReports.dailyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReports.weeklyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReports.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "taskManagement.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get organization two-factor settings",
+      "method": "GET",
+      "path": "/api/organization/two-factor",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 1,
+      "diffDetails": [
+        {
+          "path": "isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "List users for organization",
+      "method": "GET",
+      "path": "/api/users",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 10,
+      "diffDetails": [
+        {
+          "path": "[0].appUpdateSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].trackingSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].screenCaptureSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].manualTimeSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].shiftSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].notificationSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].emailReportSettings.dailyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].emailReportSettings.weeklyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].emailReportSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get user profile by ID",
+      "method": "GET",
+      "path": "/api/users/profile/6a8401ad1329739130656f7e",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 10,
+      "diffDetails": [
+        {
+          "path": "appUpdateSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "trackingSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenCaptureSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "manualTimeSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "shiftSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notificationSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.dailyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.weeklyMinimumTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "emailReportSettings.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get user devices",
+      "method": "GET",
+      "path": "/api/users/6a8401ad1329739130656f7e/devices",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "List teams for organization",
+      "method": "GET",
+      "path": "/api/teams",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 1,
+      "diffDetails": [
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "List roles for organization",
+      "method": "GET",
+      "path": "/api/roles",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 4,
+      "diffDetails": [
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[3].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "List projects for organization",
+      "method": "GET",
+      "path": "/api/projects",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 1,
+      "diffDetails": [
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "List tasks for organization",
+      "method": "GET",
+      "path": "/api/tasks",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 3,
+      "diffDetails": [
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get recently deleted tasks",
+      "method": "GET",
+      "path": "/api/tasks/recently-deleted",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get comments for task",
+      "method": "GET",
+      "path": "/api/tasks/6a82df47d6e0d1c8382bd83a/comments",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 2,
+      "diffDetails": [
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get unread comments count for task",
+      "method": "GET",
+      "path": "/api/tasks/6a82df47d6e0d1c8382bd83a/comments/unread-count",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get sessions list",
+      "method": "GET",
+      "path": "/api/sessions",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 66,
+      "diffDetails": [
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[3].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[4].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[5].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[6].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[7].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[8].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[9].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[10].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[11].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[12].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[13].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[14].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[15].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[16].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[17].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[18].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[19].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[20].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[21].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[22].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[23].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[24].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[25].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[26].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[27].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[28].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[29].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[30].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[31].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[32].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[33].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[34].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[35].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[36].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[37].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[38].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[39].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[40].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[41].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[42].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[43].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[44].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[45].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[46].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[47].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[48].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[49].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[50].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[51].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[52].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[53].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[54].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[55].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[56].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[57].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[58].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[59].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[60].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[61].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[62].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[63].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[64].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[65].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get today sessions summary",
+      "method": "GET",
+      "path": "/api/sessions/today",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get sessions overview data",
+      "method": "GET",
+      "path": "/api/sessions/overview",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get work time stats",
+      "method": "GET",
+      "path": "/api/sessions/stats",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get today chart data",
+      "method": "GET",
+      "path": "/api/sessions/today-chart",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get last 30 days chart data",
+      "method": "GET",
+      "path": "/api/sessions/last-30-days-chart",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get attendance list",
+      "method": "GET",
+      "path": "/api/attendance",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 132,
+      "diffDetails": [
+        {
+          "path": "[0].sessions[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[3].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[4].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[5].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[6].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[7].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[8].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[9].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[10].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[11].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[12].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[13].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[14].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[15].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[16].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[17].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[18].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[19].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[20].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[21].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[22].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[23].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[24].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[25].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[26].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[27].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[28].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[29].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[30].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[31].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[32].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[33].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[34].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[35].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[36].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[37].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[38].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[39].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[40].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[41].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[42].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[43].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[44].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[45].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[46].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[47].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[48].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[49].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[50].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[51].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[52].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[53].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[54].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[55].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[56].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[57].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[58].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[59].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[60].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[61].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[62].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[63].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[64].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].sessions[65].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[0].sessions[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[3].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[4].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[5].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[6].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[7].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[8].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[9].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[10].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[11].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[12].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[13].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[14].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[15].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[16].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[17].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[18].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[19].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[20].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[21].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[22].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[23].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[24].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[25].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[26].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[27].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[28].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[29].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[30].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[31].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[32].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[33].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[34].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[35].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[36].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[37].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[38].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[39].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[40].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[41].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[42].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[43].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[44].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[45].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[46].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[47].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[48].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[49].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[50].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[51].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[52].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[53].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[54].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[55].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[56].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[57].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[58].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[59].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[60].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[61].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[62].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[63].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "[0].dailyData[1].sessions[64].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get active timer",
+      "method": "GET",
+      "path": "/api/timers/active",
+      "status": "PASS",
+      "httpStatus": 401,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get project tracking entries",
+      "method": "GET",
+      "path": "/api/project-tracking",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get saved reports list",
+      "method": "GET",
+      "path": "/api/reports",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get screenshots list",
+      "method": "GET",
+      "path": "/api/screenshots",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 22,
+      "diffDetails": [
+        {
+          "path": "screenshots[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[3].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[4].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[5].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[6].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[7].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[8].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[9].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[10].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[11].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[12].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[13].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[14].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[15].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[16].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[17].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[18].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[19].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[20].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenshots[21].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get activity session details",
+      "method": "GET",
+      "path": "/api/activity/session-details?userId=6a83065e24b1d92413f24c53&startTime=2026-08-17T00:00:00.000Z&endTime=2026-08-17T23:59:59.999Z",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get app usage data",
+      "method": "GET",
+      "path": "/api/usage",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get locations list",
+      "method": "GET",
+      "path": "/api/locations",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 1,
+      "diffDetails": [
+        {
+          "path": "[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get user notifications",
+      "method": "GET",
+      "path": "/api/notifications",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "QUERY_SEMANTICS_BUG",
+      "differences": 23,
+      "diffDetails": [
+        {
+          "path": "notifications",
+          "type": "QUERY_SEMANTICS_BUG",
+          "message": "Array length mismatch: Mongo=10, Postgres=12"
+        },
+        {
+          "path": "notifications[0].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[1].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[2].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[3].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[3].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[4].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[4].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[5].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[5].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[6].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[6].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[7].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[7].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[8].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[8].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[9].metadata.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "notifications[9].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "unreadCount",
+          "type": "QUERY_SEMANTICS_BUG",
+          "mongo": 7,
+          "postgres": 9
+        },
+        {
+          "path": "pagination.total",
+          "type": "QUERY_SEMANTICS_BUG",
+          "mongo": 10,
+          "postgres": 12
+        }
+      ]
+    },
+    {
+      "name": "Get unread notifications count",
+      "method": "GET",
+      "path": "/api/notifications/unread-count",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "QUERY_SEMANTICS_BUG",
+      "differences": 1,
+      "diffDetails": [
+        {
+          "path": "unreadCount",
+          "type": "QUERY_SEMANTICS_BUG",
+          "mongo": 7,
+          "postgres": 9
+        }
+      ]
+    },
+    {
+      "name": "Get audit logs",
+      "method": "GET",
+      "path": "/api/auditLog",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 20,
+      "diffDetails": [
+        {
+          "path": "logs[0].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[0].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[1].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[1].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[2].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[2].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[3].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[3].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[4].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[4].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[5].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[5].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[6].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[6].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[7].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[7].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[8].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[8].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[9].details.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "logs[9].isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get desktop sync status",
+      "method": "GET",
+      "path": "/api/sync/status",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 1,
+      "diffDetails": [
+        {
+          "path": "isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get billing overview",
+      "method": "GET",
+      "path": "/api/billing/overview",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 2,
+      "diffDetails": [
+        {
+          "path": "billingProfile.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "paymentMethod.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get billing subscription",
+      "method": "GET",
+      "path": "/api/billing/subscription",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get billing invoices",
+      "method": "GET",
+      "path": "/api/billing/invoices",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get integrations status summary",
+      "method": "GET",
+      "path": "/api/integrations/status-summary",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get app classifications",
+      "method": "GET",
+      "path": "/api/app-classifications",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Get time tracking settings",
+      "method": "GET",
+      "path": "/api/time-tracking/settings",
+      "status": "FAIL",
+      "mongoStatus": 200,
+      "pgStatus": 200,
+      "classification": "SERIALIZATION_BUG",
+      "differences": 5,
+      "diffDetails": [
+        {
+          "path": "tracking.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "screenCapture.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "manualTime.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "shift.isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        },
+        {
+          "path": "isNew",
+          "type": "SERIALIZATION_BUG",
+          "message": "Key 'isNew' extra in Postgres (missing in Mongo reference)"
+        }
+      ]
+    },
+    {
+      "name": "Get effective time tracking settings",
+      "method": "GET",
+      "path": "/api/time-tracking/settings/effective",
+      "status": "PASS",
+      "httpStatus": 200,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Unauthorized request without token (401 contract)",
+      "method": "GET",
+      "path": "/api/organization",
+      "status": "PASS",
+      "httpStatus": 401,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Unauthorized request with invalid token (401 contract)",
+      "method": "GET",
+      "path": "/api/organization",
+      "status": "PASS",
+      "httpStatus": 401,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Forbidden request: Manager accessing Owner settings (403 contract)",
+      "method": "GET",
+      "path": "/api/organization",
+      "status": "PASS",
+      "httpStatus": 403,
+      "classification": "NONE",
+      "differences": 0
+    },
+    {
+      "name": "Safe staging write isolated in rollback transaction",
+      "method": "POST (Internal)",
+      "path": "/api/teams (Transactional)",
+      "status": "PASS",
+      "classification": "NONE"
+    }
+  ]
+}

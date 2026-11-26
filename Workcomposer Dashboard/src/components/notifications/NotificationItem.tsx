@@ -17,7 +17,7 @@ type Props = {
 };
 
 function getNotificationIcon(type: string) {
-    const className = "h-4 w-4 text-indigo-600";
+    const className = "h-4 w-4 text-indigo-600 dark:text-indigo-400";
 
     if (type.startsWith("TASK_")) {
         return <ClipboardList className={className} />;

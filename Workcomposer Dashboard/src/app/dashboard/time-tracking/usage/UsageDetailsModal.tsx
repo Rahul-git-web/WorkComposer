@@ -1,6 +1,8 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import API from "@/api";
+import { useAppTimezone } from "@/hooks/useAppTimezone";
+import { formatDateForApi } from "@/utils/appTimezone";
 import { CiViewColumn } from "react-icons/ci";
 import { HiMiniInformationCircle } from "react-icons/hi2";
 import { CiImport } from "react-icons/ci";
@@ -17,6 +19,7 @@ type Props = {
         startDate: Date;
         endDate: Date;
     };
+    timezone?: string | undefined;
 };
 
 export default function UsageDetailsModal({
@@ -24,18 +27,54 @@ export default function UsageDetailsModal({
     onClose,
     user,
     reportRange,
+    timezone,
 }: Props) {
+    const appTimezone = useAppTimezone();
+    const effectiveTimezone = timezone || appTimezone;
 
     const [logs, setLogs] = useState<any[]>([]);
     const modalRef = useRef<HTMLDivElement | null>(null);
+
+    const formatLogTime = (dateValue: string | Date) => {
+        try {
+            return new Intl.DateTimeFormat("en-US", {
+                timeZone: effectiveTimezone,
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            }).format(new Date(dateValue));
+        } catch {
+            return new Date(dateValue).toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+        }
+    };
+
+    const formatLogDateTime = (dateValue: string | Date) => {
+        try {
+            return new Intl.DateTimeFormat("en-US", {
+                timeZone: effectiveTimezone,
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            }).format(new Date(dateValue));
+        } catch {
+            return new Date(dateValue).toLocaleString();
+        }
+    };
 
     useEffect(() => {
         if (!open || !user?._id) return;
         let mounted = true;
 
         const load = () => {
-            const startDate = reportRange.startDate.toISOString().split("T")[0];
-            const endDate = reportRange.endDate.toISOString().split("T")[0];
+            const startDate = formatDateForApi(reportRange.startDate, effectiveTimezone);
+            const endDate = formatDateForApi(reportRange.endDate, effectiveTimezone);
 
             API.get(`/usage/details/${user._id}?startDate=${startDate}&endDate=${endDate}`)
                 .then(({ data }) => {
@@ -52,7 +91,7 @@ export default function UsageDetailsModal({
             mounted = false;
             clearInterval(interval);
         };
-    }, [open, user, reportRange]);
+    }, [open, user, reportRange, effectiveTimezone]);
 
     useEffect(() => {
 
@@ -69,16 +108,25 @@ export default function UsageDetailsModal({
 
         };
 
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                onClose();
+            }
+        };
+
         document.addEventListener(
             "mousedown",
             handleClickOutside
         );
+        window.addEventListener("keydown", handleEscape);
 
-        return () =>
+        return () => {
             document.removeEventListener(
                 "mousedown",
                 handleClickOutside
             );
+            window.removeEventListener("keydown", handleEscape);
+        };
 
     }, [open, onClose]);
 
@@ -125,9 +173,9 @@ export default function UsageDetailsModal({
 
             `"${log.windowTitle || ""}"`,
 
-            new Date(log.startTime).toLocaleString(),
+            `"${formatLogDateTime(log.startTime)}"`,
 
-            new Date(log.endTime).toLocaleString(),
+            `"${formatLogDateTime(log.endTime)}"`,
 
             formatDuration(log.duration),
 
@@ -168,11 +216,15 @@ export default function UsageDetailsModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md">
+        <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md overscroll-contain"
+        >
 
             <div
                 ref={modalRef}
-                className="bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 w-[95%] max-w-6xl max-h-[90vh] rounded-xl shadow-xl flex flex-col"
+                className="bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 w-[95%] max-w-6xl max-h-[90vh] rounded-xl shadow-xl flex flex-col overscroll-contain"
             >
 
                 <div className="flex items-center justify-between p-6 border-b border-gray-300 dark:border-slate-700">
@@ -244,10 +296,10 @@ export default function UsageDetailsModal({
 
                                 <tbody>
 
-                                    {logs.map((log) => (
+                                    {logs.map((log, index) => (
 
                                         <tr
-                                            key={log._id}
+                                            key={log._id || log.id || `${log.appName}-${log.startTime}-${index}`}
                                             className="border-b border-gray-100 dark:border-slate-700/60 hover:bg-gray-50 dark:hover:bg-slate-700/40 h-13"
                                         >
 
@@ -262,25 +314,11 @@ export default function UsageDetailsModal({
                                             </td>
 
                                             <td className="text-sm text-gray-600 dark:text-slate-300">
-                                                {new Date(log.startTime).toLocaleTimeString(
-                                                    "en-US",
-                                                    {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                        second: "2-digit",
-                                                    }
-                                                )}
+                                                {formatLogTime(log.startTime)}
                                             </td>
 
                                             <td className="text-sm text-gray-600 dark:text-slate-300">
-                                                {new Date(log.endTime).toLocaleTimeString(
-                                                    "en-US",
-                                                    {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                        second: "2-digit",
-                                                    }
-                                                )}
+                                                {formatLogTime(log.endTime)}
                                             </td>
 
                                             <td className="px-4 py-3 text-gray-600 dark:text-slate-300">

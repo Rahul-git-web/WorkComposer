@@ -1,0 +1,520 @@
+{
+  "timestamp": "2026-10-09T10:57:12.186Z",
+  "status": "PASS",
+  "totalTestsRun": 66,
+  "totalTestsPassed": 66,
+  "totalTestsFailed": 0,
+  "applicationStartup": {
+    "mongoMode": "PASS",
+    "postgresMode": "PASS"
+  },
+  "httpRuntime": {
+    "totalTested": 30,
+    "passed": 30,
+    "failed": 0
+  },
+  "authenticationRuntime": "PASS",
+  "writePathVerification": {
+    "tested": 9,
+    "rolledBack": 9,
+    "lingeringArtifacts": 0,
+    "status": "PASS"
+  },
+  "transactionVerification": {
+    "rollback": "PASS",
+    "commitAndCleanup": "PASS"
+  },
+  "socketIoRuntime": "PASS",
+  "desktopSmokeTest": {
+    "tested": 8,
+    "passed": 8,
+    "failed": 0,
+    "status": "PASS"
+  },
+  "dataIntegrity": {
+    "idFormat": "PASS (All 24-character hexadecimal)",
+    "foreignKeyViolations": 0,
+    "orphanedRecords": 0,
+    "persistentStagingArtifacts": 0,
+    "status": "PASS"
+  },
+  "safetyAudit": {
+    "mongoWrites": 0,
+    "productionPostgresWrites": 0,
+    "defaultProviderRestored": true,
+    "clientApplicationsUntouched": true,
+    "productionCutover": "NOT PERFORMED"
+  },
+  "baselineRowCounts": {
+    "activities": 449,
+    "api_keys": 1,
+    "api_logs": 0,
+    "app_classifications": 3,
+    "app_usages": 7,
+    "attendances": 0,
+    "audit_logs": 285,
+    "billing_profiles": 3,
+    "comments": 2,
+    "email_changes": 0,
+    "integrations": 0,
+    "invites": 10,
+    "invoices": 0,
+    "locations": 1,
+    "manual_time_requests": 0,
+    "notifications": 10,
+    "organizations": 7,
+    "payment_methods": 3,
+    "project_trackings": 0,
+    "project_users": 3,
+    "projects": 6,
+    "reports": 0,
+    "roles": 28,
+    "screenshots": 22,
+    "sessions": 100,
+    "subscriptions": 0,
+    "sync_statuses": 2,
+    "tasks": 10,
+    "teams": 6,
+    "time_tracking_settings": 4,
+    "timers": 34,
+    "usage_logs": 462,
+    "user_devices": 111,
+    "user_refresh_tokens": 104,
+    "users": 5
+  },
+  "postTestRowCounts": {
+    "activities": 449,
+    "api_keys": 1,
+    "api_logs": 0,
+    "app_classifications": 3,
+    "app_usages": 7,
+    "attendances": 0,
+    "audit_logs": 285,
+    "billing_profiles": 3,
+    "comments": 2,
+    "email_changes": 0,
+    "integrations": 0,
+    "invites": 10,
+    "invoices": 0,
+    "locations": 1,
+    "manual_time_requests": 0,
+    "notifications": 10,
+    "organizations": 7,
+    "payment_methods": 3,
+    "project_trackings": 0,
+    "project_users": 3,
+    "projects": 6,
+    "reports": 0,
+    "roles": 28,
+    "screenshots": 22,
+    "sessions": 100,
+    "subscriptions": 0,
+    "sync_statuses": 2,
+    "tasks": 10,
+    "teams": 6,
+    "time_tracking_settings": 4,
+    "timers": 34,
+    "usage_logs": 462,
+    "user_devices": 111,
+    "user_refresh_tokens": 104,
+    "users": 5
+  },
+  "testResults": [
+    {
+      "section": "Safety",
+      "name": "Postgres safety guard validates local database",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Safety",
+      "name": "Default DATABASE_PROVIDER in environment is valid",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Startup",
+      "name": "Mongo Mode Real Application Boot & Clean Exit",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Startup",
+      "name": "PostgreSQL Mode Real Application Boot & Clean Exit",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Baseline",
+      "name": "Capture PostgreSQL staging baseline row counts",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Baseline",
+      "name": "Capture MongoDB reference collection document counts",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Server",
+      "name": "Start real Express application on port 5092",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/auth/me",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/organization",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/users",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/teams",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/roles",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/projects",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/tasks",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/tasks/recently-deleted",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/sessions",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/sessions/today",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/sessions/overview",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/sessions/stats",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/attendance",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/timers/active",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/project-tracking",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/reports",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/screenshots",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/usage",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/locations",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/notifications",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/notifications/unread-count",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/auditLog",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/sync/status",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/billing/overview",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/billing/subscription",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/billing/invoices",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/integrations/status-summary",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/app-classifications",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/time-tracking/settings",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "HTTP Runtime",
+      "name": "GET /api/time-tracking/settings/effective",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Auth Runtime",
+      "name": "POST /api/auth/login with valid staging credentials",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Auth Runtime",
+      "name": "GET /api/auth/me with newly issued access token",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Auth Runtime",
+      "name": "POST /api/auth/refresh with newly issued refresh token",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Auth Runtime",
+      "name": "GET /api/auth/me with refreshed access token",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Auth Runtime",
+      "name": "POST /api/auth/logout terminates session",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Organization: Safe update & revert inside transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Team: Create & update inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Project: Create & update inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Task: Create & update inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Comment: Create & mark-as-read inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Timer & Session: Start & stop paths inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Notification: Create inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "Location: Telemetry record inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Write Path",
+      "name": "TimeTrackingSettings: Upsert inside rollback transaction",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Transactions",
+      "name": "Multi-entity transaction rollback on deliberate error",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Transactions",
+      "name": "Multi-entity transaction commit & verified explicit cleanup",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Socket.IO",
+      "name": "Connect staging client and verify real events",
+      "status": "PASS",
+      "details": "Socket.IO connection and event emission verified"
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "POST /api/auth/refresh (invalid token contract -> 401)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "GET /api/auth/me (authenticated desktop user contract)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "POST /api/screenshots/upload (no file attached -> 400 error contract)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "GET /api/time-tracking/settings/effective (effective desktop tracking settings)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "GET /api/tasks (tasks list for desktop)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "GET /api/projects (projects list for desktop)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "GET /api/sync/status (sync status for desktop client)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Desktop Smoke",
+      "name": "GET /api/locations (locations list for desktop)",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Integrity",
+      "name": "Verify 0 persistent test artifact increases in PostgreSQL staging",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Integrity",
+      "name": "Audit all IDs: Strictly 24-character hexadecimal format",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Integrity",
+      "name": "Audit foreign keys: 0 orphaned child records",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "section": "Safety",
+      "name": "Verify MongoDB write activity remained strictly 0",
+      "status": "PASS",
+      "details": null
+    }
+  ]
+}

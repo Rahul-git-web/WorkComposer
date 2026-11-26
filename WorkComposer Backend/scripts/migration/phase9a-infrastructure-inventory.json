@@ -1,0 +1,200 @@
+{
+  "phase": "9A",
+  "name": "Production Infrastructure Inventory",
+  "generatedAt": "2026-10-01T18:58:00.000Z",
+  "backend": {
+    "hosting": "Render (Web Service)",
+    "runtime": "Node.js (v20+ / ES Modules)",
+    "processManager": "Render Native Process Runner (executes 'npm start' -> 'node server.js')",
+    "port": "5000 (Render PORT environment variable injected automatically)",
+    "deployment": "Git-triggered automated builds (Render GitHub Integration) / Manual Deploy via Render Dashboard",
+    "productionApiUrl": "https://workcomposer-backend.onrender.com/api",
+    "productionOriginUrl": "https://workcomposer-backend.onrender.com",
+    "healthEndpoint": "None currently mounted (Express returns 404 on '/'). Recommended for Phase 9B: '/api/health'",
+    "reverseProxy": "Cloudflare Edge + Render Ingress Proxy ('x-render-origin-server: Render', 'server: cloudflare')"
+  },
+  "frontend": {
+    "name": "Workcomposer Dashboard",
+    "hosting": "Vercel (Serverless / Edge Network)",
+    "framework": "Next.js 16 (App Router + React 19 + Tailwind CSS)",
+    "productionUrl": "https://work-composer-frontend.vercel.app",
+    "apiUrl": "https://workcomposer-backend.onrender.com/api",
+    "socketUrl": "https://workcomposer-backend.onrender.com",
+    "deployment": "Git-triggered automated builds (Vercel GitHub Integration)"
+  },
+  "desktop": {
+    "name": "WorkComposer Desktop",
+    "framework": "Electron (v42.3.0)",
+    "distribution": "electron-builder (Windows NSIS .exe, macOS DMG)",
+    "productionApiUrl": "https://workcomposer-backend.onrender.com/api",
+    "productionWebAppUrl": "https://work-composer-frontend.vercel.app",
+    "localDevelopmentOverride": "http://localhost:5000/api and http://localhost:3000 (committed in 97a9fc7)",
+    "storage": "electron-store with safeStorage OS credential encryption",
+    "supportingTools": [
+      "BrowserUrlReader.exe",
+      "LocationReader.exe",
+      "MacBrowserReader"
+    ]
+  },
+  "browserUrlReader": {
+    "name": "BrowserUrlReader",
+    "framework": ".NET 8 (C# Console Application with Windows UI Automation / macOS Accessibility)",
+    "communication": "Local standard I/O (invoked via child_process.execFile by Electron Desktop main.js)",
+    "networkActivity": "None (zero HTTP/WebSocket or database dependencies)",
+    "deploymentImpact": "None (standalone binary bundled inside Desktop installer resources)"
+  },
+  "database": {
+    "mongo": {
+      "provider": "MongoDB Atlas",
+      "cluster": "authentication.yphin3e.mongodb.net",
+      "database": "workcomposer",
+      "production": true,
+      "totalDocuments": 14608,
+      "totalCollections": 32,
+      "status": "ACTIVE_PRODUCTION",
+      "readOnlyPreservation": "VERIFIED (100% Intact)"
+    },
+    "postgres": {
+      "provider": "Local PostgreSQL 18 (Local Developer Machine)",
+      "database": "workcomposer",
+      "production": false,
+      "status": "LOCAL_MIGRATED_VALIDATED",
+      "migratedRows": 1377,
+      "blockedRows": 13280,
+      "productionCloudInstance": "NOT_PROVISIONED"
+    }
+  },
+  "externalServices": [
+    {
+      "name": "Stripe",
+      "purpose": "Subscription billing, payment methods, checkout sessions, invoice webhooks",
+      "endpoints": ["https://api.stripe.com/v1", "/api/stripe/webhook"],
+      "secretKeys": ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+    },
+    {
+      "name": "Cloudinary",
+      "purpose": "Cloud image & screenshot hosting, avatars, organization logos",
+      "cloudName": "dsrezhcyo",
+      "secretKeys": ["CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"]
+    },
+    {
+      "name": "Brevo",
+      "purpose": "Transactional emails, team invitations, daily & weekly work tracking reports",
+      "secretKeys": ["BREVO_API_KEY", "EMAIL_FROM"]
+    },
+    {
+      "name": "Google OAuth",
+      "purpose": "Single Sign-On authentication for web and desktop",
+      "redirectUri": "https://workcomposer-backend.onrender.com/api/auth/google/callback",
+      "secretKeys": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]
+    },
+    {
+      "name": "Microsoft OAuth",
+      "purpose": "Single Sign-On authentication for web and desktop",
+      "redirectUri": "https://workcomposer-backend.onrender.com/api/auth/microsoft/callback",
+      "secretKeys": ["MICROSOFT_CLIENT_ID", "MICROSOFT_CLIENT_SECRET", "MICROSOFT_TENANT_ID"]
+    },
+    {
+      "name": "Apple OAuth",
+      "purpose": "Sign in with Apple",
+      "secretKeys": ["APPLE_CLIENT_ID", "APPLE_TEAM_ID", "APPLE_KEY_ID", "APPLE_PRIVATE_KEY"]
+    },
+    {
+      "name": "Jira",
+      "purpose": "OAuth integration and recurring bidirectional sync for projects and tasks",
+      "redirectUri": "https://workcomposer-backend.onrender.com/api/integrations/jira/callback",
+      "secretKeys": ["JIRA_CLIENT_ID", "JIRA_CLIENT_SECRET"]
+    },
+    {
+      "name": "Asana",
+      "purpose": "OAuth integration and recurring sync for projects and tasks",
+      "redirectUri": "https://workcomposer-backend.onrender.com/api/integrations/asana/callback",
+      "secretKeys": ["ASANA_CLIENT_ID", "ASANA_CLIENT_SECRET"]
+    },
+    {
+      "name": "Slack",
+      "purpose": "Daily and weekly summary notification broadcasts to team channels",
+      "redirectUri": "https://workcomposer-backend.onrender.com/api/integrations/slack/callback",
+      "secretKeys": ["SLACK_CLIENT_ID", "SLACK_CLIENT_SECRET", "SLACK_SIGNING_SECRET"]
+    },
+    {
+      "name": "BambooHR",
+      "purpose": "HR organization and employee synchronization",
+      "secretKeys": ["BAMBOOHR_API_KEY", "BAMBOOHR_SUBDOMAIN"]
+    },
+    {
+      "name": "Keka",
+      "purpose": "HR organization and employee synchronization",
+      "secretKeys": ["KEKA_CLIENT_ID", "KEKA_CLIENT_SECRET", "KEKA_API_KEY"]
+    },
+    {
+      "name": "IPInfo",
+      "purpose": "Geolocation lookup for desktop client check-in and tracking telemetry",
+      "secretKeys": ["IPINFO_TOKEN"]
+    }
+  ],
+  "storage": [
+    {
+      "type": "Cloud Object / Media Storage",
+      "provider": "Cloudinary",
+      "data": "Screenshots, user avatars, organization logos",
+      "persistence": "Cloud-hosted (permanent URLs stored in database)"
+    },
+    {
+      "type": "Local Ephemeral Disk",
+      "provider": "Render Web Service ephemeral disk (/uploads)",
+      "data": "Temporary Multer upload buffer before Cloudinary streaming and report exports",
+      "persistence": "Ephemeral (non-persistent between deploys/restarts)"
+    }
+  ],
+  "backgroundJobs": [
+    {
+      "name": "startSyncJobs (Jira, BambooHR, Keka)",
+      "engine": "node-cron",
+      "schedule": "Jira: */5 * * * *, BambooHR: 0 0 * * *, Keka: 0 0 * * *",
+      "instanceModel": "Single instance only (in-process node-cron)"
+    },
+    {
+      "name": "startDailySummaryScheduler",
+      "engine": "node-cron",
+      "schedule": "*/5 * * * *",
+      "instanceModel": "Single instance only"
+    },
+    {
+      "name": "startWeeklySummaryScheduler",
+      "engine": "node-cron",
+      "schedule": "*/5 * * * * (evaluates Monday 20:00 per timezone)",
+      "instanceModel": "Single instance only"
+    },
+    {
+      "name": "startTrackingNotificationScheduler",
+      "engine": "node-cron",
+      "schedule": "Configured shift end intervals",
+      "instanceModel": "Single instance only"
+    },
+    {
+      "name": "emailReports.cron",
+      "engine": "node-cron",
+      "schedule": "Hourly: 0 * * * *, Daily: 59 23 * * *, Weekly: 59 23 * * 0",
+      "instanceModel": "Single instance only"
+    }
+  ],
+  "monitoring": [
+    {
+      "layer": "Edge / Ingress",
+      "provider": "Cloudflare & Render Ingress",
+      "metrics": "HTTP requests, status codes, latency, SSL termination"
+    },
+    {
+      "layer": "Application Runtime",
+      "provider": "Render Service Logs",
+      "metrics": "Stdout / stderr console stream, crash restarts"
+    },
+    {
+      "layer": "Database",
+      "provider": "MongoDB Atlas Metrics",
+      "metrics": "Connections, IOPS, CPU, query latency"
+    }
+  ],
+  "unknowns": []
+}

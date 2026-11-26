@@ -1,0 +1,372 @@
+{
+  "generatedAt": "2026-10-01T05:47:51.308Z",
+  "databaseName": "workcomposer",
+  "mongoVersion": "8.0.34",
+  "totalCollections": 32,
+  "models": {
+    "Organization": {
+      "collection": "organizations",
+      "sourceCount": 7,
+      "validIds": 7,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T08:30:08.666Z",
+      "maxTimestamp": "2026-09-15T09:17:37.548Z"
+    },
+    "Role": {
+      "collection": "roles",
+      "sourceCount": 28,
+      "validIds": 28,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T08:30:09.169Z",
+      "maxTimestamp": "2026-09-15T09:17:37.710Z"
+    },
+    "Team": {
+      "collection": "teams",
+      "sourceCount": 5,
+      "validIds": 5,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T08:30:10.869Z",
+      "maxTimestamp": "2026-09-15T09:17:37.770Z"
+    },
+    "User": {
+      "collection": "users",
+      "sourceCount": 4,
+      "validIds": 4,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-17T13:02:22.013Z",
+      "maxTimestamp": "2026-09-15T09:17:37.753Z"
+    },
+    "TimeTrackingSettings": {
+      "collection": "timetrackingsettings",
+      "sourceCount": 3,
+      "validIds": 3,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:34:09.594Z",
+      "maxTimestamp": "2026-09-22T12:49:21.854Z"
+    },
+    "BillingProfile": {
+      "collection": "billingprofiles",
+      "sourceCount": 3,
+      "validIds": 3,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:33:51.845Z",
+      "maxTimestamp": "2026-09-22T12:49:21.519Z"
+    },
+    "Subscription": {
+      "collection": "subscriptions",
+      "sourceCount": 0,
+      "validIds": 0,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": null,
+      "maxTimestamp": null
+    },
+    "PaymentMethod": {
+      "collection": "paymentmethods",
+      "sourceCount": 3,
+      "validIds": 3,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:33:51.845Z",
+      "maxTimestamp": "2026-09-22T12:49:21.519Z"
+    },
+    "Invoice": {
+      "collection": "invoices",
+      "sourceCount": 0,
+      "validIds": 0,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": null,
+      "maxTimestamp": null
+    },
+    "ApiKey": {
+      "collection": "apikeys",
+      "sourceCount": 1,
+      "validIds": 1,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:33:28.762Z",
+      "maxTimestamp": "2026-08-14T09:33:28.762Z"
+    },
+    "Integration": {
+      "collection": "integrations",
+      "sourceCount": 0,
+      "validIds": 0,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": null,
+      "maxTimestamp": null
+    },
+    "AppClassification": {
+      "collection": "appclassifications",
+      "sourceCount": 3,
+      "validIds": 3,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-15T17:43:52.514Z",
+      "maxTimestamp": "2026-09-02T05:24:10.547Z"
+    },
+    "Project": {
+      "collection": "projects",
+      "sourceCount": 2,
+      "validIds": 2,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:21:57.438Z",
+      "maxTimestamp": "2026-09-15T09:23:44.495Z"
+    },
+    "Task": {
+      "collection": "tasks",
+      "sourceCount": 10,
+      "validIds": 10,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:22:29.909Z",
+      "maxTimestamp": "2026-08-30T10:39:13.468Z"
+    },
+    "Comment": {
+      "collection": "comments",
+      "sourceCount": 5,
+      "validIds": 5,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:22:49.603Z",
+      "maxTimestamp": "2026-08-30T01:18:49.262Z"
+    },
+    "Session": {
+      "collection": "sessions",
+      "sourceCount": 383,
+      "validIds": 383,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:51:44.711Z",
+      "maxTimestamp": "2026-09-03T08:36:52.319Z"
+    },
+    "Attendance": {
+      "collection": "attendances",
+      "sourceCount": 3,
+      "validIds": 3,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-17T13:28:48.118Z",
+      "maxTimestamp": "2026-08-24T06:01:23.162Z"
+    },
+    "Timer": {
+      "collection": "timers",
+      "sourceCount": 178,
+      "validIds": 178,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:49:17.352Z",
+      "maxTimestamp": "2026-09-03T08:35:13.229Z"
+    },
+    "ProjectTracking": {
+      "collection": "projecttrackings",
+      "sourceCount": 25,
+      "validIds": 25,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-15T09:49:08.557Z",
+      "maxTimestamp": "2026-08-29T09:25:42.556Z"
+    },
+    "ManualTimeRequest": {
+      "collection": "manualtimerequests",
+      "sourceCount": 1,
+      "validIds": 1,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-27T09:49:25.805Z",
+      "maxTimestamp": "2026-08-27T09:49:25.805Z"
+    },
+    "Screenshot": {
+      "collection": "screenshots",
+      "sourceCount": 379,
+      "validIds": 379,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:58:14.285Z",
+      "maxTimestamp": "2026-09-02T07:26:40.258Z"
+    },
+    "Activity": {
+      "collection": "activities",
+      "sourceCount": 6963,
+      "validIds": 6963,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:49:27.239Z",
+      "maxTimestamp": "2026-09-03T08:36:53.502Z"
+    },
+    "AppUsage": {
+      "collection": "appusages",
+      "sourceCount": 149,
+      "validIds": 149,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:49:28.577Z",
+      "maxTimestamp": "2026-09-03T08:35:17.490Z"
+    },
+    "UsageLog": {
+      "collection": "usagelogs",
+      "sourceCount": 6210,
+      "validIds": 6210,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:49:28.768Z",
+      "maxTimestamp": "2026-09-03T08:36:43.844Z"
+    },
+    "Location": {
+      "collection": "locations",
+      "sourceCount": 2,
+      "validIds": 2,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:49:28.784Z",
+      "maxTimestamp": "2026-08-18T08:12:21.685Z"
+    },
+    "Notification": {
+      "collection": "notifications",
+      "sourceCount": 22,
+      "validIds": 22,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-29T10:30:45.473Z",
+      "maxTimestamp": "2026-09-03T12:31:00.205Z"
+    },
+    "AuditLog": {
+      "collection": "auditlogs",
+      "sourceCount": 199,
+      "validIds": 199,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T08:31:15.753Z",
+      "maxTimestamp": "2026-09-15T09:18:39.809Z"
+    },
+    "ApiLog": {
+      "collection": "apilogs",
+      "sourceCount": 0,
+      "validIds": 0,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": null,
+      "maxTimestamp": null
+    },
+    "Report": {
+      "collection": "reports",
+      "sourceCount": 12,
+      "validIds": 12,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-24T06:01:23.202Z",
+      "maxTimestamp": "2026-08-27T10:23:41.374Z"
+    },
+    "Invite": {
+      "collection": "invites",
+      "sourceCount": 6,
+      "validIds": 6,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T09:26:07.980Z",
+      "maxTimestamp": "2026-08-24T07:46:28.720Z"
+    },
+    "SyncStatus": {
+      "collection": "syncstatuses",
+      "sourceCount": 2,
+      "validIds": 2,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": "2026-08-14T10:49:13.808Z",
+      "maxTimestamp": "2026-08-18T08:12:11.312Z"
+    },
+    "EmailChange": {
+      "collection": "emailchanges",
+      "sourceCount": 0,
+      "validIds": 0,
+      "invalidIds": 0,
+      "missingIds": 0,
+      "minTimestamp": null,
+      "maxTimestamp": null
+    },
+    "UserDevice": {
+      "sourceCollection": "users.devices",
+      "targetTable": "user_devices",
+      "sourceCount": 28
+    },
+    "UserRefreshToken": {
+      "sourceCollection": "users.refreshTokens",
+      "targetTable": "user_refresh_tokens",
+      "sourceCount": 21
+    },
+    "ProjectUser": {
+      "sourceCollection": "projects.users",
+      "targetTable": "project_users",
+      "sourceCount": 0
+    }
+  },
+  "highVolumeProfiles": {
+    "Session": {
+      "collection": "sessions",
+      "count": 383,
+      "minTimestamp": "2026-08-14T10:51:44.711Z",
+      "maxTimestamp": "2026-09-03T08:36:52.319Z"
+    },
+    "Screenshot": {
+      "collection": "screenshots",
+      "count": 379,
+      "minTimestamp": "2026-08-14T10:58:14.285Z",
+      "maxTimestamp": "2026-09-02T07:26:40.258Z"
+    },
+    "Activity": {
+      "collection": "activities",
+      "count": 6963,
+      "minTimestamp": "2026-08-14T10:49:27.239Z",
+      "maxTimestamp": "2026-09-03T08:36:53.502Z"
+    },
+    "AppUsage": {
+      "collection": "appusages",
+      "count": 149,
+      "minTimestamp": "2026-08-14T10:49:28.577Z",
+      "maxTimestamp": "2026-09-03T08:35:17.490Z"
+    },
+    "UsageLog": {
+      "collection": "usagelogs",
+      "count": 6210,
+      "minTimestamp": "2026-08-14T10:49:28.768Z",
+      "maxTimestamp": "2026-09-03T08:36:43.844Z"
+    },
+    "Location": {
+      "collection": "locations",
+      "count": 2,
+      "minTimestamp": "2026-08-14T10:49:28.784Z",
+      "maxTimestamp": "2026-08-18T08:12:21.685Z"
+    }
+  },
+  "idIntegrity": {
+    "totalExamined": 14608,
+    "validHex24": 14608,
+    "invalidHex24": 0,
+    "missingId": 0,
+    "duplicates": 0
+  },
+  "orphans": {
+    "policy": "block",
+    "categories": {
+      "VALID_PARENT": 66,
+      "SOURCE_RECORD_VALID_PARENT_MISSING": 317,
+      "MIGRATABLE_NULLABLE_FK": 0,
+      "BLOCKED_REQUIRED_FK": 317
+    },
+    "details": {
+      "Session_User": {
+        "totalSessions": 383,
+        "validSessions": 66,
+        "blockedSessions": 317
+      }
+    }
+  }
+}

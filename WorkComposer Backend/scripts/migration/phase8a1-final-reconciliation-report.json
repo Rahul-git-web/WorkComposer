@@ -1,0 +1,124 @@
+{
+  "phase": "8A.1",
+  "title": "Final Migration Reconciliation & Safety Review",
+  "generatedAt": "2026-10-01T11:45:00.000Z",
+  "status": "PASS",
+  "finalRecommendation": "READY FOR PHASE 8B APPROVAL",
+  "safetyBoundary": {
+    "activeProvider": "mongo",
+    "productionCutoverPerformed": false,
+    "productionMongoWrites": 0,
+    "productionPostgresWrites": 0,
+    "productionConfigurationChanged": false,
+    "productionDeploymentPerformed": false,
+    "clientCodeModified": false
+  },
+  "sourceReconciliation": {
+    "mongoDocumentsExamined": 14608,
+    "embeddedSubdocuments": {
+      "userDevices": 28,
+      "userRefreshTokens": 21,
+      "projectUsers": 0,
+      "totalEmbedded": 49
+    },
+    "totalExpectedTargetRows": 14657,
+    "successfullyMigrated": 1377,
+    "blockedByOrphanPolicy": 13280,
+    "nullableNormalized": 200,
+    "explicitlyExcluded": 0,
+    "migrationFailed": 0,
+    "unexplainedDifferences": 0,
+    "parityFormula": "migrated (1377) + blocked (13280) = expected (14657)"
+  },
+  "orphanReconciliation": {
+    "policy": "block",
+    "totalOrphanReferencesAudited": 13480,
+    "blockedRequiredFkRecords": 13280,
+    "nullableFkNormalizedToNull": 200,
+    "missingParentIdentities": [
+      {
+        "userId": "6a7ed212bd6ad78a910b339f",
+        "description": "Historical deleted user accounting for 13,477 references across 13 models"
+      },
+      {
+        "userId": "6a7edf965c7eadf2489ad844",
+        "description": "Historical deleted user in comment userId"
+      },
+      {
+        "reportId": "6a9008259a21b22c67e4d3d4",
+        "description": "Historical deleted report reference in manual time request"
+      }
+    ],
+    "unexplainedOrphans": 0
+  },
+  "perModelReconciliation": [
+    { "model": "Organization", "mongoSource": 7, "expectedRows": 7, "migrated": 7, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Role", "mongoSource": 28, "expectedRows": 28, "migrated": 28, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Team", "mongoSource": 5, "expectedRows": 5, "migrated": 5, "blocked": 0, "nullableNormalized": 2, "failed": 0, "status": "RECONCILED" },
+    { "model": "User", "mongoSource": 4, "expectedRows": 4, "migrated": 4, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "UserDevice", "mongoSource": 2, "expectedRows": 28, "migrated": 28, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "UserRefreshToken", "mongoSource": 3, "expectedRows": 21, "migrated": 21, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "TimeTrackingSettings", "mongoSource": 3, "expectedRows": 3, "migrated": 3, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "BillingProfile", "mongoSource": 3, "expectedRows": 3, "migrated": 3, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Subscription", "mongoSource": 0, "expectedRows": 0, "migrated": 0, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "PaymentMethod", "mongoSource": 3, "expectedRows": 3, "migrated": 3, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Invoice", "mongoSource": 0, "expectedRows": 0, "migrated": 0, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "ApiKey", "mongoSource": 1, "expectedRows": 1, "migrated": 1, "blocked": 0, "nullableNormalized": 1, "failed": 0, "status": "RECONCILED" },
+    { "model": "Integration", "mongoSource": 0, "expectedRows": 0, "migrated": 0, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "AppClassification", "mongoSource": 3, "expectedRows": 3, "migrated": 3, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Project", "mongoSource": 2, "expectedRows": 2, "migrated": 2, "blocked": 0, "nullableNormalized": 1, "failed": 0, "status": "RECONCILED" },
+    { "model": "ProjectUser", "mongoSource": 0, "expectedRows": 0, "migrated": 0, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Task", "mongoSource": 10, "expectedRows": 10, "migrated": 10, "blocked": 0, "nullableNormalized": 17, "failed": 0, "status": "RECONCILED" },
+    { "model": "Comment", "mongoSource": 5, "expectedRows": 5, "migrated": 2, "blocked": 3, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Session", "mongoSource": 383, "expectedRows": 383, "migrated": 66, "blocked": 317, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Attendance", "mongoSource": 3, "expectedRows": 3, "migrated": 0, "blocked": 3, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Timer", "mongoSource": 178, "expectedRows": 178, "migrated": 34, "blocked": 144, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "ProjectTracking", "mongoSource": 25, "expectedRows": 25, "migrated": 0, "blocked": 25, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "ManualTimeRequest", "mongoSource": 1, "expectedRows": 1, "migrated": 0, "blocked": 1, "nullableNormalized": 1, "failed": 0, "status": "RECONCILED" },
+    { "model": "Screenshot", "mongoSource": 379, "expectedRows": 379, "migrated": 22, "blocked": 357, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Activity", "mongoSource": 6963, "expectedRows": 6963, "migrated": 449, "blocked": 6514, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "AppUsage", "mongoSource": 149, "expectedRows": 149, "migrated": 7, "blocked": 142, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "UsageLog", "mongoSource": 6210, "expectedRows": 6210, "migrated": 462, "blocked": 5748, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Location", "mongoSource": 2, "expectedRows": 2, "migrated": 1, "blocked": 1, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Notification", "mongoSource": 22, "expectedRows": 22, "migrated": 10, "blocked": 12, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "AuditLog", "mongoSource": 199, "expectedRows": 199, "migrated": 199, "blocked": 0, "nullableNormalized": 172, "failed": 0, "status": "RECONCILED" },
+    { "model": "ApiLog", "mongoSource": 0, "expectedRows": 0, "migrated": 0, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Report", "mongoSource": 12, "expectedRows": 12, "migrated": 0, "blocked": 12, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "Invite", "mongoSource": 6, "expectedRows": 6, "migrated": 6, "blocked": 0, "nullableNormalized": 6, "failed": 0, "status": "RECONCILED" },
+    { "model": "SyncStatus", "mongoSource": 2, "expectedRows": 2, "migrated": 1, "blocked": 1, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" },
+    { "model": "EmailChange", "mongoSource": 0, "expectedRows": 0, "migrated": 0, "blocked": 0, "nullableNormalized": 0, "failed": 0, "status": "RECONCILED" }
+  ],
+  "datasetConsistency": {
+    "phase4StagingComparison": "Identical baseline (14,657 expected records across 35 models)",
+    "differenceExplained": "Phase 4 and Phase 8A evaluate the identical production snapshot. 1,377 migrated + 13,280 blocked = 14,657 rows.",
+    "snapshotCoherence": "PASS. Consistent point-in-time snapshot."
+  },
+  "safetyGuardVerification": {
+    "localhostDryRunAllowed": true,
+    "localhostStagingAllowed": true,
+    "remoteHostRejected": true,
+    "productionHostRejected": true,
+    "unknownDatabaseRejected": true,
+    "prodKeywordRejected": true,
+    "liveKeywordRejected": true,
+    "negativeTestCasesPassed": "6 / 6"
+  },
+  "testSuiteVerification": {
+    "migrationTooling": "25 passed / 0 failed",
+    "phase5RepositoryCompatibility": "41 passed / 0 failed",
+    "phase5ApiCompatibility": "48 passed / 0 failed",
+    "phase6RuntimeIntegration": "66 passed / 0 failed",
+    "phase8aProductionDryRun": "54 passed / 0 failed",
+    "total": "234 passed / 0 failed"
+  },
+  "dryRunCleanliness": {
+    "targetDatabase": "workcomposer_dryrun",
+    "postVerificationRowCount": 1377,
+    "temporaryTestArtifacts": 0,
+    "delta": 0
+  },
+  "rollbackContract": {
+    "preTrafficCutover": "SAFE by keeping active provider on MongoDB",
+    "postTrafficCutover": "NOT AUTOMATIC. Migration is strictly monodirectional (Mongo -> Postgres). No reverse sync mechanism exists."
+  }
+}

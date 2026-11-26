@@ -752,7 +752,7 @@ export default function ScreenshotsCard({
                     </div>
 
                     {/* Screenshot Area */}
-                    <div className="h-[140px] bg-gray-100 overflow-hidden relative">
+                    <div className="h-[140px] bg-gray-100 dark:bg-slate-900 overflow-hidden relative">
                       {latestShot?.imageUrl ? (
                         <Image
                           src={latestShot.imageUrl}
@@ -762,7 +762,7 @@ export default function ScreenshotsCard({
                           unoptimized
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-slate-500 gap-2">
                           <Camera className="w-6 h-6 opacity-40" />
                           <span className="text-xs">No Screenshot</span>
                         </div>
@@ -772,7 +772,7 @@ export default function ScreenshotsCard({
                     {/* Footer */}
                     <div className="px-3 py-3">
                       <div className="flex items-center justify-between text-[15px] mb-2">
-                        <div className="flex items-center gap-1 font-semibold text-gray-700">
+                        <div className="flex items-center gap-1 font-semibold text-gray-700 dark:text-slate-200">
                           <span>🕒</span>
 
                           <span>
@@ -815,7 +815,7 @@ export default function ScreenshotsCard({
                       </div>
 
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600 font-semibold">
+                        <span className="text-gray-600 dark:text-slate-400 font-semibold">
                           {userShots.length > 0
                             ? `${userShots.length} Screenshot${userShots.length > 1 ? "s" : ""}`
                             : "No Screenshots"}
@@ -835,8 +835,8 @@ export default function ScreenshotsCard({
                             setShowModal(true);
                           }}
                           className={`text-xs px-2 py-1 rounded-md ${userShots.length
-                            ? "bg-blue-200 text-indigo-600"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            ? "bg-blue-200 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400"
+                            : "bg-gray-200 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed"
                             }`}
                         >
                           See all

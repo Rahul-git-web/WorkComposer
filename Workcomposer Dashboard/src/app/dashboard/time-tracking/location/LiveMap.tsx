@@ -1,22 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import API from "@/api";
-import { Clock, Globe2, Mail, MapPin, Navigation, Satellite } from "lucide-react";
+import { Clock, MapPin, Navigation, X } from "lucide-react";
 import {
     Circle,
     MapContainer,
     Marker,
     Popup,
     TileLayer,
-    Tooltip,
     useMap,
 } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
+import { formatDateForApi, resolveSafeTimezone } from "@/utils/appTimezone";
 
 type Coordinates = [number, number];
+
+type AttendanceSummary = {
+    workTime: string;
+    breakTime: string;
+};
+
+const EMPTY_SUMMARY: AttendanceSummary = {
+    workTime: "0h 0m",
+    breakTime: "0h 0m",
+};
 
 const createAvatarIcon = (avatar: string) =>
     L.divIcon({
@@ -42,37 +52,17 @@ L.Icon.Default.mergeOptions({
         "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-function RecenterMap({ position }: { position: Coordinates }) {
-    const map = useMap();
-
-    useEffect(() => {
-        map.invalidateSize();
-        map.setView(position, map.getZoom(), {
-            animate: true,
-        });
-    }, [map, position]);
-
-    useEffect(() => {
-        const resizeMap = () => map.invalidateSize();
-        const timer = window.setTimeout(resizeMap, 250);
-
-        window.addEventListener("resize", resizeMap);
-
-        return () => {
-            window.clearTimeout(timer);
-            window.removeEventListener("resize", resizeMap);
-        };
-    }, [map]);
-
-    return null;
-}
-
 function FitBounds({ locations }: { locations: any[] }) {
     const map = useMap();
     const prevIdsRef = useRef<string>("");
 
     const idsKey = useMemo(
-        () => locations.map((location) => location._id).sort().join(","),
+        () =>
+            locations
+                .map((location) => location?._id || location?.user?._id || "")
+                .filter(Boolean)
+                .sort()
+                .join(","),
         [locations]
     );
 
@@ -96,55 +86,305 @@ function FitBounds({ locations }: { locations: any[] }) {
     return null;
 }
 
-function DetailRow({
-    label,
-    value,
-}: {
-    label: string;
-    value: string | number | null | undefined;
-}) {
-    return (
-        <div className="grid grid-cols-[6.75rem_1fr] gap-3 text-sm">
-            <span className="font-medium text-gray-500">{label}</span>
-            <span className="break-words font-semibold text-gray-900">
-                {value || "Not available"}
-            </span>
-        </div>
-    );
-}
-
-function formatDateTime(value: string | null) {
+function formatLocationTimestamp(value: string | null | undefined, timezone: string): string {
     if (!value) {
         return "Not available";
     }
-
-    return new Date(value).toLocaleString();
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return "Not available";
+    }
+    return new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+    }).format(parsed);
 }
+
+function formatAccuracy(accuracy: unknown): string {
+    if (accuracy === null || accuracy === undefined || accuracy === "") {
+        return "Not available";
+    }
+    const num = Number(accuracy);
+    if (Number.isNaN(num) || !Number.isFinite(num)) {
+        return "Not available";
+    }
+    return `${Math.round(num)} m`;
+}
+
+type MarkerProps = {
+    location: any;
+    icon: L.DivIcon;
+    summary: AttendanceSummary | undefined;
+    isLoadingSummary: boolean;
+    resolvedTimezone: string;
+    popupMaxWidth: number;
+    popupMinWidth: number;
+    onSelectUser: (userId: string) => void;
+    onCloseUser: (userId: string) => void;
+};
+
+const UserLocationMarker = memo(function UserLocationMarker({
+    location,
+    icon,
+    summary,
+    isLoadingSummary,
+    resolvedTimezone,
+    popupMaxWidth,
+    popupMinWidth,
+    onSelectUser,
+    onCloseUser,
+}: MarkerProps) {
+    const map = useMap();
+    const userId = String(location?.user?._id || location?.user?.id || "");
+    const bodyScrollRef = useRef<HTMLDivElement>(null);
+    const savedScrollTopRef = useRef(0);
+
+    const position = useMemo<Coordinates>(
+        () => [location.latitude, location.longitude],
+        [location.latitude, location.longitude]
+    );
+
+    const eventHandlers = useMemo(
+        () => ({
+            click: () => {
+                if (userId) {
+                    onSelectUser(userId);
+                }
+            },
+            popupclose: () => {
+                savedScrollTopRef.current = 0;
+                if (userId) {
+                    onCloseUser(userId);
+                }
+            },
+        }),
+        [userId, onSelectUser, onCloseUser]
+    );
+
+    useLayoutEffect(() => {
+        if (bodyScrollRef.current && savedScrollTopRef.current > 0) {
+            bodyScrollRef.current.scrollTop = savedScrollTopRef.current;
+        }
+    });
+
+    const displaySummary = summary || EMPTY_SUMMARY;
+
+    return (
+        <Marker
+            position={position}
+            icon={icon}
+            eventHandlers={eventHandlers}
+        >
+            <Popup
+                maxWidth={popupMaxWidth}
+                minWidth={popupMinWidth}
+                autoPan
+                keepInView={false}
+                closeButton={false}
+                className="employee-popup"
+            >
+                <div className="flex flex-col bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 overflow-hidden">
+                    {/* Pinned Header */}
+                    <div className="shrink-0 flex items-center justify-between gap-2.5 px-3.5 py-3 border-b border-gray-200 dark:border-slate-700">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <img
+                                src={location.user.avatar}
+                                alt={`${location.user.firstName} ${location.user.lastName}`}
+                                className="w-9 h-9 rounded-full object-cover ring-2 ring-blue-500/20 dark:ring-blue-400/30 shrink-0"
+                            />
+
+                            <div className="flex flex-col justify-center min-w-0">
+                                <h3 className="text-sm font-semibold leading-tight text-gray-900 dark:text-white truncate">
+                                    {location.user.firstName} {location.user.lastName}
+                                </h3>
+
+                                <p className="mt-0.5 text-[11px] text-gray-500 dark:text-slate-400 truncate">
+                                    {location.user.email}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            aria-label="Close popup"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                map.closePopup();
+                            }}
+                            className="shrink-0 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200 transition"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+
+                    {/* Pinned Work & Break Summary Tiles */}
+                    <div className="shrink-0 grid grid-cols-2 gap-2.5 px-3.5 py-2.5 border-b border-gray-200 dark:border-slate-700 bg-gray-50/70 dark:bg-slate-900/40">
+                        <div className="rounded-xl border border-blue-200/80 dark:border-blue-800/50 bg-blue-50/70 dark:bg-blue-950/30 px-2.5 py-2">
+                            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                                <Clock className="h-3 w-3 shrink-0" />
+                                Work Time
+                            </p>
+                            <p className="mt-1 text-sm font-bold leading-tight text-gray-900 dark:text-white">
+                                {isLoadingSummary && !summary ? "Loading..." : displaySummary.workTime}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl border border-amber-200/80 dark:border-amber-800/50 bg-amber-50/70 dark:bg-amber-950/30 px-2.5 py-2">
+                            <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                                <Clock className="h-3 w-3 shrink-0" />
+                                Break Time
+                            </p>
+                            <p className="mt-1 text-sm font-bold leading-tight text-gray-900 dark:text-white">
+                                {isLoadingSummary && !summary ? "Loading..." : displaySummary.breakTime}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Scrollable Details Body */}
+                    <div
+                        ref={bodyScrollRef}
+                        onScroll={(e) => {
+                            savedScrollTopRef.current = e.currentTarget.scrollTop;
+                        }}
+                        className="max-h-[260px] overflow-y-auto overscroll-contain px-3.5 py-2.5 space-y-2.5"
+                    >
+                        <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                            <MapPin className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                            Location Details
+                        </h4>
+
+                        <div className="space-y-1.5 text-xs">
+                            <div className="flex justify-between gap-2">
+                                <span className="font-medium text-gray-500 dark:text-slate-400">Country</span>
+                                <span className="text-right font-semibold text-gray-900 dark:text-slate-200">{location.country || "-"}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <span className="font-medium text-gray-500 dark:text-slate-400">State</span>
+                                <span className="text-right font-semibold text-gray-900 dark:text-slate-200">{location.state || "-"}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <span className="font-medium text-gray-500 dark:text-slate-400">City</span>
+                                <span className="text-right font-semibold text-gray-900 dark:text-slate-200">{location.city || "-"}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <span className="font-medium text-gray-500 dark:text-slate-400">ZIP Code</span>
+                                <span className="text-right font-semibold text-gray-900 dark:text-slate-200">{location.postalCode || "-"}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
+                                <span className="font-medium text-gray-500 dark:text-slate-400">IP Address</span>
+                                <span className="text-right font-semibold text-gray-900 dark:text-slate-200">{location.ipAddress || "-"}</span>
+                            </div>
+                            <div className="flex justify-between gap-4 min-w-0">
+                                <span className="font-medium text-gray-500 dark:text-slate-400 shrink-0">Service Provider</span>
+                                <span className="text-right font-semibold text-gray-900 dark:text-slate-200 break-words min-w-0">{location.serviceProvider || "-"}</span>
+                            </div>
+                        </div>
+
+                        <div className="border-t border-gray-200 dark:border-slate-700 pt-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-0.5">
+                                Address
+                            </p>
+                            <p className="text-xs leading-5 text-gray-900 dark:text-slate-200 break-words">
+                                {location.address || "-"}
+                            </p>
+                        </div>
+
+                        <div className="border-t border-gray-200 dark:border-slate-700 pt-2 space-y-1.5">
+                            <div className="flex justify-between gap-3 text-xs">
+                                <span className="text-gray-500 dark:text-slate-400 font-medium">Accuracy</span>
+                                <span className="font-semibold text-gray-900 dark:text-slate-200">
+                                    {formatAccuracy(location.accuracy)}
+                                </span>
+                            </div>
+                            <div className="flex justify-between gap-3 text-xs">
+                                <span className="text-gray-500 dark:text-slate-400 font-medium shrink-0">Last Updated</span>
+                                <span className="text-right font-semibold text-gray-900 dark:text-slate-200">
+                                    {formatLocationTimestamp(location.trackedAt, resolvedTimezone)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Pinned Footer CTA */}
+                    <div className="shrink-0 border-t border-gray-200 dark:border-slate-700 px-3.5 py-2.5 bg-white dark:bg-slate-800">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                window.open(
+                                    `https://www.google.com/maps?q=${location.latitude},${location.longitude}`,
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                )
+                            }
+                            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                        >
+                            <Navigation className="h-3.5 w-3.5 shrink-0" />
+                            Open in Google Maps
+                        </button>
+                    </div>
+                </div>
+            </Popup>
+        </Marker>
+    );
+});
 
 type Props = {
     locations: any[];
+    reportRange?: {
+        startDate: Date;
+        endDate: Date;
+    } | undefined;
+    timezone?: string | undefined;
 };
 
 export default function LiveMap({
     locations = [],
+    reportRange,
+    timezone,
 }: Props) {
+    const resolvedTimezone = useMemo(
+        () => resolveSafeTimezone(timezone),
+        [timezone]
+    );
+
+    const startDateParam = useMemo(
+        () =>
+            formatDateForApi(
+                reportRange?.startDate || new Date(),
+                resolvedTimezone
+            ),
+        [reportRange?.startDate, resolvedTimezone]
+    );
+
+    const endDateParam = useMemo(
+        () =>
+            formatDateForApi(
+                reportRange?.endDate || new Date(),
+                resolvedTimezone
+            ),
+        [reportRange?.endDate, resolvedTimezone]
+    );
 
     const [mapType, setMapType] = useState<"street" | "satellite">("street");
-    const [selectedLocation, setSelectedLocation] = useState<any>(null);
-    const [attendanceSummary, setAttendanceSummary] = useState({
-        workTime: "00:00:00",
-        breakTime: "00:00:00",
-    });
-    const [loadingAttendance, setLoadingAttendance] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    const [summaryByUser, setSummaryByUser] = useState<Record<string, AttendanceSummary>>({});
+    const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
 
+    const summaryRequestIdRef = useRef(0);
+    const abortControllerRef = useRef<AbortController | null>(null);
     const iconCache = useRef<Map<string, L.DivIcon>>(new Map());
 
-    const getAvatarIcon = (avatar: string) => {
+    const getAvatarIcon = useCallback((avatar: string) => {
         if (!iconCache.current.has(avatar)) {
             iconCache.current.set(avatar, createAvatarIcon(avatar));
         }
         return iconCache.current.get(avatar)!;
-    };
+    }, []);
 
     const [popupMaxWidth, setPopupMaxWidth] = useState(340);
     const [popupMinWidth, setPopupMinWidth] = useState(300);
@@ -152,14 +392,131 @@ export default function LiveMap({
     useEffect(() => {
         const updatePopupSize = () => {
             const isSmall = window.innerWidth < 480;
-            setPopupMaxWidth(isSmall ? window.innerWidth - 64 : 340);
-            setPopupMinWidth(isSmall ? window.innerWidth - 64 : 300);
+            setPopupMaxWidth(isSmall ? Math.max(240, window.innerWidth - 48) : 340);
+            setPopupMinWidth(isSmall ? Math.max(220, window.innerWidth - 56) : 300);
         };
 
         updatePopupSize();
         window.addEventListener("resize", updatePopupSize);
         return () => window.removeEventListener("resize", updatePopupSize);
     }, []);
+
+    const fetchSummaryForUser = useCallback(
+        async (userId: string, showLoading: boolean) => {
+            if (!userId) return;
+
+            abortControllerRef.current?.abort();
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+            const reqId = ++summaryRequestIdRef.current;
+
+            if (showLoading) {
+                setLoadingUserId(userId);
+            }
+
+            try {
+                const { data } = await API.get(`/attendance/summary/${userId}`, {
+                    params: {
+                        startDate: startDateParam,
+                        endDate: endDateParam,
+                    },
+                    signal: controller.signal,
+                });
+
+                if (summaryRequestIdRef.current !== reqId) return;
+
+                setSummaryByUser((prev) => {
+                    const nextSummary: AttendanceSummary = {
+                        workTime: data?.workTime || "0h 0m",
+                        breakTime: data?.breakTime || "0h 0m",
+                    };
+                    const existing = prev[userId];
+                    if (
+                        existing &&
+                        existing.workTime === nextSummary.workTime &&
+                        existing.breakTime === nextSummary.breakTime
+                    ) {
+                        return prev;
+                    }
+                    return {
+                        ...prev,
+                        [userId]: nextSummary,
+                    };
+                });
+            } catch (err: any) {
+                if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") {
+                    return;
+                }
+                console.error(err);
+                if (summaryRequestIdRef.current === reqId) {
+                    setSummaryByUser((prev) =>
+                        prev[userId] ? prev : { ...prev, [userId]: EMPTY_SUMMARY }
+                    );
+                }
+            } finally {
+                if (summaryRequestIdRef.current === reqId) {
+                    setLoadingUserId((prev) => (prev === userId ? null : prev));
+                }
+            }
+        },
+        [startDateParam, endDateParam]
+    );
+
+    const handleSelectUser = useCallback(
+        (userId: string) => {
+            setSelectedUserId(userId);
+            fetchSummaryForUser(userId, true);
+        },
+        [fetchSummaryForUser]
+    );
+
+    const handleCloseUser = useCallback((userId: string) => {
+        setSelectedUserId((prev) => (prev === userId ? null : prev));
+    }, []);
+
+    useEffect(() => {
+        if (!selectedUserId) {
+            return;
+        }
+
+        fetchSummaryForUser(selectedUserId, false);
+
+        const interval = window.setInterval(() => {
+            fetchSummaryForUser(selectedUserId, false);
+        }, 5000);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, [selectedUserId, startDateParam, endDateParam, fetchSummaryForUser]);
+
+    useEffect(() => {
+        return () => {
+            abortControllerRef.current?.abort();
+        };
+    }, []);
+
+    const activeLocation = useMemo(() => {
+        if (locations.length === 0) return null;
+        if (selectedUserId) {
+            const matched = locations.find(
+                (loc) => String(loc?.user?._id || loc?.user?.id || "") === selectedUserId
+            );
+            if (matched) return matched;
+        }
+        return locations[0];
+    }, [locations, selectedUserId]);
+
+    const headerTitle = useMemo(() => {
+        if (locations.length === 0) return "No Active Users";
+        if (selectedUserId && activeLocation?.user) {
+            return `${activeLocation.user.firstName} ${activeLocation.user.lastName}`;
+        }
+        if (locations.length === 1) {
+            return `${locations[0]?.user?.firstName} ${locations[0]?.user?.lastName}`;
+        }
+        return `${locations.length} Active Users`;
+    }, [locations, selectedUserId, activeLocation]);
 
     return (
         <section className="bg-gray-100 dark:bg-slate-900 pt-4 pb-6">
@@ -169,9 +526,7 @@ export default function LiveMap({
                         <div>
                             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Location Tracking</p>
                             <h1 className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                                {locations.length > 0
-                                    ? `${locations[0]?.user?.firstName} ${locations[0]?.user?.lastName}`
-                                    : "No Active Users"}
+                                {headerTitle}
                             </h1>
                         </div>
 
@@ -205,6 +560,7 @@ export default function LiveMap({
                         <div className="absolute top-4 right-4 z-[1000]">
                             <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1E293B] overflow-hidden shadow-md">
                                 <button
+                                    type="button"
                                     onClick={() => setMapType("street")}
                                     className={`px-4 py-2 text-sm font-medium ${mapType === "street"
                                         ? "bg-blue-600 text-white"
@@ -215,6 +571,7 @@ export default function LiveMap({
                                 </button>
 
                                 <button
+                                    type="button"
                                     onClick={() => setMapType("satellite")}
                                     className={`px-4 py-2 text-sm font-medium ${mapType === "satellite"
                                         ? "bg-blue-600 text-white"
@@ -257,13 +614,13 @@ export default function LiveMap({
                                 }
                             />
 
-                            {locations.length > 0 && locations[0].accuracy ? (
+                            {activeLocation && activeLocation.accuracy ? (
                                 <Circle
                                     center={[
-                                        locations[0].latitude,
-                                        locations[0].longitude,
+                                        activeLocation.latitude,
+                                        activeLocation.longitude,
                                     ]}
-                                    radius={locations[0].accuracy}
+                                    radius={activeLocation.accuracy}
                                     pathOptions={{
                                         color: "#2563eb",
                                         fillColor: "#60a5fa",
@@ -273,179 +630,26 @@ export default function LiveMap({
                                 />
                             ) : null}
 
-
                             <MarkerClusterGroup>
-                                {locations.map((location: any) => (
-                                    <Marker
-                                        key={location.user._id}
-                                        position={[location.latitude, location.longitude]}
-                                        icon={getAvatarIcon(location.user.avatar)}
-
-                                        eventHandlers={{
-                                            click: async () => {
-                                                setSelectedLocation(location);
-                                                setLoadingAttendance(true);
-
-                                                try {
-                                                    const { data } = await API.get(
-                                                        `/attendance/summary/${location.user._id}`
-                                                    );
-
-                                                    setAttendanceSummary(data);
-                                                }
-                                                catch (err) {
-                                                    console.error(err);
-
-                                                    setAttendanceSummary({
-                                                        workTime: "00:00:00",
-                                                        breakTime: "00:00:00",
-                                                    });
-                                                } finally {
-                                                    setLoadingAttendance(false);
-                                                }
-                                            },
-                                        }}
-                                    >
-                                        {/* <Tooltip
-                                        permanent
-                                        direction="top"
-                                        offset={[0, -40]}
-                                        opacity={1}
-                                        className="live-map-avatar-tooltip"
-                                    >
-                                        <img
-                                            src={location.user.avatar}
-                                            alt={`${location.user.firstName} ${location.user.lastName}`}
-                                            className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-lg"
+                                {locations.map((location: any) => {
+                                    const uid = String(location?.user?._id || location?.user?.id || "");
+                                    return (
+                                        <UserLocationMarker
+                                            key={uid || location._id}
+                                            location={location}
+                                            icon={getAvatarIcon(location.user.avatar)}
+                                            summary={summaryByUser[uid]}
+                                            isLoadingSummary={loadingUserId === uid}
+                                            resolvedTimezone={resolvedTimezone}
+                                            popupMaxWidth={popupMaxWidth}
+                                            popupMinWidth={popupMinWidth}
+                                            onSelectUser={handleSelectUser}
+                                            onCloseUser={handleCloseUser}
                                         />
-                                    </Tooltip> */}
-
-                                        <Popup
-                                            maxWidth={popupMaxWidth}
-                                            minWidth={popupMinWidth}
-                                            autoPan
-                                            keepInView
-                                            closeButton={false}
-                                            className="employee-popup"
-                                        >
-                                            <div className="max-h-[240px] overflow-y-auto bg-white rounded-2xl">
-
-                                                {/* Header */}
-                                                <div className="flex items-center gap-2.5 px-2.5 py-1.5 border-b">
-                                                    <img
-                                                        src={location.user.avatar}
-                                                        alt={`${location.user.firstName} ${location.user.lastName}`}
-                                                        className="w-7 h-7 rounded-full object-cover"
-                                                    />
-
-                                                    <div className="flex flex-col justify-center min-w-0">
-                                                        <h3 className="text-sm font-semibold leading-none text-gray-900 truncate">
-                                                            {location.user.firstName} {location.user.lastName}
-                                                        </h3>
-
-                                                        <p className="mt-0.5 text-[11px] text-gray-500 truncate">
-                                                            {location.user.email}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Body */}
-                                                <div className="px-2.5 py-1.5">
-
-                                                    <div className="grid grid-cols-2 gap-2 border-b border-gray-200 py-1.5">
-                                                        <div className="border-l-2 border-blue-600 pl-1.5">
-                                                            <p className="text-[10px] uppercase tracking-wide text-gray-500">
-                                                                Work Time
-                                                            </p>
-                                                            <p className="mt-0.5 text-sm font-bold leading-none text-gray-900">
-                                                                {loadingAttendance ? "Loading..." : attendanceSummary.workTime}
-                                                            </p>
-                                                        </div>
-
-                                                        <div className="border-l-2 border-amber-500 pl-1.5">
-                                                            <p className="text-[10px] uppercase tracking-wide text-gray-500">
-                                                                Break Time
-                                                            </p>
-                                                            <p className="mt-0.5 text-sm font-bold leading-none text-gray-900">
-                                                                {loadingAttendance ? "Loading..." : attendanceSummary.breakTime}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    <h4 className="text-sm font-semibold text-gray-900 mb-1.5 mt-1.5">
-                                                        📍 Location Details
-                                                    </h4>
-
-                                                    <div className="space-y-1 text-xs">
-                                                        <div className="flex justify-between gap-2">
-                                                            <span className="font-medium text-gray-500">Country</span>
-                                                            <span className="text-right font-semibold text-gray-900">{location.country || "-"}</span>
-                                                        </div>
-                                                        <div className="flex justify-between gap-4">
-                                                            <span className="font-medium text-gray-500">State</span>
-                                                            <span className="text-right font-semibold text-gray-900">{location.state || "-"}</span>
-                                                        </div>
-                                                        <div className="flex justify-between gap-4">
-                                                            <span className="font-medium text-gray-500">City</span>
-                                                            <span className="text-right font-semibold text-gray-900">{location.city || "-"}</span>
-                                                        </div>
-                                                        <div className="flex justify-between gap-4">
-                                                            <span className="font-medium text-gray-500">ZIP Code</span>
-                                                            <span className="text-right font-semibold text-gray-900">{location.postalCode || "-"}</span>
-                                                        </div>
-                                                        <div className="flex justify-between gap-4">
-                                                            <span className="font-medium text-gray-500">IP Address</span>
-                                                            <span className="text-right font-semibold text-gray-900">{location.ipAddress || "-"}</span>
-                                                        </div>
-                                                        <div className="flex justify-between gap-4 min-w-0">
-                                                            <span className="font-medium text-gray-500 shrink-0">Service Provider</span>
-                                                            <span className="text-right font-semibold text-gray-900 break-words min-w-0">{location.serviceProvider || "-"}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="mt-1.5 border-t border-gray-200 pt-1.5">
-                                                        <p className="text-xs font-semibold text-gray-500 mb-0.5">Address</p>
-                                                        <p className="text-xs leading-5 text-gray-900">{location.address || "-"}</p>
-                                                    </div>
-
-                                                    <div className="mt-1.5 border-t border-gray-200 pt-1.5 space-y-1">
-                                                        <div className="flex justify-between text-xs">
-                                                            <span className="text-gray-500 font-medium">Accuracy</span>
-                                                            <span className="font-semibold">{location.accuracy} m</span>
-                                                        </div>
-                                                        <div className="flex justify-between text-xs">
-                                                            <span className="text-gray-500 font-medium">Last Updated</span>
-                                                            <span className="font-semibold">{new Date(location.trackedAt).toLocaleString()}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={() =>
-                                                            window.open(
-                                                                `https://www.google.com/maps?q=${location.latitude},${location.longitude}`,
-                                                                "_blank"
-                                                            )
-                                                        }
-                                                        className="mt-1.5 w-full rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
-                                                    >
-                                                        📍 Open in Google Maps
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </Popup>
-                                    </Marker>
-                                ))}
+                                    );
+                                })}
                             </MarkerClusterGroup>
-
-
                         </MapContainer>
-
-                        {/* {selectedLocation && (
-                            <div className="absolute top-6 right-6 z-[1000] w-[380px] max-h-[85vh] overflow-y-auto rounded-2xl bg-white shadow-2xl border border-gray-200">
-
-                              
-                            </div>
-                        )} */}
                     </div>
                 </div>
             </div>

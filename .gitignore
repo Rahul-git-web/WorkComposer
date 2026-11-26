@@ -9,19 +9,23 @@ WorkComposer-clean/
 **/.env.*
 !**/.env.example
 
-# Next.js
+# Next.js & TypeScript caches
 **/.next/
+**/*.tsbuildinfo
 
 # Build output
 **/dist/
 **/build/
 **/out/
+**/bin/
+**/obj/
 
 # Electron releases
 **/release/
 
-# Logs
+# Logs & temp outputs
 **/*.log
+output.txt
 
 # OS
 .DS_Store
@@ -34,22 +38,31 @@ Thumbs.db
 # Recovery artifact
 today-changes.patch
 
-# Old individual Git repositories
-**/.git-backend-backup/
-**/.git-desktop-backup/
-**/.git-frontend-backup/
-
-# BrowserUrlReader build output
-BrowserUrlReader/bin/
-BrowserUrlReader/obj/
-
 # Old repository backups
 **/.git-backend-backup/
 **/.git-desktop-backup/
 **/.git-frontend-backup/
 
-# Recovery worktree
-WorkComposer-clean/
+# PostgreSQL Backup Artifacts (SEC-23B.2)
+/backups/
+*.dump
+*.backup
 
-# Temporary recovery patch
-today-changes.patch
+# Runtime uploads, evidence, scratch & artifacts
+/uploads/
+**/uploads/
+**/artifacts/
+**/scratch/
+**/screenshots/
+**/.test-user-data*/
+
+# Tests, Playwright & audit docs (excluded from production repo)
+**/tests/
+**/__tests__/
+playwright*.config.*
+**/playwright-report/
+**/playwright-desktop-report/
+**/test-results/
+**/coverage/
+/docs/
+WorkComposer Backend/docs/

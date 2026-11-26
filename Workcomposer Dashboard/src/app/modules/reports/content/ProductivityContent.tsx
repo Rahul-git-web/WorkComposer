@@ -133,7 +133,7 @@ useEffect(() => {
     return (
      <ProductivityCard
     report={report}
-    loading={loading}
+    loading={loading || isRefreshing}
     allUsers={allUsers}
     onRefresh={fetchReport}
     onGenerateReport={generateProductivityReport}

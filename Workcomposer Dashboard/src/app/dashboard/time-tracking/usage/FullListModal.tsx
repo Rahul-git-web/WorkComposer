@@ -33,16 +33,25 @@ export default function FullListModal({
 
         };
 
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                onClose();
+            }
+        };
+
         document.addEventListener(
             "mousedown",
             handleClickOutside
         );
+        window.addEventListener("keydown", handleEscape);
 
-        return () =>
+        return () => {
             document.removeEventListener(
                 "mousedown",
                 handleClickOutside
             );
+            window.removeEventListener("keydown", handleEscape);
+        };
 
     }, [open, onClose]);
 
@@ -72,7 +81,11 @@ export default function FullListModal({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md">
+        <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md overscroll-contain"
+        >
 
             <div
                 ref={modalRef}
@@ -89,6 +102,7 @@ export default function FullListModal({
   shadow-xl
   flex
   flex-col
+  overscroll-contain
 "
             >
 
