@@ -45,7 +45,7 @@ export const uploadScreenshot = async (req, res) => {
           if (req.file.path && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
           }
-        } catch {}
+        } catch { }
         return res.status(200).json({
           success: true,
           skipped: true,
@@ -195,9 +195,9 @@ export const getScreenshots = async (req, res) => {
         ...baseObj,
         user: shot.user
           ? {
-              ...(typeof shot.user.toObject === "function" ? shot.user.toObject() : shot.user),
-              avatar: getAvatarUrl(shot.user.avatar),
-            }
+            ...(typeof shot.user.toObject === "function" ? shot.user.toObject() : shot.user),
+            avatar: getAvatarUrl(shot.user.avatar),
+          }
           : null,
       };
     });

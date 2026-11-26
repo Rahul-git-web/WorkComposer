@@ -20,18 +20,21 @@ type userData = {
   password: string;
   role: string;
   team: string;
+  managerIds: string[];
 }
 
 type AddUsersProps = {
   setShowAddModal: React.Dispatch<React.SetStateAction<boolean>>;
   setUsers: React.Dispatch<React.SetStateAction<any[]>>;
   onUserAdded: () => Promise<void>;
+  availableManagers?: any[];
 };
 
 const AddUsers = ({
   setShowAddModal,
   setUsers,
   onUserAdded,
+  availableManagers,
 }: AddUsersProps) => {
   const [loading, setLoading] = useState(false);
   const [usersData, setUsersData] = useState<userData[]>([
@@ -42,16 +45,33 @@ const AddUsers = ({
       password: "",
       role: "User",
       team: "",
+      managerIds: [],
     }
   ]);
 
   const [sendInvite, setSendInvite] = useState(true);
   const [teamOpen, setTeamOpen] = useState(false);
   const [roleOpen, setRoleOpen] = useState(false);
+  const [openManagerRow, setOpenManagerRow] = useState<number | null>(null);
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [teams, setTeams] = useState<any[]>([]);
+  const [managerCandidates, setManagerCandidates] = useState<any[]>(
+    Array.isArray(availableManagers) ? availableManagers : []
+  );
   const [showPassword, setShowPassword] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
+  const eligibleManagers = managerCandidates.filter((candidate: any) => {
+    const cid = candidate?._id || candidate?.id;
+    if (!cid || candidate?.isArchived || candidate?.status === "archived") return false;
+    const roleLower = (candidate?.role || "").toLowerCase();
+    return roleLower === "manager" || roleLower === "admin" || roleLower === "owner";
+  });
+
+  const formatManagerLabel = (m: any) => {
+    const fullName = `${m?.firstName ?? ""} ${m?.lastName ?? ""}`.trim();
+    return fullName || m?.name || m?.email || "Unknown";
+  };
 
   const addUserRow = () => {
     setUsersData((prev) => [
@@ -63,8 +83,24 @@ const AddUsers = ({
         password: "",
         role: "User",
         team: "",
+        managerIds: [],
       },
     ]);
+  };
+
+  const toggleRowManager = (index: number, managerId: string) => {
+    setUsersData((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return row;
+        const exists = row.managerIds.includes(managerId);
+        return {
+          ...row,
+          managerIds: exists
+            ? row.managerIds.filter((id) => id !== managerId)
+            : [...row.managerIds, managerId],
+        };
+      })
+    );
   };
 
   const removeUserRow = (index: number) => {
@@ -75,7 +111,7 @@ const AddUsers = ({
 
   const updateUserField = (
     index: number,
-    field: keyof userData,
+    field: Exclude<keyof userData, "managerIds">,
     value: string
   ) => {
     setUsersData((prev) =>
@@ -179,15 +215,25 @@ const AddUsers = ({
             team: user.team,
           });
         } else {
-          await API.post("/users/create-user", {
+          const createRes = await API.post("/users/create-user", {
             firstName: user.firstName.trim(),
             lastName: user.lastName.trim(),
             email,
             password: user.password,
             role: user.role.toLowerCase(),
             team: user.team,
-
           });
+          const createdUserId = createRes.data?.user?._id || createRes.data?.user?.id;
+          if (
+            createdUserId &&
+            Array.isArray(user.managerIds) &&
+            user.managerIds.length > 0 &&
+            user.role.toLowerCase() !== "owner"
+          ) {
+            await API.put(`/users/${createdUserId}/assign-manager`, {
+              managerIds: user.managerIds,
+            });
+          }
         }
       }
 
@@ -221,6 +267,7 @@ const AddUsers = ({
           password: "",
           role: "User",
           team: "",
+          managerIds: [],
         },
       ]);
 
@@ -251,6 +298,7 @@ const AddUsers = ({
       if (!(e.target as HTMLElement).closest(".dropdown")) {
         setRoleOpen(false);
         setTeamOpen(false);
+        setOpenManagerRow(null);
       }
     };
 
@@ -281,7 +329,16 @@ const AddUsers = ({
 
   useEffect(() => {
     fetchTeams();
-  }, []);
+    if (!Array.isArray(availableManagers) || availableManagers.length === 0) {
+      API.get("/users/all-users")
+        .then((res) => {
+          if (Array.isArray(res.data?.users)) {
+            setManagerCandidates(res.data.users);
+          }
+        })
+        .catch((err) => console.error(err));
+    }
+  }, [availableManagers]);
 
 
 
@@ -565,6 +622,76 @@ const AddUsers = ({
                       )}
 
                     </div>
+
+                    {!sendInvite && (
+                      <div className='mt-3'>
+                        <label className='block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1'>
+                          Assign Managers <span className='text-xs text-gray-400 dark:text-slate-400'>(optional)</span>
+                        </label>
+                        <div className='relative dropdown'>
+                          <button
+                            type='button'
+                            onClick={() =>
+                              setOpenManagerRow((prev) => (prev === index ? null : index))
+                            }
+                            aria-haspopup='listbox'
+                            aria-expanded={openManagerRow === index}
+                            className='relative w-full md:w-1/2 h-10 cursor-pointer rounded-md border-0 px-3 pr-10 text-left bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:focus:ring-indigo-400 text-sm'
+                          >
+                            <span className='block truncate'>
+                              {user.managerIds.length === 0
+                                ? "No manager assigned"
+                                : user.managerIds
+                                    .map((id) => {
+                                      const m = eligibleManagers.find((c: any) => (c._id || c.id) === id);
+                                      return m ? formatManagerLabel(m) : "";
+                                    })
+                                    .filter(Boolean)
+                                    .join(", ") || `${user.managerIds.length} manager(s) selected`}
+                            </span>
+                            <TbSelector className='absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-400 pointer-events-none' />
+                          </button>
+
+                          {openManagerRow === index && (
+                            <div
+                              role='listbox'
+                              aria-multiselectable='true'
+                              className='absolute z-20 mt-1 max-h-48 w-full md:w-1/2 overflow-auto rounded-md bg-white dark:bg-slate-800 py-1 shadow-lg ring-1 ring-black/5 dark:ring-slate-700 text-sm'
+                            >
+                              {eligibleManagers.length === 0 ? (
+                                <div className='px-3 py-2 text-xs text-gray-500 dark:text-slate-400'>
+                                  No eligible managers available
+                                </div>
+                              ) : (
+                                eligibleManagers.map((mgr: any) => {
+                                  const mgrId = mgr._id || mgr.id;
+                                  const checked = user.managerIds.includes(mgrId);
+                                  return (
+                                    <label
+                                      key={mgrId}
+                                      className='flex items-center gap-2.5 px-3 py-2 cursor-pointer text-gray-900 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700'
+                                    >
+                                      <input
+                                        type='checkbox'
+                                        checked={checked}
+                                        onChange={() => toggleRowManager(index, mgrId)}
+                                        className='h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-600 bg-white dark:bg-slate-900'
+                                      />
+                                      <span className='truncate font-medium'>
+                                        {formatManagerLabel(mgr)}
+                                      </span>
+                                      <span className='text-xs text-gray-400 dark:text-slate-400 capitalize shrink-0'>
+                                        ({mgr.role})
+                                      </span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
 

@@ -5,6 +5,7 @@ import {
 } from "../db/repositories/index.js";
 import { buildDailyReport } from "./reportBuilder.service.js";
 import { getTrackingReportRecipients } from "./reportRecipient.service.js";
+import { extractManagerIds } from "../security/policyEvaluator.js";
 import sendEmail from "../utils/sendEmail.js";
 import { dailyTrackingReportTemplate } from "../templates/dailyTrackingReportTemplate.js";
 import { dailyTeamTrackingReportTemplate } from "../templates/dailyTeamTrackingReportTemplate.js";
@@ -85,9 +86,8 @@ export const sendDailyTrackingReports = async (date = null, targetOrgId = null) 
         orgId,
       });
 
-      if (user.manager) {
-        const managerId = String(user.manager._id || user.manager.id || user.manager);
-
+      const assignedManagerIds = extractManagerIds(user);
+      for (const managerId of assignedManagerIds) {
         if (!managerReports.has(managerId)) {
           managerReports.set(managerId, []);
         }

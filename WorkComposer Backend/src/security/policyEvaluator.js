@@ -17,6 +17,43 @@ import { normalizeId } from './effectiveAuthContext.js';
 export { DECISION_CODES, ROLE_NAMES, CONFLICT_STATES, normalizeId };
 
 /**
+ * Extracts a deduplicated Set of assigned manager IDs from a user record or summary.
+ * Supports multi-manager `managers[]` / `managerLinks[]` as well as legacy `manager` / `managerId`.
+ *
+ * @param {Object} user
+ * @returns {Set<string>}
+ */
+export function extractManagerIds(user) {
+  const ids = new Set();
+  if (!user || typeof user !== 'object') {
+    return ids;
+  }
+
+  const addId = (val) => {
+    if (!val) return;
+    const idStr = normalizeId(val?._id || val?.id || val);
+    if (idStr) {
+      ids.add(idStr);
+    }
+  };
+
+  if (Array.isArray(user.managers)) {
+    for (const m of user.managers) {
+      addId(m);
+    }
+  }
+  if (Array.isArray(user.managerLinks)) {
+    for (const link of user.managerLinks) {
+      addId(link?.managerId || link?.manager);
+    }
+  }
+  addId(user.manager);
+  addId(user.managerId);
+
+  return ids;
+}
+
+/**
  * Creates a structured Policy Decision object.
  *
  * @param {boolean} allowed
@@ -83,7 +120,7 @@ export function canViewReport(authContext, targetUser) {
   const targetOrgId = normalizeId(targetUser.organizationId || targetUser.organization);
   const callerUserId = normalizeId(authContext.userId);
   const targetUserId = normalizeId(targetUser._id || targetUser.id);
-  const targetManagerId = normalizeId(targetUser.managerId || targetUser.manager);
+  const targetManagerIds = extractManagerIds(targetUser);
 
   // STRICT TENANT BOUNDARY: Cross-tenant report access is unconditionally forbidden
   if (!callerOrgId || !targetOrgId || callerOrgId !== targetOrgId) {
@@ -117,7 +154,7 @@ export function canViewReport(authContext, targetUser) {
   // SCOPE: 'managed' -> Allowed if target is self OR target reports to caller
   if (accessLevel === ACCESS_SCOPES.MANAGED) {
     const isSelf = callerUserId === targetUserId;
-    const isDirectSubordinate = targetManagerId === callerUserId;
+    const isDirectSubordinate = Boolean(callerUserId && targetManagerIds.has(callerUserId));
 
     if (isSelf || isDirectSubordinate) {
       return createDecision(
@@ -176,7 +213,7 @@ export function canViewScreenshot(authContext, screenshotOwner) {
   const targetOrgId = normalizeId(screenshotOwner.organizationId || screenshotOwner.organization);
   const callerUserId = normalizeId(authContext.userId);
   const targetUserId = normalizeId(screenshotOwner._id || screenshotOwner.id);
-  const targetManagerId = normalizeId(screenshotOwner.managerId || screenshotOwner.manager);
+  const targetManagerIds = extractManagerIds(screenshotOwner);
 
   // STRICT TENANT BOUNDARY: Cross-tenant screenshot access is unconditionally forbidden
   if (!callerOrgId || !targetOrgId || callerOrgId !== targetOrgId) {
@@ -210,7 +247,7 @@ export function canViewScreenshot(authContext, screenshotOwner) {
   // SCOPE: 'managed' -> Allowed if target is self OR target reports to caller
   if (accessLevel === ACCESS_SCOPES.MANAGED) {
     const isSelf = callerUserId === targetUserId;
-    const isDirectSubordinate = targetManagerId === callerUserId;
+    const isDirectSubordinate = Boolean(callerUserId && targetManagerIds.has(callerUserId));
 
     if (isSelf || isDirectSubordinate) {
       return createDecision(
@@ -534,12 +571,10 @@ export function canApproveManualTime(authContext, manualTimeRequest, targetReque
       );
     }
 
-    // Check manager-subordinate relationship
-    const requesterManagerId = targetRequester
-      ? normalizeId(targetRequester.managerId || targetRequester.manager?._id || targetRequester.manager?.id || targetRequester.manager)
-      : null;
+    // Check manager-subordinate relationship across all assigned managers
+    const requesterManagerIds = extractManagerIds(targetRequester);
 
-    if (!requesterManagerId || requesterManagerId !== callerUserId) {
+    if (!callerUserId || !requesterManagerIds.has(callerUserId)) {
       return createDecision(
         false,
         DECISION_CODES.SCOPE_MISMATCH,
@@ -732,12 +767,7 @@ export function canAccessUserShiftSettings(authContext, targetUser, action = 'mu
   const targetOrgId = normalizeId(targetUser.organizationId || targetUser.organization);
   const callerUserId = normalizeId(authContext.userId);
   const targetUserId = normalizeId(targetUser._id || targetUser.id);
-  const targetManagerId = normalizeId(
-    targetUser.managerId ||
-    targetUser.manager?._id ||
-    targetUser.manager?.id ||
-    targetUser.manager
-  );
+  const targetManagerIds = extractManagerIds(targetUser);
 
   // STRICT TENANT BOUNDARY: Cross-tenant user shift settings access is strictly forbidden
   if (!callerOrgId || !targetOrgId || callerOrgId !== targetOrgId) {
@@ -799,7 +829,7 @@ export function canAccessUserShiftSettings(authContext, targetUser, action = 'mu
 
   // 3. Manager: Permitted strictly for direct subordinates within the same organization
   if (effectiveRole === ROLE_NAMES.MANAGER) {
-    if (targetManagerId && targetManagerId === callerUserId) {
+    if (callerUserId && targetManagerIds.has(callerUserId)) {
       return createDecision(true, DECISION_CODES.ALLOWED, 'Allowed: Manager user shift settings mutation for direct subordinate permitted.');
     }
 
@@ -839,10 +869,11 @@ export function canAccessUserShiftSettings(authContext, targetUser, action = 'mu
  *
  * @param {Object} authContext - EffectiveAuthContext of caller
  * @param {Object} targetUser - Target user entity or summary ({ id, organizationId })
- * @param {Object|null} requestedManager - Proposed manager entity or summary ({ id, organizationId }) or null
+ * @param {Object|Array<Object>|null} requestedManagers - Candidate manager(s) ({ id, organizationId }) or null
+ * @param {Map<string, Iterable<string>>|Object|null} [managerGraph=null] - Optional adjacency map (userId -> managerIds) for cycle checks
  * @returns {Object} PolicyDecision
  */
-export function canAssignManager(authContext, targetUser, requestedManager = null) {
+export function canAssignManager(authContext, targetUser, requestedManagers = null, managerGraph = null) {
   if (!authContext || !authContext.userId) {
     return createDecision(false, DECISION_CODES.UNAUTHENTICATED, 'Missing or unauthenticated context.');
   }
@@ -853,6 +884,7 @@ export function canAssignManager(authContext, targetUser, requestedManager = nul
 
   const callerOrgId = normalizeId(authContext.organizationId);
   const targetOrgId = normalizeId(targetUser.organizationId || targetUser.organization);
+  const targetUserId = normalizeId(targetUser._id || targetUser.id);
 
   // STRICT TENANT BOUNDARY: Cross-tenant manager assignment is strictly forbidden
   if (!callerOrgId || !targetOrgId || callerOrgId !== targetOrgId) {
@@ -863,15 +895,60 @@ export function canAssignManager(authContext, targetUser, requestedManager = nul
     );
   }
 
-  // Cross-tenant manager validation
-  if (requestedManager) {
-    const managerOrgId = normalizeId(requestedManager.organizationId || requestedManager.organization);
+  const candidateList = Array.isArray(requestedManagers)
+    ? requestedManagers.filter(Boolean)
+    : (requestedManagers ? [requestedManagers] : []);
+
+  // Cross-tenant, self-assignment & multi-manager cycle validation
+  const candidateIds = [];
+  for (const candidate of candidateList) {
+    const managerOrgId = normalizeId(candidate.organizationId || candidate.organization);
     if (!managerOrgId || managerOrgId !== callerOrgId) {
       return createDecision(
         false,
         DECISION_CODES.TENANT_MISMATCH,
         'Cross-tenant manager selection denied.'
       );
+    }
+
+    const candidateId = normalizeId(candidate._id || candidate.id || candidate);
+    if (targetUserId && candidateId && candidateId === targetUserId) {
+      return createDecision(
+        false,
+        DECISION_CODES.DENIED,
+        'A user cannot be their own manager.'
+      );
+    }
+    if (candidateId) {
+      candidateIds.push(candidateId);
+    }
+  }
+
+  if (managerGraph && targetUserId && candidateIds.length > 0) {
+    const visited = new Set();
+    const queue = [...candidateIds];
+    while (queue.length > 0) {
+      const currId = queue.shift();
+      if (!currId || visited.has(currId)) continue;
+      if (currId === targetUserId) {
+        return createDecision(
+          false,
+          DECISION_CODES.DENIED,
+          'Circular manager assignment is not allowed.'
+        );
+      }
+      visited.add(currId);
+      const upstream = managerGraph instanceof Map
+        ? managerGraph.get(currId)
+        : managerGraph[currId];
+      if (upstream) {
+        for (const upId of upstream) {
+          const normUp = normalizeId(upId);
+          if (normUp && !visited.has(normUp)) {
+            queue.push(normUp);
+          }
+        }
+      }
     }
   }
 

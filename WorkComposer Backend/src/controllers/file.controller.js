@@ -8,6 +8,7 @@ import { getReportAccess } from "../utils/reportAccess.js";
 import { isPostgres } from "../db/index.js";
 import { getPrismaClient } from "../db/prisma.js";
 import { normalizeId } from "../security/effectiveAuthContext.js";
+import { extractManagerIds } from "../security/policyEvaluator.js";
 
 /**
  * Safely extracts route parameter value whether received as an array (wildcard) or string.
@@ -174,6 +175,11 @@ export const serveReportFile = async (req, res) => {
               id: true,
               organizationId: true,
               managerId: true,
+              managerLinks: {
+                select: {
+                  managerId: true,
+                },
+              },
             },
           },
         },
@@ -217,7 +223,7 @@ export const serveReportFile = async (req, res) => {
       if (reportAccess === "all") {
         allowed = true;
       } else if (reportAccess === "managed") {
-        if (reportOwner.managerId && normalizeId(reportOwner.managerId) === callerUserId) {
+        if (extractManagerIds(reportOwner).has(callerUserId)) {
           allowed = true;
         }
       }

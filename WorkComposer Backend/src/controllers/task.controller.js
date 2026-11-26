@@ -1,5 +1,6 @@
 import Task from "../models/task.model.js";
 import User from "../models/user.model.js";
+import { extractManagerIds } from "../security/policyEvaluator.js";
 import Role from "../models/role.model.js";
 import { getAvatarUrl } from "../utils/avatar.js";
 import Integration from "../models/integration.model.js";
@@ -161,7 +162,7 @@ export const createTask = async (req, res) => {
         assignedUser = await User.findOne({
           _id: targetAssigneeId,
           organization: auth.callerOrgId,
-        }).select("_id firstName lastName manager asanaAccountId");
+        }).select("_id firstName lastName manager managers asanaAccountId");
 
         if (!assignedUser) {
           return res.status(404).json({
@@ -172,7 +173,7 @@ export const createTask = async (req, res) => {
         if (auth.effectiveRoleName === "manager") {
           const canAssign =
             assignedUser._id.toString() === auth.callerUserId ||
-            assignedUser.manager?.toString() === auth.callerUserId;
+            extractManagerIds(assignedUser).has(auth.callerUserId);
 
           if (!canAssign) {
             return res.status(403).json({
@@ -574,7 +575,7 @@ export const updateTask = async (req, res) => {
         newAssignedUser = await User.findOne({
           _id: targetAssigneeId,
           organization: auth.callerOrgId,
-        }).select("_id firstName lastName manager asanaAccountId jiraAccountId");
+        }).select("_id firstName lastName manager managers asanaAccountId jiraAccountId");
 
         if (!newAssignedUser) {
           return res.status(404).json({
@@ -585,7 +586,7 @@ export const updateTask = async (req, res) => {
         if (auth.effectiveRoleName === "manager") {
           const canAssign =
             newAssignedUser._id.toString() === auth.callerUserId ||
-            newAssignedUser.manager?.toString() === auth.callerUserId;
+            extractManagerIds(newAssignedUser).has(auth.callerUserId);
 
           if (!canAssign) {
             return res.status(403).json({

@@ -5,6 +5,7 @@ import {
 } from "../db/repositories/index.js";
 import { buildWeeklyReport } from "./weeklyReportBuilder.service.js";
 import { getTrackingReportRecipients } from "./reportRecipient.service.js";
+import { extractManagerIds } from "../security/policyEvaluator.js";
 import sendEmail from "../utils/sendEmail.js";
 import { weeklyTrackingReportTemplate } from "../templates/weeklyTrackingReportTemplate.js";
 import { weeklyTeamTrackingReportTemplate } from "../templates/weeklyTeamTrackingReportTemplate.js";
@@ -110,9 +111,8 @@ export const sendWeeklyTrackingReports = async (
         orgId,
       });
 
-      if (user.manager) {
-        const managerId = String(user.manager._id || user.manager.id || user.manager);
-
+      const assignedManagerIds = extractManagerIds(user);
+      for (const managerId of assignedManagerIds) {
         if (!managerReports.has(managerId)) {
           managerReports.set(managerId, []);
         }

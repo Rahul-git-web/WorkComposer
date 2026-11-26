@@ -13,27 +13,76 @@ import ChangeEmailModal from './ChangeEmailModal';
 
 interface EditUserModalProps {
     user: any;
-    setShowEditModal: React.Dispatch<React.SetStateAction<boolean>
-    >;
-    setUsers: React.Dispatch<React.SetStateAction<any[]>
-    >;
+    setShowEditModal: React.Dispatch<React.SetStateAction<boolean>>;
+    setUsers: React.Dispatch<React.SetStateAction<any[]>>;
+    availableManagers?: any[];
+    onUserUpdated?: () => Promise<void> | void;
 }
+
+const extractManagerIdsFromUser = (u: any): string[] => {
+    const rawList =
+        Array.isArray(u?.managers) && u.managers.length > 0
+            ? u.managers
+            : u?.manager
+              ? [u.manager]
+              : [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of rawList) {
+        const id =
+            typeof item === "object" && item !== null ? item._id || item.id : item;
+        if (typeof id === "string" && id && !seen.has(id)) {
+            seen.add(id);
+            out.push(id);
+        }
+    }
+    return out;
+};
+
+const formatManagerLabel = (m: any): string => {
+    const fullName = `${m?.firstName ?? ""} ${m?.lastName ?? ""}`.trim();
+    return fullName || m?.name || m?.email || "Unknown";
+};
 
 const EditUserModal = ({
     user,
     setShowEditModal,
     setUsers,
+    availableManagers,
+    onUserUpdated,
 }: EditUserModalProps) => {
 
+    const targetUserId = user?.id || user?._id || "";
+    const initialManagerIds = extractManagerIdsFromUser(user);
     const [loading, setLoading] = useState(false);
     const [firstName, setFirstName] = useState(user?.firstName || "");
     const [lastName, setLastName] = useState(user?.lastName || "");
     const [team, setTeam] = useState(user?.team || "Default team");
     const [teamDropdown, setTeamDropdown] = useState(false);
+    const [managerDropdown, setManagerDropdown] = useState(false);
+    const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>(initialManagerIds);
+    const [managerCandidates, setManagerCandidates] = useState<any[]>(
+        Array.isArray(availableManagers) ? availableManagers : []
+    );
     const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
     const [teams, setTeams] = useState<any[]>([]);
-    const [teamOpen, setTeamOpen] = useState(false);
     const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
+    const eligibleManagers = managerCandidates.filter((candidate: any) => {
+        const cid = candidate?._id || candidate?.id;
+        if (!cid || cid === targetUserId) return false;
+        if (candidate?.isArchived || candidate?.status === "archived") return false;
+        const roleLower = (candidate?.role || "").toLowerCase();
+        return roleLower === "manager" || roleLower === "admin" || roleLower === "owner";
+    });
+
+    const toggleManagerSelection = (managerId: string) => {
+        setSelectedManagerIds((prev) =>
+            prev.includes(managerId)
+                ? prev.filter((id) => id !== managerId)
+                : [...prev, managerId]
+        );
+    };
 
     const handleSave = async () => {
 
@@ -42,7 +91,7 @@ const EditUserModal = ({
             setLoading(true);
 
             const res = await API.put(
-                `/users/${user.id || user._id}`,
+                `/users/${targetUserId}`,
                 {
                     firstName,
                     lastName,
@@ -50,17 +99,44 @@ const EditUserModal = ({
                 }
             );
 
+            const isOwnerTarget = (user?.role || "").toLowerCase() === "owner";
+            const originalManagerIds = extractManagerIdsFromUser(user);
+            const managersChanged =
+                selectedManagerIds.length !== originalManagerIds.length ||
+                selectedManagerIds.some((id, idx) => id !== originalManagerIds[idx]);
+
+            if (!isOwnerTarget && managersChanged) {
+                await API.put(`/users/${targetUserId}/assign-manager`, {
+                    managerIds: selectedManagerIds,
+                });
+            }
+
+            const selectedManagerObjects = selectedManagerIds
+                .map((id) =>
+                    eligibleManagers.find((m: any) => (m._id || m.id) === id)
+                )
+                .filter(Boolean);
+
             setUsers((prev: any) =>
                 prev.map((u: any) =>
-                    (u.id || u._id) ===
-                        (user.id || user._id)
+                    (u.id || u._id) === targetUserId
                         ? {
                             ...u,
                             ...res.data.user,
+                            ...(isOwnerTarget
+                                ? {}
+                                : {
+                                      managers: selectedManagerObjects,
+                                      manager: selectedManagerObjects[0] || null,
+                                  }),
                         }
                         : u
                 )
             );
+
+            if (onUserUpdated) {
+                await onUserUpdated();
+            }
 
             toast.success("User updated successfully");
             setShowEditModal(false);
@@ -87,12 +163,22 @@ const EditUserModal = ({
 
     useEffect(() => {
         fetchTeams();
-    }, []);
+        if (!Array.isArray(availableManagers) || availableManagers.length === 0) {
+            API.get("/users/all-users")
+                .then((res) => {
+                    if (Array.isArray(res.data?.users)) {
+                        setManagerCandidates(res.data.users);
+                    }
+                })
+                .catch((err) => console.error(err));
+        }
+    }, [availableManagers]);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (!(e.target as HTMLElement).closest(".dropdown")) {
                 setTeamDropdown(false);
+                setManagerDropdown(false);
             }
         };
 
@@ -220,6 +306,82 @@ const EditUserModal = ({
                                     </div>
                                 </div>
                             </div>
+
+                            {(user?.role || "").toLowerCase() !== "owner" && (
+                                <div>
+                                    <label className='block text-sm font-medium text-gray-700 dark:text-slate-300'>
+                                        Assigned Managers
+                                        <span className='text-gray-400 dark:text-slate-400 text-xs'> – select one or more managers</span>
+                                    </label>
+                                    <div className='relative mt-2 dropdown'>
+                                        <button
+                                            type='button'
+                                            onClick={() => {
+                                                setManagerDropdown((prev) => !prev);
+                                                setTeamDropdown(false);
+                                            }}
+                                            aria-haspopup='listbox'
+                                            aria-expanded={managerDropdown}
+                                            className='relative w-full cursor-pointer rounded-md border-0 py-2 px-3 text-left text-gray-900 dark:text-slate-100 bg-white dark:bg-slate-900 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm'
+                                        >
+                                            <span className='block truncate pr-6'>
+                                                {selectedManagerIds.length === 0
+                                                    ? "No manager assigned"
+                                                    : selectedManagerIds
+                                                          .map((id) => {
+                                                              const m = eligibleManagers.find((cand: any) => (cand._id || cand.id) === id);
+                                                              return m ? formatManagerLabel(m) : "";
+                                                          })
+                                                          .filter(Boolean)
+                                                          .join(", ") || `${selectedManagerIds.length} manager(s) selected`}
+                                            </span>
+                                            <span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+                                                <TbSelector className='h-4 w-4 text-gray-400 dark:text-slate-400' />
+                                            </span>
+                                        </button>
+
+                                        {managerDropdown && (
+                                            <div
+                                                role='listbox'
+                                                aria-multiselectable='true'
+                                                className='absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md bg-white dark:bg-slate-800 py-1 text-base shadow-lg ring-1 ring-black/5 dark:ring-slate-700 focus:outline-none sm:text-sm'
+                                            >
+                                                {eligibleManagers.length === 0 ? (
+                                                    <div className='px-3 py-2 text-xs text-gray-500 dark:text-slate-400'>
+                                                        No eligible managers available
+                                                    </div>
+                                                ) : (
+                                                    eligibleManagers.map((mgr: any) => {
+                                                        const mgrId = mgr._id || mgr.id;
+                                                        const checked = selectedManagerIds.includes(mgrId);
+                                                        return (
+                                                            <label
+                                                                key={mgrId}
+                                                                className='flex items-center justify-between cursor-pointer select-none py-2 px-3 text-gray-900 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700'
+                                                            >
+                                                                <span className='flex items-center gap-2.5 min-w-0'>
+                                                                    <input
+                                                                        type='checkbox'
+                                                                        checked={checked}
+                                                                        onChange={() => toggleManagerSelection(mgrId)}
+                                                                        className='h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-600 bg-white dark:bg-slate-900'
+                                                                    />
+                                                                    <span className='truncate font-medium'>
+                                                                        {formatManagerLabel(mgr)}
+                                                                    </span>
+                                                                    <span className='text-xs text-gray-400 dark:text-slate-400 capitalize shrink-0'>
+                                                                        ({mgr.role})
+                                                                    </span>
+                                                                </span>
+                                                            </label>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <label htmlFor='user-id' className='block text-sm font-medium text-gray-700 dark:text-slate-300'>User ID</label>

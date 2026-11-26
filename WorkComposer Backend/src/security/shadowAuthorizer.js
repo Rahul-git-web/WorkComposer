@@ -160,6 +160,8 @@ export async function evaluateShadow(req, authoritativeDecision, options = {}) {
           _id: req?.params?.userId || user._id || user.id,
           organizationId: user.organizationId || user.organization,
           managerId: user.managerId || user.manager,
+          manager: user.manager,
+          managers: user.managers,
         };
         shadowDecision = canViewReport(authContext, targetUser);
         break;
@@ -170,6 +172,8 @@ export async function evaluateShadow(req, authoritativeDecision, options = {}) {
           _id: req?.params?.userId || req?.query?.userId || user._id || user.id,
           organizationId: user.organizationId || user.organization,
           managerId: user.managerId || user.manager,
+          manager: user.manager,
+          managers: user.managers,
         };
         shadowDecision = canViewScreenshot(authContext, screenshotOwner);
         break;

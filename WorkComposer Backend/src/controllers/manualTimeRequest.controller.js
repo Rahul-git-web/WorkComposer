@@ -3,7 +3,7 @@ import sendEmail from "../utils/sendEmail.js";
 import { generateTimeTrackingCSV } from "../services/reportExport.service.js";
 import { createNotification } from "../services/notification.service.js";
 import { resolveEffectiveAuthContext, normalizeId } from "../security/effectiveAuthContext.js";
-import { canApproveManualTime, hasCapability } from "../security/policyEvaluator.js";
+import { canApproveManualTime, hasCapability, extractManagerIds } from "../security/policyEvaluator.js";
 import { DECISION_CODES, ROLE_NAMES } from "../security/policyTypes.js";
 import { manualTimeRequestRepository } from "../db/repositories/manualTimeRequest.repository.js";
 import { sessionRepository } from "../db/repositories/session.repository.js";
@@ -229,9 +229,20 @@ export const createRequest = async (req, res) => {
       report: report._id,
     });
 
-    const managers = await userRepository.find({
-      organizationId: callerOrgId,
-    });
+    let requesterManagerIds = extractManagerIds(req.user);
+    if (requesterManagerIds.size === 0 && callerUserId) {
+      const requesterUser = await userRepository.findById(callerUserId);
+      requesterManagerIds = extractManagerIds(requesterUser);
+    }
+
+    const managerRecipientIds = [...requesterManagerIds].filter((id) => id && id !== callerUserId);
+    const managers = managerRecipientIds.length > 0
+      ? await userRepository.find({
+        organizationId: callerOrgId,
+        _id: { $in: managerRecipientIds },
+        isArchived: false,
+      })
+      : [];
 
     const callerName = `${req.user.firstName || ""} ${req.user.lastName || ""}`.trim() || "User";
 
@@ -557,10 +568,10 @@ export const approveRequest = async (req, res) => {
       if (io) {
         const targetUserId = normalizeId(
           request.requestedById ||
-            request.requestedBy?._id ||
-            request.requestedBy?.id ||
-            request.requestedBy ||
-            requesterId
+          request.requestedBy?._id ||
+          request.requestedBy?.id ||
+          request.requestedBy ||
+          requesterId
         );
         io.to(`user:${targetUserId}`).emit("session:updated", {
           userId: targetUserId,

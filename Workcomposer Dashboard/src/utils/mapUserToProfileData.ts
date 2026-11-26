@@ -17,6 +17,7 @@ export function mapUserToProfileData(
             email: "",
             role: "User",
             manager: "No manager assigned",
+            managers: [],
             trackingStatus: "Not tracking",
             timezone: getAppTimezone(null),
             lastSynced: "Never",
@@ -88,15 +89,39 @@ export function mapUserToProfileData(
         resolvedTeam = OBJECT_ID_REGEX.test(trimmed) ? "Default team" : trimmed;
     }
 
-    // Manager formatting with raw 24-hex ObjectId suppression
-    let resolvedManager = "No manager assigned";
-    if (typeof user.manager === "object" && user.manager !== null) {
-        const mgrName = `${user.manager.firstName ?? ""} ${user.manager.lastName ?? ""}`.trim();
-        resolvedManager = mgrName || user.manager.name || user.manager.email || "No manager assigned";
-    } else if (typeof user.manager === "string" && user.manager.trim()) {
-        const trimmed = user.manager.trim();
-        resolvedManager = OBJECT_ID_REGEX.test(trimmed) ? "No manager assigned" : trimmed;
+    // Manager formatting with raw 24-hex ObjectId suppression (supports multi-manager arrays + legacy single manager)
+    const rawManagerEntries =
+        Array.isArray(user.managers) && user.managers.length > 0
+            ? user.managers
+            : user.manager
+            ? [user.manager]
+            : [];
+
+    const resolvedManagers: string[] = [];
+    const seenManagers = new Set<string>();
+    for (const entry of rawManagerEntries) {
+        let candidateName = "";
+        if (typeof entry === "object" && entry !== null) {
+            const mgrName = `${entry.firstName ?? ""} ${entry.lastName ?? ""}`.trim();
+            candidateName = mgrName || entry.name || entry.email || "";
+        } else if (typeof entry === "string" && entry.trim()) {
+            const trimmed = entry.trim();
+            candidateName = OBJECT_ID_REGEX.test(trimmed) ? "" : trimmed;
+        }
+        if (
+            candidateName &&
+            !OBJECT_ID_REGEX.test(candidateName) &&
+            !seenManagers.has(candidateName)
+        ) {
+            seenManagers.add(candidateName);
+            resolvedManagers.push(candidateName);
+        }
     }
+
+    const resolvedManager =
+        resolvedManagers.length > 0
+            ? resolvedManagers.join(", ")
+            : "No manager assigned";
 
     // Timezone resolution: resolves "Browser timezone" or invalid value to effective IANA timezone
     const resolvedTimezone = getAppTimezone(user.reportTimezone || user.timezone);
@@ -118,6 +143,7 @@ export function mapUserToProfileData(
             ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
             : "User",
         manager: resolvedManager,
+        managers: resolvedManagers,
         trackingStatus: isTracking ? "Tracking" : "Not tracking",
         timezone: resolvedTimezone,
         lastSynced: resolvedLastSynced,

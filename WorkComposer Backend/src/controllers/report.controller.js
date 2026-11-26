@@ -12,6 +12,7 @@ import { Parser } from "json2csv";
 import { getAvatarUrl } from "../utils/avatar.js";
 import { getReportAccess, getReportUserIds } from "../utils/reportAccess.js";
 import { normalizeId } from "../security/effectiveAuthContext.js";
+import { extractManagerIds } from "../security/policyEvaluator.js";
 import { sendErrorResponse } from "../utils/sendErrorResponse.js";
 
 const getScopedReportUserQuery = async (
@@ -1169,8 +1170,7 @@ export const downloadReport = async (req, res) => {
       if (reportAccess === "all") {
         allowed = true;
       } else if (reportAccess === "managed") {
-        const ownerManagerId = normalizeId(reportOwner.managerId || reportOwner.manager);
-        if (ownerManagerId && ownerManagerId === callerUserId) {
+        if (extractManagerIds(reportOwner).has(callerUserId)) {
           allowed = true;
         }
       }

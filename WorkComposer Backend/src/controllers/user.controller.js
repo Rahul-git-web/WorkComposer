@@ -19,6 +19,7 @@ import {
   auditRoleChanged,
   auditUserArchived,
   auditUserRestored,
+  auditManagerAssigned,
 } from "../utils/auditService.js";
 import Role from "../models/role.model.js";
 import { isPostgres } from "../db/index.js";
@@ -32,6 +33,7 @@ import {
 } from "../security/effectiveAuthContext.js";
 import {
   hasCapability,
+  extractManagerIds,
   canAccessUserShiftSettings,
   canAssignManager,
   canAccessUserDevices,
@@ -41,6 +43,54 @@ import {
 } from "../security/policyEvaluator.js";
 import { ROLE_NAMES, CONFLICT_STATES } from "../security/policyTypes.js";
 import { sendErrorResponse } from "../utils/sendErrorResponse.js";
+
+function serializeManagerSummaries(user) {
+  const seen = new Set();
+  const list = [];
+  const rawList = Array.isArray(user?.managers) ? user.managers : [];
+  const candidates = rawList.length > 0 ? rawList : (user?.manager ? [user.manager] : []);
+  for (const item of candidates) {
+    if (!item || typeof item !== "object") continue;
+    const id = normalizeId(item._id || item.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    list.push({
+      _id: id,
+      id,
+      firstName: item.firstName || "",
+      lastName: item.lastName || "",
+      email: item.email || "",
+      ...(item.role ? { role: item.role } : {}),
+    });
+  }
+  return list;
+}
+
+function isEligibleManagerUser(candidateUser, roleDoc = null) {
+  if (!candidateUser || candidateUser.isArchived) return false;
+  const ctx = resolveEffectiveAuthContext(candidateUser, roleDoc);
+  return (
+    ctx.effectiveRoleName === ROLE_NAMES.OWNER ||
+    ctx.effectiveRoleName === ROLE_NAMES.ADMIN ||
+    ctx.effectiveRoleName === ROLE_NAMES.MANAGER ||
+    ctx.effectiveReportAccess === "managed" ||
+    ctx.effectiveReportAccess === "all" ||
+    hasCapability(ctx, "manage_users") ||
+    hasCapability(ctx, "manage_settings")
+  );
+}
+
+async function buildOrganizationManagerGraph(organizationId) {
+  const orgUsers = await User.find({ organization: organizationId }).select("_id manager managers");
+  const graph = new Map();
+  for (const u of orgUsers) {
+    const uid = normalizeId(u._id || u.id);
+    if (uid) {
+      graph.set(uid, extractManagerIds(u));
+    }
+  }
+  return graph;
+}
 
 export const getUsers = async (req, res) => {
   try {
@@ -57,6 +107,7 @@ export const getUsers = async (req, res) => {
       })
         .populate("team", "name")
         .populate("manager", "firstName lastName email")
+        .populate("managers", "firstName lastName email")
         .select("-password");
     } else if (currentUser.role === "admin") {
       // ADMIN = all except owner
@@ -66,6 +117,7 @@ export const getUsers = async (req, res) => {
       })
         .populate("team", "name")
         .populate("manager", "firstName lastName email")
+        .populate("managers", "firstName lastName email")
         .select("-password -refreshToken");
     } else if (currentUser.role === "manager") {
       // MANAGER = self + managed users
@@ -76,6 +128,7 @@ export const getUsers = async (req, res) => {
       })
         .populate("team", "name")
         .populate("manager", "firstName lastName email")
+        .populate("managers", "firstName lastName email")
         .select("-password -refreshToken");
     } else {
       //USER = only self
@@ -84,15 +137,20 @@ export const getUsers = async (req, res) => {
       })
         .populate("team", "name")
         .populate("manager", "firstName lastName email")
+        .populate("managers", "firstName lastName email")
         .select("-password -refreshToken");
     }
 
     const userWithStats = await Promise.all(
       users.map(async (user) => {
+        const managersList = serializeManagerSummaries(user);
+        const primaryManager = managersList[0] || null;
         if (user.role !== "manager") {
           return {
             ...user.toObject(),
             avatar: getAvatarUrl(user.avatar),
+            managers: managersList,
+            manager: primaryManager,
             managedUsersCount: 0,
             managedTeamsCount: 0,
           };
@@ -112,6 +170,8 @@ export const getUsers = async (req, res) => {
         return {
           ...user.toObject(),
           avatar: getAvatarUrl(user.avatar),
+          managers: managersList,
+          manager: primaryManager,
           managedUsersCount: managedUsers,
           managedTeamsCount: managedTeams.length,
         };
@@ -1063,6 +1123,7 @@ export const getUserProfile = async (req, res) => {
       organization: currentUser.organization,
     })
       .populate("manager", "firstName lastName email")
+      .populate("managers", "firstName lastName email")
       .populate("team", "name")
       .select(
         "-password -refreshToken -twoFactorCode -twoFactorExpires -verificationToken -verificationTokenExpire -resetToken -resetTokenExpire"
@@ -1075,6 +1136,9 @@ export const getUserProfile = async (req, res) => {
     }
 
     const userObj = user.toObject ? user.toObject() : { ...user };
+    const profileManagers = serializeManagerSummaries(userObj);
+    userObj.managers = profileManagers;
+    userObj.manager = profileManagers[0] || null;
 
     // Explicit defense-in-depth sanitization of sensitive authentication and recovery secrets
     const SENSITIVE_FIELDS = [
@@ -1224,14 +1288,21 @@ export const getAllUsersWithInvites = async (req, res) => {
     const users = await User.find(userQuery)
       .populate("team", "name")
       .populate("manager", "firstName lastName email")
+      .populate("managers", "firstName lastName email")
       .select("-password");
 
     // PENDING INVITES
     const invites = await Invite.find(inviteQuery).populate("team", "name");
 
     // BATCHED MANAGER STATS (avoids per-manager N+1 queries)
+    const hasCustomRoleUsers = users.some((u) => Boolean(normalizeId(u.roleRef)));
+    const roleDocs = hasCustomRoleUsers
+      ? await Role.find({ organization: req.user.organization }).lean()
+      : [];
+    const roleMap = new Map(roleDocs.map((r) => [normalizeId(r._id || r.id), r]));
+
     const managerIds = users
-      .filter((u) => u.role === "manager")
+      .filter((u) => isEligibleManagerUser(u, roleMap.get(normalizeId(u.roleRef)) || null))
       .map((u) => String(u._id || u.id))
       .filter(Boolean);
 
@@ -1242,27 +1313,28 @@ export const getAllUsersWithInvites = async (req, res) => {
       const subordinates = await User.find({
         organization: req.user.organization,
         manager: { $in: managerIds },
-      }).select("manager team");
+      }).select("manager managers team");
 
+      const allowedManagerSet = new Set(managerIds);
       for (const sub of subordinates) {
-        const managerId = String(
-          sub.manager?._id || sub.manager?.id || sub.manager || "",
-        );
-        if (!managerId) continue;
-
-        managedUsersCountMap.set(
-          managerId,
-          (managedUsersCountMap.get(managerId) || 0) + 1,
-        );
-
+        const subManagerIds = extractManagerIds(sub);
         const teamId = sub.team
           ? String(sub.team?._id || sub.team?.id || sub.team)
           : "";
-        if (teamId) {
-          if (!managedTeamsMap.has(managerId)) {
-            managedTeamsMap.set(managerId, new Set());
+
+        for (const managerId of subManagerIds) {
+          if (!allowedManagerSet.has(managerId)) continue;
+          managedUsersCountMap.set(
+            managerId,
+            (managedUsersCountMap.get(managerId) || 0) + 1,
+          );
+
+          if (teamId) {
+            if (!managedTeamsMap.has(managerId)) {
+              managedTeamsMap.set(managerId, new Set());
+            }
+            managedTeamsMap.get(managerId).add(teamId);
           }
-          managedTeamsMap.get(managerId).add(teamId);
         }
       }
     }
@@ -1270,13 +1342,15 @@ export const getAllUsersWithInvites = async (req, res) => {
     // FORMAT USERS
     const formattedUsers = users.map((user) => {
       const uidStr = String(user._id || user.id);
-      const isManager = user.role === "manager";
+      const isManager =
+        user.role === "manager" || (managedUsersCountMap.get(uidStr) || 0) > 0;
       const managedUsersCount = isManager
         ? managedUsersCountMap.get(uidStr) || 0
         : 0;
       const managedTeamsCount = isManager
         ? managedTeamsMap.get(uidStr)?.size || 0
         : 0;
+      const managersList = serializeManagerSummaries(user);
 
       return {
         id: user._id,
@@ -1287,14 +1361,8 @@ export const getAllUsersWithInvites = async (req, res) => {
         avatar: getAvatarUrl(user.avatar),
         role: user.role,
         team: user.team?.name || "",
-        manager: user.manager
-          ? {
-              _id: user.manager._id,
-              firstName: user.manager.firstName,
-              lastName: user.manager.lastName,
-              email: user.manager.email,
-            }
-          : null,
+        managers: managersList,
+        manager: managersList[0] || null,
         status: user.isArchived ? "archived" : "active",
         createdAt: user.createdAt,
         devices: user.devices || [],
@@ -2674,10 +2742,11 @@ export const assignManager = async (req, res) => {
     }
     const authContext = resolveEffectiveAuthContext(req.user, callerRoleDoc);
 
-    const { userIds, teams, managerId, manager } = req.body;
+    const { userIds, teams, managerId, manager, managerIds } = req.body;
 
     // Detect mode: Single Target Assignment vs Bulk Manager Assignment
-    const hasSingleManagerField = managerId !== undefined || manager !== undefined;
+    const hasSingleManagerField =
+      managerIds !== undefined || managerId !== undefined || manager !== undefined;
     const hasBulkFields = userIds !== undefined || teams !== undefined;
 
     if (hasSingleManagerField && hasBulkFields) {
@@ -2688,13 +2757,13 @@ export const assignManager = async (req, res) => {
 
     if (!hasSingleManagerField && !hasBulkFields) {
       return res.status(400).json({
-        message: "Missing managerId or userIds in request body",
+        message: "Missing managerId, managerIds, or userIds in request body",
       });
     }
 
     if (hasSingleManagerField) {
       // -------------------------------------------------------------
-      // 1. SINGLE TARGET USER ASSIGNMENT MODE
+      // 1. SINGLE TARGET USER MULTI-MANAGER ASSIGNMENT MODE
       // URL :id represents the target user
       // -------------------------------------------------------------
       const targetUserId = req.params.id;
@@ -2710,63 +2779,116 @@ export const assignManager = async (req, res) => {
         });
       }
 
-      const rawManagerId = managerId !== undefined ? managerId : manager;
-      let requestedManager = null;
+      const targetUserIdStr = normalizeId(targetUser._id || targetUser.id);
+      let candidateManagerIds = [];
 
-      if (rawManagerId !== null && rawManagerId !== "" && rawManagerId !== "none" && rawManagerId !== undefined) {
-        if (typeof rawManagerId !== "string" && typeof rawManagerId !== "object") {
+      if (managerIds !== undefined) {
+        if (managerIds === null) {
+          candidateManagerIds = [];
+        } else if (!Array.isArray(managerIds)) {
           return res.status(400).json({
-            message: "Invalid managerId",
+            message: "managerIds must be an array",
           });
+        } else {
+          const seen = new Set();
+          for (const entry of managerIds) {
+            if (entry === null || entry === "" || entry === "none" || entry === undefined) {
+              continue;
+            }
+            if (typeof entry !== "string" && typeof entry !== "object") {
+              return res.status(400).json({
+                message: "Invalid managerId in managerIds",
+              });
+            }
+            const idStr = normalizeId(entry);
+            if (!idStr) {
+              return res.status(400).json({
+                message: "Invalid managerId in managerIds",
+              });
+            }
+            if (!seen.has(idStr)) {
+              seen.add(idStr);
+              candidateManagerIds.push(idStr);
+            }
+          }
         }
-
-        const managerIdStr = normalizeId(rawManagerId);
-
-        // Self-assignment check
-        if (managerIdStr === normalizeId(targetUser._id)) {
-          return res.status(400).json({
-            message: "A user cannot be their own manager",
-          });
-        }
-
-        requestedManager = await User.findOne({
-          _id: managerIdStr,
-          organization: callerOrgId,
-        });
-
-        if (!requestedManager) {
-          return res.status(404).json({
-            message: "Manager not found",
-          });
-        }
-
-        if (requestedManager.isArchived) {
-          return res.status(400).json({
-            message: "Cannot assign an archived user as manager",
-          });
-        }
-
-        // Circular hierarchy check: ensure proposed manager doesn't report to targetUser
-        let cur = requestedManager;
-        let depth = 0;
-        while (cur && (cur.manager || cur.managerId) && depth < 20) {
-          const upManagerId = normalizeId(cur.manager?._id || cur.manager?.id || cur.manager || cur.managerId);
-          if (upManagerId === normalizeId(targetUser._id)) {
+      } else {
+        const rawManagerId = managerId !== undefined ? managerId : manager;
+        if (
+          rawManagerId !== null &&
+          rawManagerId !== "" &&
+          rawManagerId !== "none" &&
+          rawManagerId !== undefined
+        ) {
+          if (typeof rawManagerId !== "string" && typeof rawManagerId !== "object") {
             return res.status(400).json({
-              message: "Circular manager assignment is not allowed",
+              message: "Invalid managerId",
             });
           }
-          cur = await User.findOne({ _id: upManagerId, organization: callerOrgId });
-          depth++;
+          const managerIdStr = normalizeId(rawManagerId);
+          if (!managerIdStr) {
+            return res.status(400).json({
+              message: "Invalid managerId",
+            });
+          }
+          candidateManagerIds = [managerIdStr];
         }
       }
 
-      // Authorize via policyEvaluator
-      const decision = canAssignManager(authContext, targetUser, requestedManager);
+      if (candidateManagerIds.includes(targetUserIdStr)) {
+        return res.status(400).json({
+          message: "A user cannot be their own manager",
+        });
+      }
+
+      const requestedManagers = [];
+      if (candidateManagerIds.length > 0) {
+        const fetchedManagers = await User.find({
+          _id: { $in: candidateManagerIds },
+          organization: callerOrgId,
+        });
+
+        const fetchedMap = new Map(
+          fetchedManagers.map((m) => [normalizeId(m._id || m.id), m]),
+        );
+
+        for (const mgrId of candidateManagerIds) {
+          const foundMgr = fetchedMap.get(mgrId);
+          if (!foundMgr) {
+            return res.status(404).json({
+              message: "Manager not found",
+            });
+          }
+          if (foundMgr.isArchived) {
+            return res.status(400).json({
+              message: "Cannot assign an archived user as manager",
+            });
+          }
+          requestedManagers.push(foundMgr);
+        }
+      }
+
+      const managerGraph = requestedManagers.length > 0
+        ? await buildOrganizationManagerGraph(callerOrgId)
+        : null;
+
+      // Authorize & validate multi-manager graph cycles via policyEvaluator
+      const decision = canAssignManager(
+        authContext,
+        targetUser,
+        requestedManagers.length > 0 ? requestedManagers : null,
+        managerGraph,
+      );
       if (!decision.allowed) {
         if (decision.code === DECISION_CODES.TENANT_MISMATCH) {
           return res.status(404).json({
             message: "User not found",
+          });
+        }
+        if (decision.code === DECISION_CODES.DENIED) {
+          return res.status(400).json({
+            message: decision.reason,
+            code: decision.code,
           });
         }
         return res.status(403).json({
@@ -2776,24 +2898,52 @@ export const assignManager = async (req, res) => {
       }
 
       // Business invariant: Organization owner cannot be assigned a manager
-      if (targetUser.role === "owner" && requestedManager !== null) {
+      if (targetUser.role === "owner" && requestedManagers.length > 0) {
         return res.status(400).json({
           message: "Cannot assign a manager to the organization owner",
         });
       }
 
-      // Mutate strictly manager field
-      const newManagerId = requestedManager ? requestedManager._id : null;
-      targetUser.manager = newManagerId;
-      targetUser.managerId = newManagerId;
+      // Manager authority eligibility check
+      if (requestedManagers.length > 0) {
+        const hasRoleRefs = requestedManagers.some((m) => Boolean(normalizeId(m.roleRef)));
+        const mgrRoles = hasRoleRefs
+          ? await Role.find({ organization: callerOrgId }).lean()
+          : [];
+        const mgrRoleMap = new Map(mgrRoles.map((r) => [normalizeId(r._id || r.id), r]));
+
+        for (const mgr of requestedManagers) {
+          const mgrRoleDoc = mgr.roleRef ? mgrRoleMap.get(normalizeId(mgr.roleRef)) || null : null;
+          if (!isEligibleManagerUser(mgr, mgrRoleDoc)) {
+            return res.status(400).json({
+              message: "Selected user does not have manager-level authority",
+            });
+          }
+        }
+      }
+
+      // Mutate managers list and keep scalar manager/managerId synced to primary managers[0] || null
+      const primaryManagerId = candidateManagerIds[0] || null;
+      targetUser.managers = candidateManagerIds;
+      targetUser.manager = primaryManagerId;
+      targetUser.managerId = primaryManagerId;
       await targetUser.save();
+
+      try {
+        await auditManagerAssigned({
+          req,
+          targetUser,
+          managerUsers: requestedManagers,
+        });
+      } catch {}
 
       return res.status(200).json({
         message: "Manager updated successfully",
+        managers: candidateManagerIds,
       });
     } else {
       // -------------------------------------------------------------
-      // 2. BULK MANAGER ASSIGNMENT MODE
+      // 2. NON-DESTRUCTIVE BULK MANAGER ASSIGNMENT MODE
       // URL :id represents the manager
       // -------------------------------------------------------------
       const managerUser = await User.findOne({
@@ -2822,6 +2972,15 @@ export const assignManager = async (req, res) => {
         });
       }
 
+      const mgrRoleDoc = managerUser.roleRef
+        ? await Role.findById(managerUser.roleRef).lean()
+        : null;
+      if (!isEligibleManagerUser(managerUser, mgrRoleDoc)) {
+        return res.status(400).json({
+          message: "Selected user does not have manager-level authority",
+        });
+      }
+
       if (userIds !== undefined && !Array.isArray(userIds)) {
         return res.status(400).json({
           message: "userIds must be an array",
@@ -2834,10 +2993,11 @@ export const assignManager = async (req, res) => {
         });
       }
 
+      const managerIdStr = normalizeId(managerUser._id || managerUser.id);
       const assignedUserIds = new Set(
         (Array.isArray(userIds) ? userIds : [])
-          .map((id) => (id ? id.toString() : null))
-          .filter((id) => id && id !== managerUser._id.toString())
+          .map((id) => (id ? normalizeId(id) : null))
+          .filter((id) => id && id !== managerIdStr)
       );
 
       // TEAM USERS
@@ -2855,8 +3015,9 @@ export const assignManager = async (req, res) => {
         }).select("_id");
 
         teamUsers.forEach((u) => {
-          if (u._id.toString() !== managerUser._id.toString()) {
-            assignedUserIds.add(u._id.toString());
+          const uid = normalizeId(u._id || u.id);
+          if (uid && uid !== managerIdStr) {
+            assignedUserIds.add(uid);
           }
         });
       }
@@ -2868,38 +3029,114 @@ export const assignManager = async (req, res) => {
           $in: [...assignedUserIds],
           $ne: managerUser._id,
         },
-      }).select("_id");
+      }).select("_id manager managers role");
 
-      const validUserIds = validUsers.map((u) => u._id.toString());
+      const validUserIds = validUsers.map((u) => normalizeId(u._id || u.id)).filter(Boolean);
 
-      // ATOMIC BULK REASSIGNMENT (SEC20-F01)
+      if (validUserIds.length > 0) {
+        const managerGraph = await buildOrganizationManagerGraph(callerOrgId);
+        const ancestors = new Set();
+        const queue = [managerIdStr];
+        while (queue.length > 0) {
+          const curr = queue.shift();
+          const upstream = managerGraph.get(curr);
+          if (!upstream) continue;
+          for (const upId of upstream) {
+            if (!ancestors.has(upId)) {
+              ancestors.add(upId);
+              queue.push(upId);
+            }
+          }
+        }
+        if (validUserIds.some((uid) => ancestors.has(uid))) {
+          return res.status(400).json({
+            message: "Circular manager assignment is not allowed",
+          });
+        }
+      }
+
+      const prevSubordinates = await User.find({
+        organization: callerOrgId,
+        manager: managerUser._id,
+        _id: { $nin: validUserIds },
+      }).select("_id manager managers");
+
+      const singleOnlyUnassignIds = [];
+      const coManagedUnassignSubs = [];
+      for (const sub of prevSubordinates) {
+        const subId = normalizeId(sub._id || sub.id);
+        const existingMgrs = [...extractManagerIds(sub)];
+        const remaining = existingMgrs.filter((id) => id !== managerIdStr);
+        if (remaining.length === 0) {
+          singleOnlyUnassignIds.push(subId);
+        } else {
+          coManagedUnassignSubs.push({ sub, remaining });
+        }
+      }
+
+      const singleOnlyAssignIds = [];
+      const coManagedAssignSubs = [];
+      for (const target of validUsers) {
+        const targetId = normalizeId(target._id || target.id);
+        const existingMgrs = [...extractManagerIds(target)];
+        const others = existingMgrs.filter((id) => id !== managerIdStr);
+        if (others.length === 0) {
+          singleOnlyAssignIds.push(targetId);
+        } else if (!existingMgrs.includes(managerIdStr)) {
+          coManagedAssignSubs.push({
+            target,
+            nextManagers: [...existingMgrs, managerIdStr],
+          });
+        }
+      }
+
+      // ATOMIC NON-DESTRUCTIVE BULK REASSIGNMENT (SEC20-F01)
       await runTransaction(async () => {
-        // REMOVE OLD USERS
-        await User.updateMany(
-          {
-            manager: managerUser._id,
-            organization: callerOrgId,
-            _id: { $nin: validUserIds },
-          },
-          {
-            $unset: {
-              manager: "",
-            },
-          },
-        );
-
-        // ASSIGN NEW USERS
-        await User.updateMany(
-          {
-            organization: callerOrgId,
-            _id: { $in: validUserIds },
-          },
-          {
-            $set: {
+        // REMOVE OLD USERS (preserve co-managers when present)
+        if (singleOnlyUnassignIds.length > 0 || coManagedUnassignSubs.length === 0) {
+          await User.updateMany(
+            {
               manager: managerUser._id,
+              organization: callerOrgId,
+              _id: {
+                ...(singleOnlyUnassignIds.length > 0 ? { $in: singleOnlyUnassignIds } : {}),
+                $nin: validUserIds,
+              },
             },
-          },
-        );
+            {
+              $unset: {
+                manager: "",
+              },
+            },
+          );
+        }
+        for (const { sub, remaining } of coManagedUnassignSubs) {
+          sub.managers = remaining;
+          sub.manager = remaining[0] || null;
+          sub.managerId = remaining[0] || null;
+          await sub.save();
+        }
+
+        // ASSIGN NEW USERS (append without wiping co-managers)
+        if (singleOnlyAssignIds.length > 0 || coManagedAssignSubs.length === 0) {
+          await User.updateMany(
+            {
+              organization: callerOrgId,
+              _id: { $in: singleOnlyAssignIds },
+            },
+            {
+              $set: {
+                manager: managerUser._id,
+              },
+            },
+          );
+        }
+        for (const { target, nextManagers } of coManagedAssignSubs) {
+          target.managers = nextManagers;
+          target.manager = nextManagers[0] || null;
+          target.managerId = nextManagers[0] || null;
+          await target.save();
+        }
       });
 
       return res.status(200).json({
@@ -3002,21 +3239,28 @@ export const exportUsersHierarchy = async (req, res) => {
       organization: req.user.organization,
     })
       .populate("manager", "firstName lastName email")
-      .select("firstName lastName email team manager");
+      .populate("managers", "firstName lastName email")
+      .select("firstName lastName email team manager managers");
 
-    const data = users.map((user) => ({
-      "User Name": `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+    const data = users.map((user) => {
+      const mgrList = serializeManagerSummaries(user);
+      const mgrNames = mgrList
+        .map((m) => `${m.firstName || ""} ${m.lastName || ""}`.trim() || m.email)
+        .filter(Boolean);
+      const mgrEmails = mgrList.map((m) => m.email).filter(Boolean);
 
-      "User Email": user.email,
+      return {
+        "User Name": `${user.firstName || ""} ${user.lastName || ""}`.trim(),
 
-      Team: user.team || "Default team",
+        "User Email": user.email,
 
-      "Manager Name": user.manager
-        ? `${user.manager.firstName || ""} ${user.manager.lastName || ""}`.trim()
-        : "-",
+        Team: user.team || "Default team",
 
-      "Manager Email": user.manager?.email || "-",
-    }));
+        "Manager Name": mgrNames.length > 0 ? mgrNames.join(", ") : "-",
+
+        "Manager Email": mgrEmails.length > 0 ? mgrEmails.join(", ") : "-",
+      };
+    });
 
     const parser = new Parser();
 
@@ -3041,29 +3285,31 @@ export const exportUsersHierarchy = async (req, res) => {
 // Hierarchy (Managers) CSV
 export const exportManagersHierarchy = async (req, res) => {
   try {
-    const managers = await User.find({
+    const orgUsers = await User.find({
       organization: req.user.organization,
-      role: "manager",
-    }).select("firstName lastName email team");
+    }).select("_id firstName lastName email team role roleRef manager managers isArchived");
 
-    const data = await Promise.all(
-      managers.map(async (manager) => {
-        const managedUsers = await User.countDocuments({
-          manager: manager._id,
-        });
+    const countsMap = new Map();
+    for (const u of orgUsers) {
+      for (const mId of extractManagerIds(u)) {
+        countsMap.set(mId, (countsMap.get(mId) || 0) + 1);
+      }
+    }
 
-        return {
-          "Manager Name":
-            `${manager.firstName || ""} ${manager.lastName || ""}`.trim(),
-
-          "Manager Email": manager.email,
-
-          Team: manager.team || "Default team",
-
-          "Managed Users": managedUsers,
-        };
-      }),
+    const managers = orgUsers.filter(
+      (u) => !u.isArchived && (u.role === "manager" || (countsMap.get(normalizeId(u._id || u.id)) || 0) > 0),
     );
+
+    const data = managers.map((manager) => ({
+      "Manager Name":
+        `${manager.firstName || ""} ${manager.lastName || ""}`.trim(),
+
+      "Manager Email": manager.email,
+
+      Team: manager.team || "Default team",
+
+      "Managed Users": countsMap.get(normalizeId(manager._id || manager.id)) || 0,
+    }));
 
     const parser = new Parser();
 
@@ -3314,26 +3560,32 @@ export const exportUsers = async (req, res) => {
     const users = await User.find({
       organization: req.user.organization,
     })
-      .populate("manager", "email")
-      .select("_id firstName lastName email team manager");
+      .populate("manager", "firstName lastName email")
+      .populate("managers", "firstName lastName email")
+      .select("_id firstName lastName email team manager managers");
 
-    const formattedUsers = users.map((user) => ({
-      ID: user._id,
+    const formattedUsers = users.map((user) => {
+      const mgrList = serializeManagerSummaries(user);
+      const mgrEmails = mgrList.map((m) => m.email).filter(Boolean);
 
-      "First Name": user.firstName || "",
+      return {
+        ID: user._id,
 
-      "Last Name": user.lastName || "",
+        "First Name": user.firstName || "",
 
-      Email: user.email || "",
+        "Last Name": user.lastName || "",
 
-      "Team Name": user.team || "Default team",
+        Email: user.email || "",
 
-      "Direct Managers": user.manager?.email || "",
+        "Team Name": user.team || "Default team",
 
-      Password: "",
+        "Direct Managers": mgrEmails.join(", "),
 
-      "External ID": "",
-    }));
+        Password: "",
+
+        "External ID": "",
+      };
+    });
 
     const parser = new Parser();
 

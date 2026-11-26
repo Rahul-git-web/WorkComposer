@@ -56,8 +56,16 @@ function applyPopulateProjections(doc, options = {}) {
   }
 
   for (const pop of populates) {
-    if (pop && pop.path && pop.select && doc[pop.path] && typeof doc[pop.path] === "object") {
-      applyProjection(doc[pop.path], pop.select);
+    if (pop && pop.path && pop.select && doc[pop.path]) {
+      if (Array.isArray(doc[pop.path])) {
+        for (const sub of doc[pop.path]) {
+          if (sub && typeof sub === "object") {
+            applyProjection(sub, pop.select);
+          }
+        }
+      } else if (typeof doc[pop.path] === "object") {
+        applyProjection(doc[pop.path], pop.select);
+      }
     }
   }
 
@@ -182,6 +190,7 @@ const ALLOWED_USER_UPDATE_FIELDS = new Set([
   "reportTeamId",
   "manager",
   "managerId",
+  "managers",
   "devices",
   "refreshTokens",
   "refreshToken",
@@ -219,6 +228,7 @@ const ALLOWED_USER_FILTER_FIELDS = new Set([
   "organizationId",
   "manager",
   "managerId",
+  "managers",
   "team",
   "teamId",
   "reportTeam",
@@ -260,13 +270,119 @@ function buildUserInclude(options = {}) {
 
   if (isPopulated("team")) include.team = true;
   if (isPopulated("reportTeam")) include.reportTeam = true;
-  if (isPopulated("manager")) include.manager = true;
+  if (isPopulated("manager") || isPopulated("managers")) {
+    include.manager = true;
+    include.managerLinks = {
+      orderBy: { createdAt: "asc" },
+      include: {
+        manager: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    };
+  }
   if (isPopulated("role") || isPopulated("roleRef") || options?.populateRole || options?.populateRoleRef) {
     include.customRole = true;
   }
   if (isPopulated("organization")) include.organization = true;
 
   return include;
+}
+
+const MANAGER_POPULATE_SELECT = "firstName lastName email role";
+
+function isPopulatedManagerObject(val) {
+  if (!val || typeof val !== "object") return false;
+  if (typeof val.toHexString === "function") return false;
+  if (val.constructor && val.constructor.name === "ObjectId") return false;
+  return (
+    val.firstName !== undefined ||
+    val.lastName !== undefined ||
+    val.email !== undefined ||
+    val.role !== undefined ||
+    val._id !== undefined ||
+    val.id !== undefined
+  );
+}
+
+function isSameIdArray(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function sanitizePopulatedManager(serializer, mgr) {
+  const s = serializer(mgr);
+  if (!s || typeof s !== "object") return null;
+  const idStr = s.id || s._id ? String(s.id || s._id) : null;
+  if (idStr) {
+    s.id = idStr;
+    s._id = idStr;
+  }
+  const fieldsToDelete = [
+    "organizationId",
+    "organization",
+    "password",
+    "passwordHash",
+    "refreshToken",
+    "refreshTokens",
+    "twoFactorCode",
+    "twoFactorExpires",
+    "verificationToken",
+    "verificationTokenExpire",
+    "resetToken",
+    "resetTokenExpire",
+  ];
+  for (const f of fieldsToDelete) {
+    delete s[f];
+  }
+  return s;
+}
+
+function applyMongooseManagerPopulate(query, options = {}) {
+  let q = query;
+  let populatedManager = false;
+  let populatedManagers = false;
+  if (options.populate) {
+    const popList = Array.isArray(options.populate) ? options.populate : [options.populate];
+    for (const pop of popList) {
+      if (typeof pop === "string") {
+        if (pop === "manager") populatedManager = true;
+        if (pop === "managers") populatedManagers = true;
+        q = q.populate(pop);
+      } else if (pop && pop.path) {
+        if (pop.path === "manager") populatedManager = true;
+        if (pop.path === "managers") populatedManagers = true;
+        q = q.populate(pop.path, pop.select);
+      }
+    }
+  }
+  if (options.populateOrganization) q = q.populate("organization");
+  if (options.populateTeam) q = q.populate("team", "name");
+  if (options.populateManager && !populatedManager) {
+    q = q.populate("manager", MANAGER_POPULATE_SELECT);
+    populatedManager = true;
+  }
+  if (options.populateManagers && !populatedManagers) {
+    q = q.populate("managers", MANAGER_POPULATE_SELECT);
+    populatedManagers = true;
+  }
+  if (populatedManager && !populatedManagers) {
+    q = q.populate("managers", MANAGER_POPULATE_SELECT);
+  } else if (populatedManagers && !populatedManager) {
+    q = q.populate("manager", MANAGER_POPULATE_SELECT);
+  }
+  if (options.populateRole) q = q.populate("roleRef");
+  return q;
 }
 
 function isValueMatch(valA, valB) {
@@ -315,10 +431,390 @@ export class UserRepository extends BaseRepository {
     super("User");
   }
 
+  _normalizeManagerIdList(val) {
+    if (val === null) return [];
+    if (!Array.isArray(val)) {
+      throw new Error("Invalid managers value in UserRepository: expected array or null");
+    }
+    const seen = new Set();
+    const out = [];
+    for (const item of val) {
+      if (!item) continue;
+      const rawTarget = typeof item === "object" ? (item._id || item.id || item) : item;
+      const idStr = this.toIdString(rawTarget);
+      if (!idStr || idStr === "[object Object]") {
+        throw new Error("Invalid identifier in UserRepository update for field: managers");
+      }
+      if (!seen.has(idStr)) {
+        seen.add(idStr);
+        out.push(idStr);
+      }
+    }
+    return out;
+  }
+
+  _getExistingManagerIds(existing) {
+    if (!existing || typeof existing !== "object") return [];
+    const seen = new Set();
+    const out = [];
+    const addId = (val) => {
+      if (!val) return;
+      const raw = typeof val === "object" ? (val._id || val.id || val) : val;
+      const idStr = this.toIdString(raw);
+      if (idStr && idStr !== "[object Object]" && !seen.has(idStr)) {
+        seen.add(idStr);
+        out.push(idStr);
+      }
+    };
+    const primaryId = existing.managerId
+      ? this.toIdString(existing.managerId)
+      : (typeof existing.manager === "string"
+        ? existing.manager
+        : (existing.manager && (existing.manager.id || existing.manager._id) ? this.toIdString(existing.manager.id || existing.manager._id) : null));
+    if (primaryId) addId(primaryId);
+    if (Array.isArray(existing.managerLinks)) {
+      for (const link of existing.managerLinks) {
+        addId(link?.managerId || link?.manager);
+      }
+    }
+    if (Array.isArray(existing.managers)) {
+      for (const m of existing.managers) {
+        addId(m);
+      }
+    }
+    return out;
+  }
+
+  _resolveManagerMutation(rawPayload, existing = null) {
+    const hasSingle = rawPayload.manager !== undefined || rawPayload.managerId !== undefined;
+    const hasList = rawPayload.managers !== undefined;
+    if (!hasSingle && !hasList) {
+      return { hasMutation: false, targetManagerIds: null, primaryManagerId: undefined };
+    }
+
+    let singleId;
+    if (hasSingle) {
+      const mVal = rawPayload.manager !== undefined ? rawPayload.manager : rawPayload.managerId;
+      if (mVal === null || mVal === "") {
+        singleId = null;
+      } else if (typeof mVal === "object") {
+        singleId = this.toIdString(mVal._id || mVal.id || mVal);
+      } else {
+        singleId = this.toIdString(mVal);
+      }
+      if (singleId !== null && (!singleId || singleId === "[object Object]")) {
+        throw new Error("Invalid identifier in UserRepository update for field: manager");
+      }
+    }
+
+    const listIds = hasList ? this._normalizeManagerIdList(rawPayload.managers) : undefined;
+
+    if (existing) {
+      const existingIds = this._getExistingManagerIds(existing);
+      const existingPrimary = existing.managerId
+        ?? (typeof existing.manager === "string"
+          ? existing.manager
+          : (existing.manager && (existing.manager.id || existing.manager._id) ? this.toIdString(existing.manager.id || existing.manager._id) : null))
+        ?? null;
+
+      const listChanged = hasList && !isSameIdArray(listIds, existingIds);
+      const singleChanged = hasSingle && (singleId ?? null) !== (existingPrimary ?? null);
+
+      let targetManagerIds = null;
+      if (listChanged && singleChanged) {
+        if ((listIds[0] || null) !== (singleId || null)) {
+          throw new Error("Conflicting update values for 'manager' and 'managers' in UserRepository");
+        }
+        targetManagerIds = listIds;
+      } else if (listChanged) {
+        targetManagerIds = listIds;
+      } else if (singleChanged) {
+        targetManagerIds = singleId ? [singleId] : [];
+      } else if (hasList && !hasSingle) {
+        targetManagerIds = listIds;
+      } else if (hasSingle && !hasList) {
+        targetManagerIds = singleId ? [singleId] : [];
+      } else {
+        return { hasMutation: false, targetManagerIds: null, primaryManagerId: undefined };
+      }
+
+      const primaryManagerId = targetManagerIds[0] || null;
+      const linksChanged = !isSameIdArray(targetManagerIds, existingIds);
+      const primaryChanged = primaryManagerId !== (existingPrimary ?? null);
+      if (!linksChanged && !primaryChanged) {
+        return { hasMutation: false, targetManagerIds: null, primaryManagerId: undefined };
+      }
+      return { hasMutation: true, targetManagerIds, primaryManagerId };
+    }
+
+    if (hasList && hasSingle && (listIds[0] || null) !== (singleId || null)) {
+      throw new Error("Conflicting update values for 'manager' and 'managers' in UserRepository");
+    }
+    const targetManagerIds = hasList ? listIds : (singleId ? [singleId] : []);
+    return {
+      hasMutation: true,
+      targetManagerIds,
+      primaryManagerId: targetManagerIds[0] || null,
+    };
+  }
+
+  async _syncUserManagerLinks(prismaClient, { userId, organizationId, managerIds, existingLinks = [] }) {
+    if (!prismaClient?.userManagerAssignment) return;
+    await prismaClient.userManagerAssignment.deleteMany({
+      where: {
+        userId,
+        ...(managerIds.length > 0 ? { managerId: { notIn: managerIds } } : {}),
+      },
+    });
+    if (managerIds.length === 0) return;
+
+    const existingSet = new Set(
+      (Array.isArray(existingLinks) ? existingLinks : [])
+        .map((l) => this.toIdString(l?.managerId || l?.manager))
+        .filter(Boolean),
+    );
+    const missingIds = managerIds.filter((mId) => mId !== userId && !existingSet.has(mId));
+    if (missingIds.length === 0) return;
+
+    const rows = missingIds.map((managerId) => ({
+      id: generateId(),
+      organizationId,
+      userId,
+      managerId,
+    }));
+
+    if (typeof prismaClient.userManagerAssignment.createMany === "function") {
+      await prismaClient.userManagerAssignment.createMany({
+        data: rows,
+        skipDuplicates: true,
+      });
+    } else if (typeof prismaClient.userManagerAssignment.upsert === "function") {
+      await Promise.all(
+        rows.map((row) =>
+          prismaClient.userManagerAssignment.upsert({
+            where: { userId_managerId: { userId: row.userId, managerId: row.managerId } },
+            create: row,
+            update: {},
+          }),
+        ),
+      );
+    } else if (typeof prismaClient.userManagerAssignment.create === "function") {
+      await Promise.all(
+        rows.map((row) => prismaClient.userManagerAssignment.create({ data: row })),
+      );
+    }
+  }
+
+  _buildManagerWhereCondition(parsed) {
+    if (parsed === undefined) return undefined;
+    if (parsed === null) {
+      return {
+        AND: [
+          { managerId: null },
+          { managerLinks: { none: {} } },
+        ],
+      };
+    }
+    if (typeof parsed === "string") {
+      return {
+        OR: [
+          { managerId: parsed },
+          { managerLinks: { some: { managerId: parsed } } },
+        ],
+      };
+    }
+    if (typeof parsed === "object" && parsed !== null) {
+      const clauses = [];
+      if (Array.isArray(parsed.in)) {
+        clauses.push({
+          OR: [
+            { managerId: { in: parsed.in } },
+            { managerLinks: { some: { managerId: { in: parsed.in } } } },
+          ],
+        });
+      }
+      if (parsed.not === null) {
+        clauses.push({
+          OR: [
+            { managerId: { not: null } },
+            { managerLinks: { some: {} } },
+          ],
+        });
+      } else if (parsed.not !== undefined) {
+        clauses.push({
+          NOT: {
+            OR: [
+              { managerId: parsed.not },
+              { managerLinks: { some: { managerId: parsed.not } } },
+            ],
+          },
+        });
+      }
+      if (Array.isArray(parsed.notIn)) {
+        clauses.push({
+          NOT: {
+            OR: [
+              { managerId: { in: parsed.notIn } },
+              { managerLinks: { some: { managerId: { in: parsed.notIn } } } },
+            ],
+          },
+        });
+      }
+      if (clauses.length === 1) return clauses[0];
+      if (clauses.length > 1) return { AND: clauses };
+    }
+    return undefined;
+  }
+
+  _applyManagerFilter(where, filter) {
+    let parsedManager;
+    if (filter.manager !== undefined) {
+      parsedManager = this._buildRelationIdFilter(filter.manager, "manager");
+    }
+    if (filter.managerId !== undefined) {
+      const parsedManagerId = this._buildRelationIdFilter(filter.managerId, "managerId");
+      if (parsedManager !== undefined && !isSameFilter(parsedManager, parsedManagerId)) {
+        throw new Error("Conflicting manager filters in UserRepository");
+      }
+      parsedManager = parsedManagerId;
+    }
+    if (filter.managers !== undefined) {
+      const parsedManagers = this._buildRelationIdFilter(filter.managers, "managers");
+      if (parsedManager !== undefined && !isSameFilter(parsedManager, parsedManagers)) {
+        throw new Error("Conflicting manager filters in UserRepository");
+      }
+      parsedManager = parsedManagers;
+    }
+    if (parsedManager === undefined) return;
+    const condition = this._buildManagerWhereCondition(parsedManager);
+    if (!condition) return;
+    where.AND = Array.isArray(where.AND) ? [...where.AND, condition] : [condition];
+  }
+
+  _buildSingleMongoManagerClause(val) {
+    if (val === null) {
+      return {
+        $and: [
+          { $or: [{ manager: null }, { manager: { $exists: false } }] },
+          { $or: [{ managers: { $exists: false } }, { managers: { $size: 0 } }] },
+        ],
+      };
+    }
+    return {
+      $or: [{ manager: val }, { managers: val }],
+    };
+  }
+
+  _rewriteMongoManagerFilter(filter) {
+    if (!filter || typeof filter !== "object" || Array.isArray(filter)) return filter;
+    const hasTopManager = filter.manager !== undefined || filter.managerId !== undefined || filter.managers !== undefined;
+    const hasTopOr = Array.isArray(filter.$or);
+    const hasTopAnd = Array.isArray(filter.$and);
+    if (!hasTopManager && !hasTopOr && !hasTopAnd) return filter;
+
+    const copy = { ...filter };
+    if (hasTopManager) {
+      const mVal = copy.manager !== undefined ? copy.manager : (copy.managerId !== undefined ? copy.managerId : copy.managers);
+      delete copy.manager;
+      delete copy.managerId;
+      delete copy.managers;
+      const mgrCond = this._buildSingleMongoManagerClause(mVal);
+      if (copy.$or) {
+        copy.$and = [...(Array.isArray(copy.$and) ? copy.$and : []), mgrCond];
+      } else if (mgrCond.$or) {
+        copy.$or = mgrCond.$or;
+      } else if (mgrCond.$and) {
+        copy.$and = [...(Array.isArray(copy.$and) ? copy.$and : []), ...mgrCond.$and];
+      }
+    }
+    if (Array.isArray(copy.$or)) {
+      copy.$or = copy.$or.map((clause) => this._rewriteMongoManagerFilter(clause));
+    }
+    if (Array.isArray(copy.$and)) {
+      copy.$and = copy.$and.map((clause) => this._rewriteMongoManagerFilter(clause));
+    }
+    return copy;
+  }
+
+  _normalizeMongoManagerUpdate(update) {
+    if (!update || typeof update !== "object" || Array.isArray(update)) return update;
+    const out = { ...update };
+    if (out.$set) out.$set = { ...out.$set };
+    if (out.$unset) out.$unset = { ...out.$unset };
+
+    const setContainer = out.$set || out;
+    const hasManagers = setContainer.managers !== undefined;
+    const hasSingle = setContainer.manager !== undefined || setContainer.managerId !== undefined;
+
+    if (hasManagers && !hasSingle) {
+      const normalized = this._normalizeManagerIdList(setContainer.managers);
+      setContainer.managers = normalized;
+      setContainer.manager = normalized[0] || null;
+    } else if (hasSingle && !hasManagers) {
+      const raw = setContainer.manager !== undefined ? setContainer.manager : setContainer.managerId;
+      const single = raw ? this.toIdString(raw?._id || raw?.id || raw) : null;
+      setContainer.manager = single;
+      setContainer.managers = single ? [single] : [];
+    } else if (out.$unset && (out.$unset.manager !== undefined || out.$unset.managerId !== undefined) && !hasManagers) {
+      out.$set = out.$set || {};
+      out.$set.managers = [];
+    }
+    return out;
+  }
+
+  _formatMongoUser(doc) {
+    if (!doc) return null;
+    const raw = doc.toObject ? doc.toObject() : doc;
+    const serialized = this.serialize(raw);
+    const seen = new Set();
+    const managersList = [];
+    const pushManager = (entry) => {
+      if (!entry) return;
+      if (isPopulatedManagerObject(entry)) {
+        const clean = sanitizePopulatedManager((v) => this.serialize(v), entry);
+        if (!clean) return;
+        const idStr = clean.id || clean._id;
+        if (idStr && seen.has(idStr)) {
+          const idx = managersList.findIndex((m) => (typeof m === "object" ? (m.id || m._id) : m) === idStr);
+          if (idx >= 0) managersList[idx] = clean;
+          return;
+        }
+        if (idStr) seen.add(idStr);
+        managersList.push(clean);
+      } else {
+        const idStr = this.toIdString(entry);
+        if (idStr && idStr !== "[object Object]" && !seen.has(idStr)) {
+          seen.add(idStr);
+          managersList.push(idStr);
+        }
+      }
+    };
+
+    if (Array.isArray(raw.managers)) {
+      for (const m of raw.managers) pushManager(m);
+    }
+    if (raw.manager) {
+      const prevLen = managersList.length;
+      pushManager(raw.manager);
+      if (managersList.length > prevLen && managersList.length > 1) {
+        const added = managersList.pop();
+        managersList.unshift(added);
+      }
+    }
+
+    serialized.managers = managersList;
+    if (managersList.length > 0 && isPopulatedManagerObject(managersList[0])) {
+      serialized.manager = { ...managersList[0] };
+    } else {
+      serialized.manager = null;
+    }
+    return serialized;
+  }
+
   /**
    * Formats a raw Prisma User record into the exact Mongoose application shape:
    * - Exposes '_id'
-   * - Exposes 'organization', 'team', 'reportTeam', 'manager'
+   * - Exposes 'organization', 'team', 'reportTeam', 'managers', 'manager'
    * - Rehydrates 'devices' from UserDevice relations
    * - Rehydrates 'refreshTokens' from UserRefreshToken relations
    */
@@ -359,15 +855,90 @@ export class UserRepository extends BaseRepository {
     }
     delete serialized.reportTeamId;
 
-    if (doc.manager && typeof doc.manager === "object") {
-      serialized.manager = this.serialize(doc.manager);
-      delete serialized.manager.organizationId;
-    } else {
-      serialized.manager = serialized.manager || serialized.managerId || null;
+    const seenManagerIds = new Set();
+    const managersList = [];
+    const upsertManagerEntry = (entry) => {
+      if (!entry) return;
+      if (isPopulatedManagerObject(entry)) {
+        const clean = sanitizePopulatedManager((v) => this.serialize(v), entry);
+        if (!clean) return;
+        const idStr = clean.id || clean._id;
+        if (idStr && seenManagerIds.has(idStr)) {
+          const idx = managersList.findIndex((m) => (typeof m === "object" ? (m.id || m._id) : m) === idStr);
+          if (idx >= 0 && typeof managersList[idx] !== "object") {
+            managersList[idx] = clean;
+          }
+          return;
+        }
+        if (idStr) seenManagerIds.add(idStr);
+        managersList.push(clean);
+      } else {
+        const idStr = this.toIdString(entry);
+        if (idStr && idStr !== "[object Object]" && !seenManagerIds.has(idStr)) {
+          seenManagerIds.add(idStr);
+          managersList.push(idStr);
+        }
+      }
+    };
+
+    if (Array.isArray(doc.managerLinks)) {
+      for (const link of doc.managerLinks) {
+        if (!link) continue;
+        if (link.manager && typeof link.manager === "object") {
+          upsertManagerEntry(link.manager);
+        } else if (link.managerId) {
+          upsertManagerEntry(link.managerId);
+        }
+      }
     }
+
+    if (Array.isArray(doc.managers)) {
+      for (const m of doc.managers) {
+        upsertManagerEntry(m);
+      }
+    }
+
+    if (isPopulatedManagerObject(doc.manager)) {
+      const primaryClean = sanitizePopulatedManager((v) => this.serialize(v), doc.manager);
+      if (primaryClean) {
+        const primaryId = primaryClean.id || primaryClean._id;
+        const existingIdx = managersList.findIndex((m) => (typeof m === "object" ? (m.id || m._id) : m) === primaryId);
+        if (existingIdx > 0) {
+          managersList.splice(existingIdx, 1);
+          managersList.unshift(primaryClean);
+        } else if (existingIdx === 0) {
+          managersList[0] = primaryClean;
+        } else {
+          if (primaryId) seenManagerIds.add(primaryId);
+          managersList.unshift(primaryClean);
+        }
+      }
+    } else {
+      const legacyManagerId = doc.managerId || (typeof doc.manager === "string" && doc.manager.trim() ? doc.manager.trim() : null);
+      if (legacyManagerId) {
+        const idStr = this.toIdString(legacyManagerId);
+        if (idStr && idStr !== "[object Object]") {
+          const existingIdx = managersList.findIndex((m) => (typeof m === "object" ? (m.id || m._id) : m) === idStr);
+          if (existingIdx > 0) {
+            const [item] = managersList.splice(existingIdx, 1);
+            managersList.unshift(item);
+          } else if (existingIdx === -1) {
+            seenManagerIds.add(idStr);
+            managersList.unshift(idStr);
+          }
+        }
+      }
+    }
+
+    serialized.managers = managersList;
     delete serialized.managerId;
-    if (!serialized.manager) {
-      delete serialized.manager;
+    delete serialized.managerLinks;
+    delete serialized.subordinateLinks;
+
+    if (managersList.length > 0 && isPopulatedManagerObject(managersList[0])) {
+      serialized.manager = { ...managersList[0] };
+    } else {
+      serialized.manager = null;
     }
 
     if (doc.customRole && typeof doc.customRole === "object") {
@@ -446,16 +1017,7 @@ export class UserRepository extends BaseRepository {
 
     if (isPostgres()) {
       try {
-        const include = {
-          devices: true,
-          refreshTokens: true,
-        };
-
-        if (hasPopulate("team", options)) include.team = true;
-        if (hasPopulate("reportTeam", options)) include.reportTeam = true;
-        if (hasPopulate("organization", options)) include.organization = true;
-        if (hasPopulate("manager", options)) include.manager = true;
-        if (hasPopulate("role", options) || hasPopulate("roleRef", options)) include.customRole = true;
+        const include = buildUserInclude(options);
 
         const doc = await this.delegate.findUnique({
           where: { id: idStr },
@@ -468,20 +1030,9 @@ export class UserRepository extends BaseRepository {
       }
     }
 
-    let query = this.mongooseModel.findById(idStr);
-    if (options.populate) {
-      const popList = Array.isArray(options.populate) ? options.populate : [options.populate];
-      for (const pop of popList) {
-        if (typeof pop === "string") query = query.populate(pop);
-        else if (pop && pop.path) query = query.populate(pop.path, pop.select);
-      }
-    }
-    if (options.populateOrganization) query = query.populate("organization");
-    if (options.populateTeam) query = query.populate("team", "name");
-    if (options.populateManager) query = query.populate("manager", "firstName lastName email");
-    if (options.populateRole) query = query.populate("roleRef");
+    const query = applyMongooseManagerPopulate(this.mongooseModel.findById(idStr), options);
     const doc = await query;
-    return doc ? this.serialize(doc.toObject ? doc.toObject() : doc) : null;
+    return this._formatMongoUser(doc);
   }
 
   async findUserByIdAndOrganization(id, organizationId, options = {}) {
@@ -552,16 +1103,7 @@ export class UserRepository extends BaseRepository {
           where.organizationId = orgIdFilter;
         }
 
-        if (filter.manager !== undefined) {
-          where.managerId = this._buildRelationIdFilter(filter.manager, "manager");
-        }
-        if (filter.managerId !== undefined) {
-          const managerIdFilter = this._buildRelationIdFilter(filter.managerId, "managerId");
-          if (where.managerId !== undefined && typeof where.managerId === "string" && typeof managerIdFilter === "string" && where.managerId !== managerIdFilter) {
-            throw new Error("Conflicting manager filters in UserRepository");
-          }
-          where.managerId = managerIdFilter;
-        }
+        this._applyManagerFilter(where, filter);
 
         if (filter.team !== undefined) {
           where.teamId = this._buildRelationIdFilter(filter.team, "team");
@@ -590,16 +1132,7 @@ export class UserRepository extends BaseRepository {
         if (filter.verificationToken) where.verificationToken = filter.verificationToken;
         if (filter.resetToken) where.resetToken = filter.resetToken;
 
-        const include = {
-          devices: true,
-          refreshTokens: true,
-        };
-
-        if (hasPopulate("team", options)) include.team = true;
-        if (hasPopulate("reportTeam", options)) include.reportTeam = true;
-        if (hasPopulate("organization", options)) include.organization = true;
-        if (hasPopulate("manager", options)) include.manager = true;
-        if (hasPopulate("role", options) || hasPopulate("roleRef", options)) include.customRole = true;
+        const include = buildUserInclude(options);
 
         const doc = await this.delegate.findFirst({
           where,
@@ -612,19 +1145,10 @@ export class UserRepository extends BaseRepository {
       }
     }
 
-    let query = this.mongooseModel.findOne(filter);
-    if (options.populate) {
-      const popList = Array.isArray(options.populate) ? options.populate : [options.populate];
-      for (const pop of popList) {
-        if (typeof pop === "string") query = query.populate(pop);
-        else if (pop && pop.path) query = query.populate(pop.path, pop.select);
-      }
-    }
-    if (options.populateOrganization) query = query.populate("organization");
-    if (options.populateTeam) query = query.populate("team", "name");
-    if (options.populateManager) query = query.populate("manager", "firstName lastName email");
+    const mongoFilter = this._rewriteMongoManagerFilter(filter);
+    const query = applyMongooseManagerPopulate(this.mongooseModel.findOne(mongoFilter), options);
     const doc = await query;
-    return doc ? this.serialize(doc.toObject ? doc.toObject() : doc) : null;
+    return this._formatMongoUser(doc);
   }
 
   async findWithAuth(filter = {}) {
@@ -963,16 +1487,7 @@ export class UserRepository extends BaseRepository {
           where.teamId = teamIdFilter;
         }
 
-        if (filter.manager !== undefined) {
-          where.managerId = this._buildRelationIdFilter(filter.manager, "manager");
-        }
-        if (filter.managerId !== undefined) {
-          const managerIdFilter = this._buildRelationIdFilter(filter.managerId, "managerId");
-          if (where.managerId !== undefined && !isSameFilter(where.managerId, managerIdFilter)) {
-            throw new Error("Conflicting manager filters in UserRepository");
-          }
-          where.managerId = managerIdFilter;
-        }
+        this._applyManagerFilter(where, filter);
 
         if (filter.roleRef !== undefined) {
           where.roleRef = this._buildRelationIdFilter(filter.roleRef, "roleRef");
@@ -1014,16 +1529,10 @@ export class UserRepository extends BaseRepository {
               if (key === "_id" || key === "id") {
                 orItem.id = this._buildIdFilter(clause[key], key);
               } else if (key === "manager" || key === "managerId") {
-                if (clause[key] && typeof clause[key] === "object") {
-                  if (clause[key].$in && Array.isArray(clause[key].$in)) {
-                    orItem.managerId = { in: clause[key].$in.map((id) => this.toIdString(id)).filter(Boolean) };
-                  } else if (clause[key].in && Array.isArray(clause[key].in)) {
-                    orItem.managerId = { in: clause[key].in.map((id) => this.toIdString(id)).filter(Boolean) };
-                  } else {
-                    orItem.managerId = this.toIdString(clause[key]);
-                  }
-                } else {
-                  orItem.managerId = this.toIdString(clause[key]);
+                const parsedClauseMgr = this._buildRelationIdFilter(clause[key], key);
+                const cond = this._buildManagerWhereCondition(parsedClauseMgr);
+                if (cond) {
+                  orItem.AND = Array.isArray(orItem.AND) ? [...orItem.AND, cond] : [cond];
                 }
               } else if (key === "firstName") {
                 orItem.firstName = this._buildTextFilter(clause.firstName, "firstName");
@@ -1075,17 +1584,8 @@ export class UserRepository extends BaseRepository {
 
         const queryOptions = {
           where,
-          include: {
-            devices: true,
-            refreshTokens: true,
-          },
+          include: buildUserInclude(options),
         };
-
-        if (hasPopulate("team", options)) queryOptions.include.team = true;
-        if (hasPopulate("reportTeam", options)) queryOptions.include.reportTeam = true;
-        if (hasPopulate("organization", options)) queryOptions.include.organization = true;
-        if (hasPopulate("manager", options)) queryOptions.include.manager = true;
-        if (hasPopulate("role", options) || hasPopulate("roleRef", options)) queryOptions.include.customRole = true;
 
         const orderBy = buildOrderBy(options.sort);
         if (orderBy) {
@@ -1109,22 +1609,13 @@ export class UserRepository extends BaseRepository {
       }
     }
 
-    let query = this.mongooseModel.find(filter);
-    if (options.populate) {
-      const popList = Array.isArray(options.populate) ? options.populate : [options.populate];
-      for (const pop of popList) {
-        if (typeof pop === "string") query = query.populate(pop);
-        else if (pop && pop.path) query = query.populate(pop.path, pop.select);
-      }
-    }
-    if (options.populateOrganization) query = query.populate("organization");
-    if (options.populateTeam) query = query.populate("team", "name");
-    if (options.populateManager) query = query.populate("manager", "firstName lastName email");
+    const mongoFilter = this._rewriteMongoManagerFilter(filter);
+    let query = applyMongooseManagerPopulate(this.mongooseModel.find(mongoFilter), options);
     if (options.sort) query = query.sort(options.sort);
     if (typeof options.skip === "number") query = query.skip(options.skip);
     if (typeof options.limit === "number") query = query.limit(options.limit);
     const docs = await query;
-    return docs.map((d) => this.serialize(d.toObject ? d.toObject() : d));
+    return docs.map((d) => this._formatMongoUser(d));
   }
 
   _buildRelationIdFilter(val, fieldName) {
@@ -1281,6 +1772,7 @@ export class UserRepository extends BaseRepository {
       "organizationId",
       "manager",
       "managerId",
+      "managers",
       "team",
       "teamId",
       "role",
@@ -1315,15 +1807,8 @@ export class UserRepository extends BaseRepository {
       where.organizationId = orgIdFilter;
     }
 
-    if (filter.manager !== undefined) {
-      where.managerId = this._buildRelationIdFilter(filter.manager, "manager");
-    }
-    if (filter.managerId !== undefined) {
-      const managerIdFilter = this._buildRelationIdFilter(filter.managerId, "managerId");
-      if (where.managerId !== undefined && typeof where.managerId === "string" && typeof managerIdFilter === "string" && where.managerId !== managerIdFilter) {
-        throw new Error("Conflicting manager filters in UserRepository");
-      }
-      where.managerId = managerIdFilter;
+    if (filter.manager !== undefined || filter.managerId !== undefined || filter.managers !== undefined) {
+      this._applyManagerFilter(where, filter);
     }
 
     if (filter.team !== undefined) {
@@ -1403,7 +1888,7 @@ export class UserRepository extends BaseRepository {
       }
     }
 
-    return await this.mongooseModel.countDocuments(filter);
+    return await this.mongooseModel.countDocuments(this._rewriteMongoManagerFilter(filter));
   }
 
   async create(userData) {
@@ -1411,8 +1896,10 @@ export class UserRepository extends BaseRepository {
       try {
         const orgId = this.toIdString(userData.organization || userData.organizationId);
         const teamId = this.toIdString(userData.team || userData.teamId);
-        const managerId = this.toIdString(userData.manager || userData.managerId);
         const roleRef = this.toIdString(userData.roleRef);
+        const managerMutation = this._resolveManagerMutation(userData, null);
+        const targetManagerIds = managerMutation.hasMutation ? managerMutation.targetManagerIds : [];
+        const managerId = targetManagerIds[0] || null;
 
         const newId = userData._id ? this.toIdString(userData._id) : generateId();
 
@@ -1454,6 +1941,18 @@ export class UserRepository extends BaseRepository {
           include: { devices: true, refreshTokens: true },
         });
 
+        if (targetManagerIds.length > 0 && orgId && this.prisma?.userManagerAssignment) {
+          await this._syncUserManagerLinks(this.prisma, {
+            userId: newId,
+            organizationId: orgId,
+            managerIds: targetManagerIds,
+            existingLinks: [],
+          });
+        }
+        if (targetManagerIds.length > 0 && !Array.isArray(doc.managerLinks)) {
+          doc.managerLinks = targetManagerIds.map((mId) => ({ managerId: mId }));
+        }
+
         // Insert initial devices if provided
         if (Array.isArray(userData.devices) && userData.devices.length > 0) {
           const prisma = this.prisma;
@@ -1481,8 +1980,14 @@ export class UserRepository extends BaseRepository {
       }
     }
 
-    const doc = await this.mongooseModel.create(userData);
-    return this.serialize(doc.toObject ? doc.toObject() : doc);
+    const mongoData = { ...userData };
+    const managerMutation = this._resolveManagerMutation(mongoData, null);
+    if (managerMutation.hasMutation) {
+      mongoData.managers = managerMutation.targetManagerIds;
+      mongoData.manager = managerMutation.primaryManagerId || undefined;
+    }
+    const doc = await this.mongooseModel.create(mongoData);
+    return this._formatMongoUser(doc);
   }
 
   _buildUserPatch(rawPayload, existing) {
@@ -1655,13 +2160,20 @@ export class UserRepository extends BaseRepository {
         }
 
         const include = buildUserInclude(options);
+        const wantsManagerMutation =
+          rawPayload.manager !== undefined ||
+          rawPayload.managerId !== undefined ||
+          rawPayload.managers !== undefined;
+        const existingInclude = wantsManagerMutation && !include.managerLinks
+          ? { ...include, managerLinks: true }
+          : include;
 
         // Fetch existing record if delegate provides findUnique
         let existing = null;
         if (typeof this.delegate.findUnique === "function") {
           existing = await this.delegate.findUnique({
             where: { id: idStr },
-            include,
+            include: existingInclude,
           });
           if (!existing) {
             return null;
@@ -1694,7 +2206,16 @@ export class UserRepository extends BaseRepository {
           }
         }
 
-        const patch = this._buildUserPatch(rawPayload, existing);
+        const managerMutation = this._resolveManagerMutation(rawPayload, existing);
+        const sanitizedPayloadForPatch = { ...rawPayload };
+        if (managerMutation.hasMutation) {
+          sanitizedPayloadForPatch.manager = managerMutation.primaryManagerId;
+          sanitizedPayloadForPatch.managerId = managerMutation.primaryManagerId;
+        } else {
+          delete sanitizedPayloadForPatch.manager;
+          delete sanitizedPayloadForPatch.managerId;
+        }
+        const patch = this._buildUserPatch(sanitizedPayloadForPatch, existing);
 
         const existingDevices = Array.isArray(existing?.devices) ? existing.devices : [];
         const existingDeviceMap = new Map(
@@ -1740,7 +2261,8 @@ export class UserRepository extends BaseRepository {
             })
           : [];
 
-        const hasChildWrites = devicesToUpsert.length > 0 || tokensToUpsert.length > 0;
+        const needsManagerLinkSync = Boolean(managerMutation.hasMutation && this.prisma?.userManagerAssignment);
+        const hasChildWrites = devicesToUpsert.length > 0 || tokensToUpsert.length > 0 || needsManagerLinkSync;
 
         // Avoid empty/ineffective updates
         if (Object.keys(patch).length === 0 && !hasChildWrites) {
@@ -1759,6 +2281,15 @@ export class UserRepository extends BaseRepository {
             }
           }
           const userDelegate = txClient ? txClient.user : this.delegate;
+
+          if (needsManagerLinkSync && prisma?.userManagerAssignment) {
+            await this._syncUserManagerLinks(prisma, {
+              userId: idStr,
+              organizationId: existingOrg || this.toIdString(rawPayload.organization || rawPayload.organizationId),
+              managerIds: managerMutation.targetManagerIds,
+              existingLinks: existing?.managerLinks || [],
+            });
+          }
 
           if (devicesToUpsert.length > 0) {
             await Promise.all(
@@ -1868,6 +2399,10 @@ export class UserRepository extends BaseRepository {
           return applyPopulateProjections(formatted, options);
         }
 
+        if (managerMutation.hasMutation && doc && !include.managerLinks) {
+          doc.managerLinks = managerMutation.targetManagerIds.map((mId) => ({ managerId: mId }));
+        }
+
         const formatted = this.formatUser(doc);
         return applyPopulateProjections(formatted, options);
       } catch (err) {
@@ -1883,8 +2418,9 @@ export class UserRepository extends BaseRepository {
     if (session && !finalOptions.session) {
       finalOptions.session = session;
     }
-    const doc = await this.mongooseModel.findByIdAndUpdate(idStr, updateData, finalOptions);
-    return doc ? this.serialize(doc.toObject ? doc.toObject() : doc) : null;
+    const normalizedUpdate = this._normalizeMongoManagerUpdate(updateData);
+    const doc = await this.mongooseModel.findByIdAndUpdate(idStr, normalizedUpdate, finalOptions);
+    return this._formatMongoUser(doc);
   }
 
   async updateById(id, updateData, options = { new: true }) {
@@ -2080,10 +2616,17 @@ export class UserRepository extends BaseRepository {
 
         const where = this.buildWhere(filter, { allowIdNegation: false });
         const include = buildUserInclude(options);
+        const wantsManagerMutation =
+          rawPayload.manager !== undefined ||
+          rawPayload.managerId !== undefined ||
+          rawPayload.managers !== undefined;
+        const existingInclude = wantsManagerMutation && !include.managerLinks
+          ? { ...include, managerLinks: true }
+          : include;
 
         const existing = await this.delegate.findFirst({
           where,
-          include,
+          include: existingInclude,
         });
 
         if (!existing) {
@@ -2102,10 +2645,17 @@ export class UserRepository extends BaseRepository {
               throw new Error("Cannot upsert User without valid email string and organization");
             }
 
-            const patch = this._buildUserPatch(insertPayload, null);
+            const insertMgrMutation = this._resolveManagerMutation(insertPayload, null);
+            const insertPatchPayload = { ...insertPayload };
+            if (insertMgrMutation.hasMutation) {
+              insertPatchPayload.manager = insertMgrMutation.primaryManagerId;
+              insertPatchPayload.managerId = insertMgrMutation.primaryManagerId;
+            }
+            const patch = this._buildUserPatch(insertPatchPayload, null);
+            const newId = insertPayload._id || insertPayload.id ? this.toIdString(insertPayload._id || insertPayload.id) : generateId();
 
             const createData = {
-              id: insertPayload._id || insertPayload.id ? this.toIdString(insertPayload._id || insertPayload.id) : generateId(),
+              id: newId,
               email: emailVal,
               firstName: insertPayload.firstName || "",
               lastName: insertPayload.lastName || "",
@@ -2118,6 +2668,17 @@ export class UserRepository extends BaseRepository {
               data: createData,
               include,
             });
+            if (insertMgrMutation.hasMutation && insertMgrMutation.targetManagerIds.length > 0 && this.prisma?.userManagerAssignment) {
+              await this._syncUserManagerLinks(this.prisma, {
+                userId: newId,
+                organizationId: orgId,
+                managerIds: insertMgrMutation.targetManagerIds,
+                existingLinks: [],
+              });
+              if (!Array.isArray(created.managerLinks)) {
+                created.managerLinks = insertMgrMutation.targetManagerIds.map((mId) => ({ managerId: mId }));
+              }
+            }
             const resDoc = this.formatUser(created);
             if (insertPayload.kekaEmployeeId !== undefined) {
               resDoc.kekaEmployeeId = insertPayload.kekaEmployeeId;
@@ -2152,12 +2713,22 @@ export class UserRepository extends BaseRepository {
           }
         }
 
-        const patch = this._buildUserPatch(rawPayload, existing);
+        const managerMutation = this._resolveManagerMutation(rawPayload, existing);
+        const sanitizedPayloadForPatch = { ...rawPayload };
+        if (managerMutation.hasMutation) {
+          sanitizedPayloadForPatch.manager = managerMutation.primaryManagerId;
+          sanitizedPayloadForPatch.managerId = managerMutation.primaryManagerId;
+        } else {
+          delete sanitizedPayloadForPatch.manager;
+          delete sanitizedPayloadForPatch.managerId;
+        }
+        const patch = this._buildUserPatch(sanitizedPayloadForPatch, existing);
 
         const returnOriginal = options.new === false || options.returnDocument === "before";
+        const needsManagerLinkSync = Boolean(managerMutation.hasMutation && this.prisma?.userManagerAssignment);
 
         // Avoid empty writes
-        if (Object.keys(patch).length === 0) {
+        if (Object.keys(patch).length === 0 && !needsManagerLinkSync) {
           const formatted = this.formatUser(existing);
           if (rawPayload.kekaEmployeeId !== undefined && !returnOriginal) {
             formatted.kekaEmployeeId = rawPayload.kekaEmployeeId;
@@ -2165,11 +2736,44 @@ export class UserRepository extends BaseRepository {
           return applyPopulateProjections(formatted, options);
         }
 
-        const updated = await this.delegate.update({
-          where: { id: existingId },
-          data: patch,
-          include,
-        });
+        let updated;
+        if (needsManagerLinkSync && this.prisma?.userManagerAssignment) {
+          const prisma = this.prisma;
+          const executeInTx = typeof prisma?.$transaction === "function"
+            ? (fn) => prisma.$transaction(fn, { maxWait: 5000, timeout: 15000 })
+            : (fn) => runTransaction(fn, { maxWait: 5000, timeout: 15000 });
+
+          updated = await executeInTx(async (tx) => {
+            const txClient = tx || prisma;
+            const userDelegate = tx ? txClient.user : this.delegate;
+            await this._syncUserManagerLinks(txClient, {
+              userId: existingId,
+              organizationId: existingOrg,
+              managerIds: managerMutation.targetManagerIds,
+              existingLinks: existing.managerLinks || [],
+            });
+            if (Object.keys(patch).length > 0) {
+              return await userDelegate.update({
+                where: { id: existingId },
+                data: patch,
+                include,
+              });
+            }
+            return typeof userDelegate.findUnique === "function"
+              ? await userDelegate.findUnique({ where: { id: existingId }, include })
+              : existing;
+          });
+        } else {
+          updated = await this.delegate.update({
+            where: { id: existingId },
+            data: patch,
+            include,
+          });
+        }
+
+        if (managerMutation.hasMutation && updated && !include.managerLinks) {
+          updated.managerLinks = managerMutation.targetManagerIds.map((mId) => ({ managerId: mId }));
+        }
 
         const resDoc = returnOriginal ? this.formatUser(existing) : this.formatUser(updated);
         if (rawPayload.kekaEmployeeId !== undefined && !returnOriginal) {
@@ -2184,8 +2788,10 @@ export class UserRepository extends BaseRepository {
       }
     }
 
-    const doc = await this.mongooseModel.findOneAndUpdate(filter, update, options);
-    return doc ? this.serialize(doc.toObject ? doc.toObject() : doc) : null;
+    const mongoFilter = this._rewriteMongoManagerFilter(filter);
+    const mongoUpdate = this._normalizeMongoManagerUpdate(update);
+    const doc = await this.mongooseModel.findOneAndUpdate(mongoFilter, mongoUpdate, options);
+    return this._formatMongoUser(doc);
   }
 
   buildDistinctWhere(filter = {}) {
@@ -2204,14 +2810,15 @@ export class UserRepository extends BaseRepository {
       where.organizationId = this.toIdString(filter.organizationId);
     }
 
+    let distinctMgrParsed;
     if (filter.manager !== undefined) {
       if (filter.manager === null) {
-        where.managerId = null;
+        distinctMgrParsed = null;
       } else if (typeof filter.manager === "object") {
         if (filter.manager.$ne === null) {
-          where.managerId = { not: null };
+          distinctMgrParsed = { not: null };
         } else if (filter.manager.$in && Array.isArray(filter.manager.$in)) {
-          where.managerId = { in: filter.manager.$in.map((m) => this.toIdString(m)).filter(Boolean) };
+          distinctMgrParsed = { in: filter.manager.$in.map((m) => this.toIdString(m)).filter(Boolean) };
         } else {
           for (const k of Object.keys(filter.manager)) {
             if (k.startsWith("$") && k !== "$in" && k !== "$ne") {
@@ -2219,23 +2826,24 @@ export class UserRepository extends BaseRepository {
             }
           }
           if (filter.manager.$ne !== undefined) {
-            where.managerId = { not: this.toIdString(filter.manager.$ne) };
+            distinctMgrParsed = { not: this.toIdString(filter.manager.$ne) };
           } else {
-            where.managerId = this.toIdString(filter.manager);
+            distinctMgrParsed = this.toIdString(filter.manager);
           }
         }
       } else {
-        where.managerId = this.toIdString(filter.manager);
+        distinctMgrParsed = this.toIdString(filter.manager);
       }
     }
     if (filter.managerId !== undefined) {
+      let mgrIdParsed;
       if (filter.managerId === null) {
-        where.managerId = null;
+        mgrIdParsed = null;
       } else if (typeof filter.managerId === "object") {
         if (filter.managerId.$ne === null) {
-          where.managerId = { not: null };
+          mgrIdParsed = { not: null };
         } else if (filter.managerId.$in && Array.isArray(filter.managerId.$in)) {
-          where.managerId = { in: filter.managerId.$in.map((m) => this.toIdString(m)).filter(Boolean) };
+          mgrIdParsed = { in: filter.managerId.$in.map((m) => this.toIdString(m)).filter(Boolean) };
         } else {
           for (const k of Object.keys(filter.managerId)) {
             if (k.startsWith("$") && k !== "$in" && k !== "$ne") {
@@ -2243,13 +2851,23 @@ export class UserRepository extends BaseRepository {
             }
           }
           if (filter.managerId.$ne !== undefined) {
-            where.managerId = { not: this.toIdString(filter.managerId.$ne) };
+            mgrIdParsed = { not: this.toIdString(filter.managerId.$ne) };
           } else {
-            where.managerId = this.toIdString(filter.managerId);
+            mgrIdParsed = this.toIdString(filter.managerId);
           }
         }
       } else {
-        where.managerId = this.toIdString(filter.managerId);
+        mgrIdParsed = this.toIdString(filter.managerId);
+      }
+      if (distinctMgrParsed !== undefined && !isSameFilter(distinctMgrParsed, mgrIdParsed)) {
+        throw new Error("Conflicting manager filters in UserRepository");
+      }
+      distinctMgrParsed = mgrIdParsed;
+    }
+    if (distinctMgrParsed !== undefined) {
+      const cond = this._buildManagerWhereCondition(distinctMgrParsed);
+      if (cond) {
+        where.AND = Array.isArray(where.AND) ? [...where.AND, cond] : [cond];
       }
     }
 
@@ -2377,7 +2995,7 @@ export class UserRepository extends BaseRepository {
       }
     }
 
-    return await this.mongooseModel.distinct(field, filter);
+    return await this.mongooseModel.distinct(field, this._rewriteMongoManagerFilter(filter));
   }
 
   async findByIdAndDelete(id) {
@@ -2412,6 +3030,11 @@ export class UserRepository extends BaseRepository {
             throw new Error("Transaction client missing required delegate in UserRepository.findByIdAndDelete");
           }
           const userDelegate = tx ? txClient.user : this.delegate;
+          if (txClient.userManagerAssignment) {
+            await txClient.userManagerAssignment.deleteMany({
+              where: { OR: [{ userId: idStr }, { managerId: idStr }] },
+            });
+          }
           await txClient.userDevice.deleteMany({ where: { userId: idStr } });
           await txClient.userRefreshToken.deleteMany({ where: { userId: idStr } });
           const doc = await userDelegate.delete({ where: { id: idStr } });
@@ -2426,7 +3049,7 @@ export class UserRepository extends BaseRepository {
     }
 
     const doc = await this.mongooseModel.findByIdAndDelete(idStr);
-    return doc ? this.serialize(doc.toObject ? doc.toObject() : doc) : null;
+    return this._formatMongoUser(doc);
   }
 
   async deleteOne(filter = {}) {
@@ -2440,7 +3063,7 @@ export class UserRepository extends BaseRepository {
         this.handleError(err);
       }
     }
-    return await this.mongooseModel.deleteOne(filter);
+    return await this.mongooseModel.deleteOne(this._rewriteMongoManagerFilter(filter));
   }
 
   async deleteMany(filter = {}, options = {}) {
@@ -2474,7 +3097,7 @@ export class UserRepository extends BaseRepository {
     if (!filter || typeof filter !== "object" || Array.isArray(filter)) {
       throw new Error("UserRepository.deleteMany requires a valid filter object");
     }
-    return this.mongooseModel.deleteMany(filter, options);
+    return this.mongooseModel.deleteMany(this._rewriteMongoManagerFilter(filter), options);
   }
 
   async updateMany(filter = {}, update = {}) {
@@ -2496,6 +3119,7 @@ export class UserRepository extends BaseRepository {
           "organizationId",
           "manager",
           "managerId",
+          "managers",
           "team",
           "teamId",
           "role",
@@ -2542,16 +3166,7 @@ export class UserRepository extends BaseRepository {
         }
 
         // 3. Manager filter
-        if (filter.manager !== undefined) {
-          where.managerId = this._buildRelationIdFilter(filter.manager, "manager");
-        }
-        if (filter.managerId !== undefined) {
-          const managerIdFilter = this._buildRelationIdFilter(filter.managerId, "managerId");
-          if (where.managerId !== undefined && !isSameFilter(where.managerId, managerIdFilter)) {
-            throw new Error("Conflicting manager filters in UserRepository");
-          }
-          where.managerId = managerIdFilter;
-        }
+        this._applyManagerFilter(where, filter);
 
         // 4. Team filter
         if (typeof filter.team === "string" && !/^[0-9a-fA-F]{24}$/.test(filter.team)) {
@@ -2617,6 +3232,7 @@ export class UserRepository extends BaseRepository {
         const ALLOWED_UPDATE_FIELDS = new Set([
           "manager",
           "managerId",
+          "managers",
           "team",
           "teamId",
           "reportTeam",
@@ -2912,13 +3528,45 @@ export class UserRepository extends BaseRepository {
           };
         }
 
+        let targetUsersForManagerSync = null;
+        if (patch.managerId !== undefined && this.prisma?.userManagerAssignment && typeof this.delegate.findMany === "function") {
+          targetUsersForManagerSync = await this.delegate.findMany({
+            where,
+            select: { id: true, organizationId: true },
+          });
+        }
+
         const res = await this.delegate.updateMany({ where, data: patch });
+
+        if (Array.isArray(targetUsersForManagerSync) && targetUsersForManagerSync.length > 0 && this.prisma?.userManagerAssignment) {
+          const matchedUserIds = targetUsersForManagerSync.map((u) => u.id).filter(Boolean);
+          if (patch.managerId === null) {
+            await this.prisma.userManagerAssignment.deleteMany({
+              where: { userId: { in: matchedUserIds } },
+            });
+          } else if (patch.managerId) {
+            await Promise.all(
+              targetUsersForManagerSync.map((u) =>
+                this._syncUserManagerLinks(this.prisma, {
+                  userId: u.id,
+                  organizationId: u.organizationId,
+                  managerIds: [patch.managerId],
+                  existingLinks: [],
+                }),
+              ),
+            );
+          }
+        }
+
         return { acknowledged: true, modifiedCount: res.count };
       } catch (err) {
         this.handleError(err);
       }
     }
-    return await this.mongooseModel.updateMany(filter, update);
+    return await this.mongooseModel.updateMany(
+      this._rewriteMongoManagerFilter(filter),
+      this._normalizeMongoManagerUpdate(update),
+    );
   }
 
   // ---------------------------------------------------------------------------

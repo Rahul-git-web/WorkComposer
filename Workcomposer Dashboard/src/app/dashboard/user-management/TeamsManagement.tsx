@@ -68,6 +68,10 @@ export default function TeamsManagement({
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [editingManagerId, setEditingManagerId] = useState<string | null>(null);
     const [selectedManager, setSelectedManager] = useState("");
+    const [assigningUserForManagers, setAssigningUserForManagers] = useState<any>(null);
+    const [assignManagerIds, setAssignManagerIds] = useState<string[]>([]);
+    const [assigningManagersLoading, setAssigningManagersLoading] = useState(false);
+    const [allManagerCandidates, setAllManagerCandidates] = useState<any[]>([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteEmail, setDeleteEmail] = useState("");
 
@@ -79,12 +83,63 @@ export default function TeamsManagement({
         "All Teams";
 
 
-    const managers = Array.isArray(users)
-        ? users.filter(
+    const managerSource = allManagerCandidates.length > 0 ? allManagerCandidates : users;
+    const managers = Array.isArray(managerSource)
+        ? managerSource.filter(
             (u: any) =>
-                u.role?.toLowerCase() === "manager" ||
-                u.role?.toLowerCase() === "owner"
+                !u.isArchived &&
+                u.status !== "archived" &&
+                (u.role?.toLowerCase() === "manager" ||
+                    u.role?.toLowerCase() === "admin" ||
+                    u.role?.toLowerCase() === "owner")
         ) : [];
+
+    useEffect(() => {
+        API.get("/users/all-users")
+            .then((res) => {
+                if (Array.isArray(res.data?.users)) {
+                    setAllManagerCandidates(res.data.users);
+                }
+            })
+            .catch(() => {});
+    }, []);
+
+    const extractAssignedManagerIds = (u: any): string[] => {
+        const rawList = Array.isArray(u?.managers) && u.managers.length > 0
+            ? u.managers
+            : u?.manager
+              ? [u.manager]
+              : [];
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const item of rawList) {
+            const id = typeof item === "object" && item !== null ? item._id || item.id : item;
+            if (typeof id === "string" && id && !seen.has(id)) {
+                seen.add(id);
+                out.push(id);
+            }
+        }
+        return out;
+    };
+
+    const getAssignedManagerNames = (u: any): string[] => {
+        const rawList = Array.isArray(u?.managers) && u.managers.length > 0
+            ? u.managers
+            : u?.manager
+              ? [u.manager]
+              : [];
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const item of rawList) {
+            if (!item || typeof item !== "object") continue;
+            const label = `${item.firstName ?? ""} ${item.lastName ?? ""}`.trim() || item.name || item.email || "";
+            if (label && !seen.has(label)) {
+                seen.add(label);
+                out.push(label);
+            }
+        }
+        return out;
+    };
 
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
@@ -329,28 +384,40 @@ export default function TeamsManagement({
         }
     };
 
-    const handleAssignManager = async (userId: string) => {
+    const handleAssignManager = async (userId: string, managerIdsOverride?: string[]) => {
 
         try {
+            const nextManagerIds = Array.isArray(managerIdsOverride)
+                ? managerIdsOverride
+                : selectedManager
+                  ? [selectedManager]
+                  : null;
 
-            if (!selectedManager) {
+            if (!nextManagerIds) {
                 toast.error("Select manager");
                 return;
             }
 
+            setAssigningManagersLoading(true);
+
             await API.put(
                 `/users/${userId}/assign-manager`,
                 {
-                    managerId: selectedManager,
+                    managerIds: nextManagerIds,
                 }
             );
+
+            const resolvedManagerObjects = nextManagerIds
+                .map((mId) => managerSource.find((candidate: any) => (candidate._id || candidate.id) === mId))
+                .filter(Boolean);
 
             setUsers((prev: any) =>
                 prev.map((u: any) =>
                     (u._id || u.id) === userId
                         ? {
                             ...u,
-                            manager: selectedManager,
+                            managers: resolvedManagerObjects,
+                            manager: resolvedManagerObjects[0] || null,
                         }
                         : u
                 )
@@ -358,13 +425,18 @@ export default function TeamsManagement({
 
             setEditingManagerId(null);
             setSelectedManager("");
+            setAssigningUserForManagers(null);
+            setAssignManagerIds([]);
 
-            toast.success("Manager assigned");
+            await fetchUsers();
+            toast.success("Manager updated");
 
-        } catch (err) {
+        } catch (err: any) {
 
             console.error(err);
-            toast.error("Failed to assign manager");
+            toast.error(err?.response?.data?.message || "Failed to assign manager");
+        } finally {
+            setAssigningManagersLoading(false);
         }
     };
 
@@ -864,12 +936,28 @@ export default function TeamsManagement({
                                                                     </div>
                                                                 </td>
 
-                                                                {/* TEAM */}
+                                                                {/* TEAM & MANAGERS */}
                                                                 <td className='py-5 px-3 text-sm hidden sm:table-cell text-gray-700 dark:text-gray-300'>
                                                                     <div className='flex items-center'>
                                                                         <HiMiniUsers className='h-4 w-4 mr-1.5 text-gray-500 dark:text-gray-400' />
                                                                         <span>{user.team || "Default team"}</span>
                                                                     </div>
+                                                                    {(() => {
+                                                                        const assignedNames = getAssignedManagerNames(user);
+                                                                        if (assignedNames.length === 0) return null;
+                                                                        const preview =
+                                                                            assignedNames.length <= 2
+                                                                                ? assignedNames.join(", ")
+                                                                                : `${assignedNames.slice(0, 2).join(", ")} +${assignedNames.length - 2}`;
+                                                                        return (
+                                                                            <p
+                                                                                title={assignedNames.join(", ")}
+                                                                                className='text-xs text-gray-500 dark:text-slate-400 mt-1 truncate max-w-[200px]'
+                                                                            >
+                                                                                {assignedNames.length > 1 ? "Managers" : "Manager"}: {preview}
+                                                                            </p>
+                                                                        );
+                                                                    })()}
                                                                 </td>
 
                                                                 {/* ROLE */}
@@ -1070,13 +1158,15 @@ export default function TeamsManagement({
                     setShowAddModal={setShowAddModal}
                     setUsers={setUsers}
                     onUserAdded={fetchUsers}
+                    availableManagers={allManagerCandidates}
                 />
             )}
 
             {showEditModal && selectedUser && (
                 <EditUserModal
                     user={selectedUser}
-
+                    availableManagers={allManagerCandidates}
+                    onUserUpdated={fetchUsers}
                     setShowEditModal={setShowEditModal}
                     setUsers={setUsers}
                 />
@@ -1209,6 +1299,23 @@ export default function TeamsManagement({
                                 <FaRegEdit className='h-5 w-5' />
                                 Edit
                             </button>
+
+                            {activeDropDownUser.status !== "invited" &&
+                                activeDropDownUser.role?.toLowerCase() !== "owner" &&
+                                (currentUser?.role?.toLowerCase() === "owner" ||
+                                    currentUser?.role?.toLowerCase() === "admin" ||
+                                    currentUser?.manageUsers) && (
+                                    <button
+                                        onClick={() => {
+                                            setAssigningUserForManagers(activeDropDownUser);
+                                            setAssignManagerIds(extractAssignedManagerIds(activeDropDownUser));
+                                            setOpenDropDown(null);
+                                        }}
+                                        className='flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer'>
+                                        <FaUsers className='h-5 w-5' />
+                                        Managers
+                                    </button>
+                                )}
 
                             {activeDropDownUser.status === "archived" ? (
                                 <button
@@ -1365,6 +1472,103 @@ export default function TeamsManagement({
                         fetchUsers();
                     }}
                 />
+            )}
+
+            {mounted && assigningUserForManagers && createPortal(
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    onClick={() => {
+                        setAssigningUserForManagers(null);
+                        setAssignManagerIds([]);
+                    }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 overflow-y-auto overscroll-contain"
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-md rounded-xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 p-6 shadow-2xl"
+                    >
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                            Assign Managers
+                        </h2>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
+                            Select one or more managers for{" "}
+                            <span className="font-medium text-gray-900 dark:text-slate-200">
+                                {`${assigningUserForManagers.firstName || ""} ${assigningUserForManagers.lastName || ""}`.trim() || assigningUserForManagers.email}
+                            </span>
+                        </p>
+
+                        <div className="mt-4 max-h-60 overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-700 divide-y divide-gray-100 dark:divide-slate-700/60">
+                            {managers.filter((m: any) => (m._id || m.id) !== (assigningUserForManagers._id || assigningUserForManagers.id)).length === 0 ? (
+                                <p className="p-3 text-sm text-gray-500 dark:text-slate-400">
+                                    No eligible managers found.
+                                </p>
+                            ) : (
+                                managers
+                                    .filter((m: any) => (m._id || m.id) !== (assigningUserForManagers._id || assigningUserForManagers.id))
+                                    .map((mgr: any) => {
+                                        const mgrId = mgr._id || mgr.id;
+                                        const checked = assignManagerIds.includes(mgrId);
+                                        const mgrLabel = `${mgr.firstName || ""} ${mgr.lastName || ""}`.trim() || mgr.email;
+                                        return (
+                                            <label
+                                                key={mgrId}
+                                                className="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-700/50"
+                                            >
+                                                <span className="flex items-center gap-2.5 min-w-0">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={checked}
+                                                        onChange={() =>
+                                                            setAssignManagerIds((prev) =>
+                                                                prev.includes(mgrId)
+                                                                    ? prev.filter((id) => id !== mgrId)
+                                                                    : [...prev, mgrId]
+                                                            )
+                                                        }
+                                                        className="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-600 bg-white dark:bg-slate-900"
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-900 dark:text-slate-200 truncate">
+                                                        {mgrLabel}
+                                                    </span>
+                                                </span>
+                                                <span className="text-xs text-gray-400 dark:text-slate-400 capitalize shrink-0 ml-2">
+                                                    {mgr.role}
+                                                </span>
+                                            </label>
+                                        );
+                                    })
+                            )}
+                        </div>
+
+                        <div className="mt-5 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAssigningUserForManagers(null);
+                                    setAssignManagerIds([]);
+                                }}
+                                className="rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={assigningManagersLoading}
+                                onClick={() =>
+                                    handleAssignManager(
+                                        assigningUserForManagers._id || assigningUserForManagers.id,
+                                        assignManagerIds
+                                    )
+                                }
+                                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+                            >
+                                {assigningManagersLoading ? "Saving..." : "Save"}
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </>
     )

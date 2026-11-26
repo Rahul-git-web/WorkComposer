@@ -7,6 +7,7 @@ export type UserProfileData = {
     email: string;
     role: string;
     manager?: string;
+    managers?: string[];
     trackingStatus: "Tracking" | "Not tracking";
     timezone: string;
     lastSynced: string;

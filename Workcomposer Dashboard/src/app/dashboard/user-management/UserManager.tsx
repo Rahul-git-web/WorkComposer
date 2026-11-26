@@ -10,12 +10,16 @@ import { Search } from 'lucide-react';
 
 interface User {
   _id: string;
+  id?: string;
+  firstName?: string;
+  lastName?: string;
   name?: string;
   email: string;
   avatar?: string;
   role?: string;
   team?: string;
   manager?: any;
+  managers?: any[];
 
   managedUsersCount?: number;
   managedTeamsCount?: number;
@@ -263,8 +267,10 @@ const UserManager = ({
   };
 
 
-  const manager = users.find((u) =>
-    u._id === userId);
+  const manager = users.find((u) => (u._id || u.id) === userId);
+  const managerDisplayName = manager
+    ? (`${manager.firstName || ""} ${manager.lastName || ""}`.trim() || manager.name || manager.email)
+    : "";
 
 
   if (!mounted) return null;
@@ -287,7 +293,7 @@ const UserManager = ({
 
             <div className="px-8 pt-8 text-center">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Manager - {manager?.name || manager?.email}
+                Manager - {managerDisplayName}
               </h2>
             </div>
 
@@ -457,9 +463,38 @@ const UserManager = ({
                                 )}
 
                                 <div>
-                                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">{user.name || user.email}</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">
+                                    {`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.name || user.email}
+                                  </p>
 
                                   <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{user.email}</p>
+                                  {(() => {
+                                    const coManagers = (
+                                      Array.isArray(user.managers) && user.managers.length > 0
+                                        ? user.managers
+                                        : user.manager
+                                          ? [user.manager]
+                                          : []
+                                    )
+                                      .filter(
+                                        (m: any) =>
+                                          m &&
+                                          typeof m === "object" &&
+                                          (m._id || m.id) !== userId
+                                      )
+                                      .map(
+                                        (m: any) =>
+                                          `${m.firstName || ""} ${m.lastName || ""}`.trim() ||
+                                          m.email
+                                      )
+                                      .filter(Boolean);
+                                    if (coManagers.length === 0) return null;
+                                    return (
+                                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+                                        Co-managers: {coManagers.join(", ")}
+                                      </p>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </td>

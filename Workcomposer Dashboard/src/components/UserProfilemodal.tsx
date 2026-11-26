@@ -69,6 +69,12 @@ export default function UserProfileModal({
   if (!mounted || !open) return null;
 
   const isTracking = user?.trackingStatus === "Tracking";
+  const managerNames =
+    Array.isArray(user?.managers) && user.managers.length > 0
+      ? user.managers
+      : user?.manager && user.manager !== "No manager assigned"
+        ? [user.manager]
+        : [];
 
   const modal = (
     <div
@@ -162,8 +168,25 @@ export default function UserProfileModal({
 
                 <DetailRow
                   icon={<User className="h-5 w-5" />}
-                  label="MANAGER"
-                  value={user.manager || "No manager assigned"}
+                  label={managerNames.length > 1 ? "MANAGERS" : "MANAGER"}
+                  value={
+                    managerNames.length > 1 ? (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {managerNames.map((name) => (
+                          <span
+                            key={name}
+                            className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/50"
+                          >
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : managerNames.length === 1 ? (
+                      managerNames[0]
+                    ) : (
+                      "No manager assigned"
+                    )
+                  }
                 />
 
                 <DetailRow

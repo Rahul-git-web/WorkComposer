@@ -46,7 +46,20 @@ export default function UserProfileTrigger({
 
             // Guard against late out-of-order responses
             if (requestId === activeRequestIdRef.current) {
-                setProfileUser(data);
+                const resolvedProfile = data
+                    ? {
+                        ...data,
+                        managers:
+                            Array.isArray(data.managers) && data.managers.length > 0
+                                ? data.managers
+                                : Array.isArray(user?.managers) && user.managers.length > 0
+                                    ? user.managers
+                                    : data.manager
+                                        ? [data.manager]
+                                        : [],
+                    }
+                    : data;
+                setProfileUser(resolvedProfile);
             }
         } catch (error: any) {
             if (requestId === activeRequestIdRef.current) {

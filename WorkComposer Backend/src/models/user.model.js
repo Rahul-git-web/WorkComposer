@@ -356,6 +356,13 @@ const userSchema = new mongoose.Schema(
       default: undefined,
     },
 
+    managers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     devices: [
       {
         deviceId: {
@@ -461,6 +468,25 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+userSchema.pre("save", function () {
+  if (this.isModified("managers")) {
+    const seen = new Set();
+    const deduped = [];
+    for (const item of Array.isArray(this.managers) ? this.managers : []) {
+      if (!item) continue;
+      const idStr = String(item._id || item.id || item);
+      if (!seen.has(idStr)) {
+        seen.add(idStr);
+        deduped.push(item);
+      }
+    }
+    this.managers = deduped;
+    this.manager = deduped[0] || null;
+  } else if (this.isModified("manager")) {
+    this.managers = this.manager ? [this.manager] : [];
+  }
+});
 
 const User = mongoose.model("User", userSchema);
 

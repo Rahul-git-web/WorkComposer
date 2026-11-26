@@ -77,6 +77,8 @@ router.get("/me", protect, async (req, res) => {
     const user = await User.findById(req.user._id)
       .populate("organization", "name timezone")
       .populate("reportTeam")
+      .populate("manager", "firstName lastName email")
+      .populate("managers", "firstName lastName email")
       .select("-password -refreshToken");
 
     const userObj = user.toObject();

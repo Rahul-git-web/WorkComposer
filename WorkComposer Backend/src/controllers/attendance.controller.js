@@ -96,6 +96,7 @@ export const getAttendanceData = async (req, res) => {
     const users = await userRepository.find(userQuery, {
       populate: [
         { path: "manager", select: "firstName lastName email" },
+        { path: "managers", select: "firstName lastName email" },
         { path: "team", select: "name" },
       ],
     });
@@ -545,9 +546,22 @@ export const getAttendanceData = async (req, res) => {
           email: user.email,
           avatar: getAvatarUrl(user.avatar),
 
+          managers: Array.isArray(user.managers)
+            ? user.managers
+                .filter((m) => m && typeof m === "object")
+                .map((m) => ({
+                  _id: normalizeId(m._id || m.id),
+                  id: normalizeId(m._id || m.id),
+                  firstName: m.firstName,
+                  lastName: m.lastName,
+                  email: m.email,
+                }))
+            : [],
+
           manager: user.manager
             ? {
-                _id: user.manager._id,
+                _id: normalizeId(user.manager._id || user.manager.id),
+                id: normalizeId(user.manager._id || user.manager.id),
                 firstName: user.manager.firstName,
                 lastName: user.manager.lastName,
                 email: user.manager.email,

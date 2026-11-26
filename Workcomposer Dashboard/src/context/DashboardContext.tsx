@@ -18,6 +18,20 @@ type DashboardUser = {
     avatar: string;
     role: string;
     reportTimezone: string;
+    manager?: {
+        _id?: string;
+        id?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+    } | null;
+    managers?: Array<{
+        _id?: string;
+        id?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+    } | string>;
     permissions?: string[];
     manageUsers?: boolean;
     organization?: {

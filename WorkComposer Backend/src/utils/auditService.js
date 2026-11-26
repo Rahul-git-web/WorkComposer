@@ -227,24 +227,32 @@ export const auditUserRestored = async ({ req, user }) => {
   });
 };
 
-export const auditManagerAssigned = async ({ req, targetUser, managerUser }) => {
+export const auditManagerAssigned = async ({ req, targetUser, managerUser = null, managerUsers = null }) => {
   const { ipAddress, platform } = extractMeta(req);
+  const rawList = Array.isArray(managerUsers)
+    ? managerUsers
+    : Array.isArray(managerUser)
+    ? managerUser
+    : managerUser
+    ? [managerUser]
+    : [];
+  const formattedManagers = rawList.filter(Boolean).map((m) => ({
+    id: m._id || m.id,
+    name: `${m.firstName || ""} ${m.lastName || ""}`.trim(),
+  }));
+
   await logAudit({
     organization: req?.user?.organization?._id || req?.user?.organization,
     performedBy: req?.user?._id || req?.user?.id,
     category: "Users",
-    activity: `Assigned manager for ${targetUser.firstName} ${targetUser.lastName}`.trim(),
+    activity: `Assigned manager${formattedManagers.length > 1 ? "s" : ""} for ${targetUser.firstName} ${targetUser.lastName}`.trim(),
     details: {
       targetUser: {
         id: targetUser._id || targetUser.id,
         name: `${targetUser.firstName} ${targetUser.lastName}`.trim(),
       },
-      manager: managerUser
-        ? {
-            id: managerUser._id || managerUser.id,
-            name: `${managerUser.firstName} ${managerUser.lastName}`.trim(),
-          }
-        : null,
+      manager: formattedManagers[0] || null,
+      managers: formattedManagers,
     },
     ipAddress,
     platform,
