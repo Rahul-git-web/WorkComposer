@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import logo from "@/assets/dashboard workcomposer logo.png";
-import {
-  HiBars3,
-} from "react-icons/hi2";
+import { X } from "lucide-react";
 
 import Image from "next/image";
 import ReportsSidebar from "@/app/modules/reports/ReportsSidebar";
@@ -13,11 +11,34 @@ import UsersSidebar from "@/app/modules/users-management/UsersSidebar";
 import ProjectsSidebar from "@/app/modules/task-management/ProjectsSidebar";
 import SettingsSidebar from "@/app/modules/settings/SettingsSidebar";
 
-const Sidebar = () => {
+type SidebarProps = {
+  isOpen?: boolean;
+  onClose?: () => void;
+};
+
+const Sidebar = ({ isOpen: controlledOpen, onClose }: SidebarProps) => {
   const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = typeof controlledOpen === "boolean";
+  const isOpen = isControlled ? controlledOpen : internalOpen;
 
   const searchParams = useSearchParams();
+  const navKey = `${pathname}?${searchParams.toString()}`;
+  const prevNavKeyRef = useRef(navKey);
+
+  useEffect(() => {
+    if (prevNavKeyRef.current !== navKey) {
+      prevNavKeyRef.current = navKey;
+      onClose?.();
+    }
+  }, [navKey, onClose]);
+
+  const handleClose = () => {
+    onClose?.();
+    if (!isControlled) {
+      setInternalOpen(false);
+    }
+  };
 
   const activeTeam =
     searchParams.get("team") || "All Teams";
@@ -30,41 +51,25 @@ const Sidebar = () => {
   const isUserManagement = pathname.startsWith("/dashboard/user-management");
   const isSettings = pathname.startsWith("/dashboard/settings");
 
-
-  const getClass = (path: string) =>
-    `router-link-active router-link-exact-active bg-linear-to-r from-indigo-900/70 to-gray-800 shadow-md text-white border-l-3 border-indigo-500 group flex items-center gap-x-3 p-2 text-sm font-semibold -mx-3 px-3 transition-all duration-200 ease-in-out ${pathname !== path ? "bg-none text-gray-400 border-none" : ""
-    }`;
-
   return (
     <>
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="fixed top-4 left-4 z-60 lg:hidden p-2 rounded-md text-gray-700 shadow-lg transition-opacity duration-200"
-          aria-label="Open sidebar"
-          title="Open sidebar"
-        >
-          <HiBars3 className="h-6 w-6" aria-hidden="true" />
-        </button>
-      )}
-
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 bg-black/50 z-[55] lg:hidden"
+          onClick={handleClose}
         ></div>
       )}
 
       <div
-        className={`fixed lg:static inset-y-0 z-50 flex flex-col bg-gray-900 
-  w-64 lg:w-64 xl:w-72
+        className={`fixed lg:static inset-y-0 left-0 z-[60] lg:z-30 flex flex-col bg-gray-900 
+  w-64 lg:w-64 xl:w-72 max-w-[85vw]
   transition-transform duration-300 ease-in-out
   ${isOpen ? "translate-x-0" : "-translate-x-full"}
   lg:translate-x-0`}
       >
         <div className="flex grow flex-col overflow-y-auto px-3 pb-4">
-          <div className="flex h-16 shrink-0 items-center cursor-pointer px-3">
-            <div className="flex items-center">
+          <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-3">
+            <div className="flex items-center min-w-0">
               <Image
                 className="h-7 w-auto"
                 src={logo}
@@ -72,6 +77,16 @@ const Sidebar = () => {
                 priority
               />
             </div>
+
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Close sidebar"
+              title="Close sidebar"
+              className="lg:hidden inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
 
           <div className="flex items-center justify-between mb-3 mt-4 px-3">

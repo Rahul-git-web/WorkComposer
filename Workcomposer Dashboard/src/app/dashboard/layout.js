@@ -20,11 +20,13 @@ export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const [showModal, setShowModal] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [prevPathname, setPrevPathname] = useState(pathname);
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setShowInbox(false);
+    setSidebarOpen(false);
   }
 
   useEffect(() => {
@@ -178,9 +180,15 @@ export default function DashboardLayout({ children }) {
             }`}
           >
             <div className="flex h-full overflow-hidden">
-              <Sidebar />
+              <Sidebar
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+              />
               <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <DashNavbar />
+                <DashNavbar
+                  sidebarOpen={sidebarOpen}
+                  onOpenSidebar={() => setSidebarOpen(true)}
+                />
                 <OfflineBanner />
                 <main className="flex-1 overflow-y-auto bg-gray-100 dark:bg-[#090F1D] text-gray-900 dark:text-white transition-colors duration-200">
                   {children}
@@ -206,11 +214,11 @@ export default function DashboardLayout({ children }) {
             <>
               <div
                 onClick={() => setShowInbox(false)}
-                className="fixed inset-0 bg-black/20"
+                className="fixed inset-0 z-40 bg-black/20"
               />
 
-              <div className="fixed top-16 bottom-0 left-72 right-0 z-50 flex overflow-hidden">
-                <div className="w-full bg-white dark:bg-[#0F172A] border-l border-gray-200 dark:border-[#22324D] shadow-2xl overflow-y-auto">
+              <div className="fixed top-16 bottom-0 left-0 lg:left-64 xl:left-72 right-0 z-50 flex overflow-hidden">
+                <div className="w-full bg-white dark:bg-[#0F172A] border-l-0 lg:border-l border-gray-200 dark:border-[#22324D] shadow-2xl overflow-y-auto">
                   <Inbox />
                 </div>
               </div>

@@ -84,7 +84,7 @@ export default function FilterPopover({
   }, []);
 
   return (
-    <div className="absolute top-full left-0 z-20 w-[calc(100vw-2rem)] max-w-[400px] rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-lg">
+    <div className="relative z-20 w-full rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-lg">
       {/* Header */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="font-semibold text-gray-900 dark:text-slate-100">Filter Options</h3>

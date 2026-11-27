@@ -168,35 +168,35 @@ export default function OverviewHeader({
     >
       {/* Top Info */}
       <div className="mt-2 sm:mt-3 mb-2 flex flex-col items-start gap-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-end sm:gap-2 px-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="whitespace-nowrap">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 max-w-full">
+          <span className="sm:whitespace-nowrap">
             Last synced: {formatDateTime(lastSyncedAt || new Date())}
           </span>
           <span className="hidden sm:inline">•</span>
-          <span className="whitespace-nowrap" title={effectiveTimezone}>
+          <span className="sm:whitespace-nowrap break-words max-w-full" title={effectiveTimezone}>
             {timezoneDisplay}
           </span>
         </div>
       </div>
 
       {/* Header */}
-      <div className="relative flex flex-col gap-3 sm:gap-4 border border-gray-200 dark:border-[#22324D] rounded-t-md bg-gray-50 dark:bg-[#0F172A] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 transition-colors duration-200">
+      <div className="relative flex flex-col gap-3 border border-gray-200 dark:border-[#22324D] rounded-t-md bg-gray-50 dark:bg-[#0F172A] px-3 py-3 sm:px-6 lg:flex-row lg:flex-wrap lg:items-center lg:justify-between lg:px-8 transition-colors duration-200">
         {/* Left Section */}
-        <div className="flex w-full items-center gap-2 sm:gap-3 sm:w-auto">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:gap-3 lg:w-auto">
           {isTeamReport ? (
-            <div className="relative flex items-center" ref={ref}>
+            <div className="relative flex w-full min-w-0 items-center lg:w-auto" ref={ref}>
               {/* Main Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setOpen(!open);
                 }}
-                className="flex w-full sm:w-auto items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white text-sm transition-colors hover:border-gray-400 dark:hover:border-gray-600 min-w-0"
+                className="flex flex-1 min-w-0 lg:flex-initial sm:w-auto items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white text-sm transition-colors hover:border-gray-400 dark:hover:border-gray-600 cursor-pointer"
               >
                 {selectedTeams.length > 0 ? (
-                  <HiOfficeBuilding className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  <HiOfficeBuilding className="w-4 h-4 shrink-0 text-gray-600 dark:text-gray-300" />
                 ) : (
-                  <HiUsers className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                  <HiUsers className="w-4 h-4 shrink-0 text-gray-600 dark:text-gray-300" />
                 )}
 
                 <div className="flex min-w-0 flex-1 items-center gap-2 max-w-full sm:max-w-[250px]">
@@ -219,7 +219,7 @@ export default function OverviewHeader({
                   )}
                 </div>
 
-                <MdKeyboardArrowDown className="w-4 h-4 text-gray-400 ml-1" />
+                <MdKeyboardArrowDown className="w-4 h-4 shrink-0 text-gray-400 ml-1" />
               </button>
 
               {/* Clear Button */}
@@ -227,7 +227,7 @@ export default function OverviewHeader({
                 <button
                   title="Clear"
                   onClick={() => setSelectedTeams([])}
-                  className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 ml-3 transition"
+                  className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 ml-2 sm:ml-3 whitespace-nowrap shrink-0 transition cursor-pointer"
                 >
                   Clear
                 </button>
@@ -236,7 +236,7 @@ export default function OverviewHeader({
               {/* Popover */}
               {open && (
                 <div
-                  className="absolute top-full left-0 right-0 sm:right-auto mt-2 z-50 w-[95vw] max-w-sm sm:w-auto sm:max-w-none"
+                  className="absolute top-full -left-3 sm:left-0 mt-2 z-50 w-[calc(100vw-2rem)] max-w-[400px] sm:w-[400px]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <FilterPopover
@@ -272,7 +272,7 @@ export default function OverviewHeader({
 
               {sortOpen && (
                 <div
-                  className="absolute top-full left-0 mt-2 z-50 w-52 rounded-xl bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-[#22324D] shadow-xl py-2 text-xs"
+                  className="absolute top-full left-0 mt-2 z-50 w-52 max-w-[calc(100vw-2rem)] rounded-xl bg-white dark:bg-[#1E293B] border border-gray-200 dark:border-[#22324D] shadow-xl py-2 text-xs"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="px-3 pb-1.5 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
