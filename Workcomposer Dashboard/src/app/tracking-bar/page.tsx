@@ -138,7 +138,7 @@ export default function TrackingBar() {
             `}</style>
 
             <div
-                className="relative w-[456px] h-12 shrink-0 rounded-2xl border border-white/15 bg-gradient-to-r from-[#0f172a]/95 via-[#261042]/90 to-[#110f36]/95 shadow-[0_20px_45px_-10px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)_inset] backdrop-blur-2xl flex items-center justify-between px-4 text-white overflow-hidden"
+                className="relative w-[410px] h-[42px] shrink-0 rounded-xl border border-white/15 bg-gradient-to-r from-[#0f172a]/95 via-[#261042]/90 to-[#110f36]/95 shadow-[0_20px_45px_-10px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)_inset] backdrop-blur-2xl flex items-center justify-between px-3 text-white overflow-hidden"
             >
                 {/* Multi-Color Ambient Glow Spheres */}
                 <div className="pointer-events-none absolute -left-6 -top-8 h-20 w-20 rounded-full bg-cyan-500/30 blur-xl" />
@@ -150,10 +150,10 @@ export default function TrackingBar() {
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-cyan-400/50 via-fuchsia-400/60 to-indigo-400/60" />
 
                 {/* Left: Indicator, Timer, and Status */}
-                <div className="relative z-10 flex items-center gap-3 min-w-0">
+                <div className="relative z-10 flex items-center gap-2.5 min-w-0">
                     {/* Glowing status pill */}
                     <div
-                        className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${
+                        className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
                             status === "break"
                                 ? "bg-amber-500/20 border-amber-400/40 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
                                 : status === "idle" || status === "stopped"
@@ -163,7 +163,7 @@ export default function TrackingBar() {
                     >
                         {status === "break" ? (
                             <Pause
-                                size={9}
+                                size={10}
                                 fill="currentColor"
                                 className="text-amber-300"
                             />
@@ -175,21 +175,21 @@ export default function TrackingBar() {
                             />
                         ) : (
                             <Play
-                                size={9}
+                                size={10}
                                 fill="currentColor"
                                 className="text-indigo-300 translate-x-[0.5px]"
                             />
                         )}
                         {/* Blinking Pulse Dot */}
                         {status !== "stopped" && status !== "idle" && (
-                            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center">
+                            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2 items-center justify-center">
                                 <span
                                     className={`animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full opacity-80 ${
                                         status === "break" ? "bg-amber-400" : "bg-emerald-400"
                                     }`}
                                 />
                                 <span
-                                    className={`relative inline-flex rounded-full h-2 w-2 animate-pulse motion-reduce:animate-none ${
+                                    className={`relative inline-flex rounded-full h-1.5 w-1.5 animate-pulse motion-reduce:animate-none ${
                                         status === "break"
                                             ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.9)]"
                                             : "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
@@ -200,54 +200,54 @@ export default function TrackingBar() {
                     </div>
 
                     {/* Timer */}
-                    <span className="font-mono text-[15px] font-bold tracking-wider text-slate-100 tabular-nums drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                    <span className="font-mono text-[14px] font-bold tracking-wide text-slate-100 tabular-nums drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                         {time}
                     </span>
 
                     {/* Status Badge with Subtle Animated State Emoji */}
                     {status === "break" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-400/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-400/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
                             <span className="relative flex h-1.5 w-1.5 shrink-0">
                                 <span className="animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
                             </span>
                             <span
                                 aria-hidden="true"
-                                className="wc-emoji-break motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                                className="wc-emoji-break motion-reduce:animate-none inline-flex w-3 items-center justify-center text-xs leading-none"
                             >
                                 ☕
                             </span>
                             <span>Break</span>
                         </span>
                     ) : status === "idle" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-500/20 text-slate-300 border border-slate-400/30">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap bg-slate-500/20 text-slate-300 border border-slate-400/30">
                             <span
                                 aria-hidden="true"
-                                className="wc-emoji-idle motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                                className="wc-emoji-idle motion-reduce:animate-none inline-flex w-3 items-center justify-center text-xs leading-none"
                             >
                                 🌙
                             </span>
                             <span>Idle</span>
                         </span>
                     ) : status === "stopped" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-500/20 text-slate-300 border border-slate-400/30">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap bg-slate-500/20 text-slate-300 border border-slate-400/30">
                             <span
                                 aria-hidden="true"
-                                className="wc-emoji-idle motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                                className="wc-emoji-idle motion-reduce:animate-none inline-flex w-3 items-center justify-center text-xs leading-none"
                             >
                                 ⏸️
                             </span>
                             <span>Stopped</span>
                         </span>
                     ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
                             <span className="relative flex h-1.5 w-1.5 shrink-0">
                                 <span className="animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
                             </span>
                             <span
                                 aria-hidden="true"
-                                className="wc-emoji-working motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                                className="wc-emoji-working motion-reduce:animate-none inline-flex w-3 items-center justify-center text-xs leading-none"
                             >
                                 💻
                             </span>
@@ -258,7 +258,7 @@ export default function TrackingBar() {
 
                 {/* Right: Actions Container */}
                 <div
-                    className="relative z-10 flex items-center gap-1 shrink-0 rounded-xl border border-white/10 bg-black/30 p-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] backdrop-blur-md"
+                    className="relative z-10 flex items-center gap-0.5 shrink-0 rounded-lg border border-white/10 bg-black/30 p-0.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] backdrop-blur-md"
                     style={
                         {
                             WebkitAppRegion: "no-drag",
@@ -272,7 +272,7 @@ export default function TrackingBar() {
                             window.electronAPI?.stopTrackingFromBar?.();
                         }}
                         title="Stop tracking"
-                        className="group h-7 w-7 flex items-center justify-center rounded-lg bg-transparent hover:bg-rose-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
+                        className="group h-7 w-7 flex items-center justify-center rounded-md bg-transparent hover:bg-rose-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
                     >
                         <Square
                             size={10}
@@ -291,10 +291,10 @@ export default function TrackingBar() {
                             window.electronAPI?.openMainWindow?.();
                         }}
                         title="Open dashboard"
-                        className="group h-7 w-7 flex items-center justify-center rounded-lg bg-transparent hover:bg-indigo-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
+                        className="group h-7 w-7 flex items-center justify-center rounded-md bg-transparent hover:bg-indigo-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
                     >
                         <ChevronRight
-                            size={14}
+                            size={13}
                             className="text-slate-300 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-indigo-200"
                         />
                     </button>

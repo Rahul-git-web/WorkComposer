@@ -2127,8 +2127,8 @@ function hideIdleWindow(resetIdle = true) {
   devLog("IDLE WINDOW HIDDEN");
 }
 
-const TRACKING_BAR_WIDTH = 456;
-const TRACKING_BAR_HEIGHT = 48;
+const TRACKING_BAR_WIDTH = 410;
+const TRACKING_BAR_HEIGHT = 42;
 const TRACKING_BAR_BOTTOM_MARGIN = 8;
 let isClampingTrackingBar = false;
 
