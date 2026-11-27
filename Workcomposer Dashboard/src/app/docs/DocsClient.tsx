@@ -484,6 +484,17 @@ export default function DocsClient() {
                             <code>{sub.code}</code>
                           </pre>
                         )}
+                        {sub.cta && (
+                          <div className="pt-2">
+                            <Link
+                              href={sub.cta.href}
+                              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition shadow-md shadow-indigo-600/20"
+                            >
+                              <span>{sub.cta.label}</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </Link>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

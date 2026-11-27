@@ -5,6 +5,10 @@ export type DocSubsection = {
   steps?: string[];
   bullets?: string[];
   code?: string;
+  cta?: {
+    label: string;
+    href: string;
+  };
 };
 
 export type DocTable = {
@@ -420,8 +424,12 @@ export const DOCS_SECTIONS: DocSection[] = [
       {
         id: "api-documentation",
         heading: "REST API Documentation & API Keys (/api/v1)",
-        body: "Admins with `manage_settings` can create, revoke, and audit scoped API keys under Settings → Account → API Access (`API Keys` and `API Logs` tabs). Backend `apiKeyAuth` middleware verifies active/non-expired keys, active non-archived key owners, and strict organization tenant isolation.",
+        body: "Admins with `manage_settings` can create, revoke, and audit scoped API keys under Settings → Account → API Access (`API Keys` and `API Logs` tabs). Backend `apiKeyAuth` middleware verifies active/non-expired `wc_<64-hex>` keys via `Authorization: Bearer <YOUR_API_KEY>`, active non-archived key owners, and strict organization tenant isolation.",
         code: `# Authenticate API v1 requests using your organization API key\nAuthorization: Bearer <YOUR_API_KEY>\n\n# Public API v1 endpoint (requires active API key + manage_settings permission)\nGET /api/v1/projects\n# Response: { "success": true, "data": [{ "_id", "name", "description", "createdAt", "updatedAt" }] }\n\n# Core organization endpoints documented in Settings -> API Access:\nGET /api/users         # List organization users\nGET /api/projects      # List organization projects and tasks\nGET /api/reports       # Fetch tracking and productivity reports\nGET /api/attendance    # Fetch attendance and daily time summaries`,
+        cta: {
+          label: "Open Developer API Quickstart & OpenAPI Spec",
+          href: "/developer-api/docs/api-quickstart",
+        },
       },
     ],
     table: {

@@ -122,8 +122,8 @@ const RESOURCE_COLUMNS: MenuColumn[] = [
     items: [
       {
         label: "API documentation",
-        href: "/docs#api-documentation",
-        description: "Bearer / x-api-key & /api/v1 routes",
+        href: "/developer-api/docs/api-quickstart",
+        description: "Quickstart, Bearer wc_... keys & OpenAPI",
         icon: <Code2 className="w-4 h-4 text-indigo-400" />,
       },
       {
