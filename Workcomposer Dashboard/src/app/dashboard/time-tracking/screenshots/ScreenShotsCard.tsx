@@ -7,7 +7,6 @@ import {
   Clock3,
   Activity,
   ChevronDown,
-  X,
 } from "lucide-react";
 import ScreenshotModal from './ScreenshotModal';
 import { useEffect, useState } from 'react';
@@ -138,6 +137,45 @@ const getTimeOnDate = (dateKey: string, timeStr: string, tz?: string) => {
   } catch {
     return new Date().getTime();
   }
+};
+
+const getHourBucketInTimezone = (dateStr: string, tz?: string) => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) {
+    return { hourNum: 0, hourLabel: "12 AM" };
+  }
+
+  let hourNum = d.getHours();
+  if (tz) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        hour: "numeric",
+        hour12: false,
+      }).formatToParts(d);
+      const rawHour = parseInt(
+        parts.find((p) => p.type === "hour")?.value || `${hourNum}`,
+        10
+      );
+      if (!isNaN(rawHour)) {
+        hourNum = rawHour === 24 ? 0 : rawHour;
+      }
+    } catch {
+      // Fallback to local hour
+    }
+  }
+
+  const normalized = ((hourNum % 24) + 24) % 24;
+  const hourLabel =
+    normalized === 0
+      ? "12 AM"
+      : normalized < 12
+        ? `${normalized} AM`
+        : normalized === 12
+          ? "12 PM"
+          : `${normalized - 12} PM`;
+
+  return { hourNum: normalized, hourLabel };
 };
 
 export default function ScreenshotsCard({
@@ -434,10 +472,7 @@ export default function ScreenshotsCard({
     <div className="bg-white dark:bg-[#0F172A] border border-gray-200 dark:border-[#22324D] border-t-0 rounded-b-md">
 
       {/* Header */}
-      <div
-        className="sticky z-20 bg-white dark:bg-[#0F172A] border-b border-gray-200 dark:border-[#22324D] shadow-sm transition-[top] duration-75"
-        style={{ top: "var(--overview-header-height, 98px)" }}
-      >
+      <div className="relative bg-white dark:bg-[#0F172A] border-b border-gray-200 dark:border-[#22324D]">
 
         {/* Main Controls */}
         <div className="px-5 py-4">
@@ -561,11 +596,12 @@ export default function ScreenshotsCard({
               <div className="flex flex-wrap items-center gap-2">
 
                 {/* Preset */}
-                <div className="flex h-[38px] items-center gap-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 shadow-sm">
+                <div className="relative flex h-[38px] items-center rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
                   <select
+                    aria-label="Timeline filter preset"
                     value={timelinePreset}
                     onChange={(e) => applyTimelinePreset(e.target.value)}
-                    className="bg-transparent text-sm font-medium text-gray-700 dark:text-slate-200 outline-none cursor-pointer"
+                    className="h-full appearance-none bg-transparent pl-3 pr-8 text-sm font-medium text-gray-700 dark:text-slate-200 outline-none cursor-pointer dark:[color-scheme:dark]"
                   >
                     <option value="all" className="dark:bg-slate-800 dark:text-slate-200">All Day</option>
                     <option value="morning" className="dark:bg-slate-800 dark:text-slate-200">Morning</option>
@@ -575,7 +611,7 @@ export default function ScreenshotsCard({
                     <option value="custom" className="dark:bg-slate-800 dark:text-slate-200">Custom</option>
                   </select>
 
-                  <ChevronDown className="h-4 w-4 text-gray-400 dark:text-slate-500 pointer-events-none" />
+                  <ChevronDown className="pointer-events-none absolute right-2.5 h-4 w-4 text-gray-400 dark:text-slate-500" />
                 </div>
 
                 {/* From */}
@@ -591,7 +627,7 @@ export default function ScreenshotsCard({
                       setTimelineFrom(e.target.value);
                       setTimelinePreset("custom");
                     }}
-                    className="h-[38px] w-[125px] rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+                    className="h-[38px] w-[125px] rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 dark:[color-scheme:dark]"
                     title="Timeline start time"
                   />
                 </div>
@@ -614,7 +650,7 @@ export default function ScreenshotsCard({
                       setTimelineTo(e.target.value);
                       setTimelinePreset("custom");
                     }}
-                    className="h-[38px] w-[125px] rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40"
+                    className="h-[38px] w-[125px] rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-sm text-gray-700 dark:text-slate-200 shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 dark:[color-scheme:dark]"
                     title="Timeline end time"
                   />
                 </div>
@@ -635,7 +671,7 @@ export default function ScreenshotsCard({
         )}
       </div>
 
-      <div className="border-b border-gray-200 dark:border-slate-800 pb-4 pl-5 mb-1 mt-1">
+      <div className="border-b border-gray-200 dark:border-slate-800 pb-4 pl-5 pt-4">
         <h2 className="text-xl font-bold text-gray-800 dark:text-white">
           Screenshots
         </h2>
@@ -695,7 +731,7 @@ export default function ScreenshotsCard({
                 />
               </svg>
 
-              <p className="text-sm font-medium text-gray-500">
+              <p className="text-sm font-medium text-gray-500 dark:text-slate-400">
                 {selectedUsers && selectedUsers.length > 0
                   ? `No screenshots captured for ${selectedUsers.map((u: any) => u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email).filter(Boolean).join(", ")}`
                   : captureFilter === "captured"
@@ -703,7 +739,7 @@ export default function ScreenshotsCard({
                     : "All users have captured screenshots"}
               </p>
 
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                 {selectedUsers && selectedUsers.length > 0
                   ? "The selected user has no captured screenshots for this day."
                   : captureFilter === "captured"
@@ -850,11 +886,11 @@ export default function ScreenshotsCard({
           )}
         </div>
       ) : (
-        <div className="mt-6 space-y-6 px-5 pb-6">
+        <div className="space-y-6 p-5">
           {timelineFilteredUsers.every(
             (user: any) => user.screenshots.length === 0
           ) ? (
-            <div className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#1E293B] px-6 py-16 text-center shadow-sm">
+            <div className="rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] px-6 py-16 text-center shadow-sm">
               <Camera className="mx-auto h-10 w-10 text-gray-300 dark:text-slate-600" />
 
               <h3 className="mt-4 text-sm font-semibold text-gray-800 dark:text-white">
@@ -866,7 +902,7 @@ export default function ScreenshotsCard({
               </p>
             </div>
           ) : (
-            timelineFilteredUsers.map((user: any) => {
+            timelineFilteredUsers.map((user: any, userIdx: number) => {
               const userTz = user.reportTimezone || user.timezone || timezone;
               const userShots = [...(user.screenshots || [])].sort(
                 (a: any, b: any) =>
@@ -892,10 +928,10 @@ export default function ScreenshotsCard({
               return (
                 <div
                   key={user.email}
-                  className="overflow-hidden rounded-2xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-[#1E293B] shadow-sm"
+                  className="overflow-hidden rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm"
                 >
                   {/* USER HEADER */}
-                  <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 px-5 py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-[#22324D] bg-gray-50/70 dark:bg-[#1E293B]/60 px-5 py-4">
                     <div className="flex min-w-0 items-center gap-3">
                       {user.avatar?.trim() ? (
                         <img
@@ -927,20 +963,27 @@ export default function ScreenshotsCard({
                     </div>
                   </div>
 
-                  {/* DAILY TIMELINE TRACKS */}
-                  <div className="divide-y divide-gray-100 dark:divide-slate-800/60">
+                  {/* DAILY HOURLY SWIMLANES */}
+                  <div className="divide-y divide-gray-100 dark:divide-[#22324D]">
                     {dateKeys.map((dateKey) => {
                       const dayShots = shotsByDate[dateKey] || [];
                       if (dayShots.length === 0) return null;
-                      const firstShotTime = new Date(dayShots[0].capturedAt).getTime();
-                      const lastShotTime = new Date(dayShots[dayShots.length - 1].capturedAt).getTime();
+
+                      const sortedDayShots = [...dayShots].sort(
+                        (a: any, b: any) =>
+                          new Date(a.capturedAt).getTime() -
+                          new Date(b.capturedAt).getTime()
+                      );
+
+                      const firstShotTime = new Date(sortedDayShots[0].capturedAt).getTime();
+                      const lastShotTime = new Date(sortedDayShots[sortedDayShots.length - 1].capturedAt).getTime();
 
                       const isOvernightTimeline =
                         !!timelineFrom &&
                         !!timelineTo &&
                         timelineFrom > timelineTo;
 
-                      let dayStart = timelineFrom
+                      const dayStart = timelineFrom
                         ? getTimeOnDate(dateKey, timelineFrom, userTz)
                         : firstShotTime;
 
@@ -952,151 +995,50 @@ export default function ScreenshotsCard({
                         dayEnd += 24 * 60 * 60 * 1000;
                       }
 
-                      // Enforce minimum 1-hour span (3,600,000 ms) so time labels do not repeat (DEF-111-06)
-                      if (dayEnd - dayStart < 3600000) {
-                        const mid = (dayStart + dayEnd) / 2;
-                        dayStart = mid - 1800000;
-                        dayEnd = mid + 1800000;
-                      }
-
-                      const dayRange = Math.max(dayEnd - dayStart, 60 * 1000);
-
-                      const getTimelinePosition = (shot: any) => {
-                        let currentTime = new Date(shot.capturedAt).getTime();
-                        if (isOvernightTimeline && currentTime < dayStart) {
-                          currentTime += 24 * 60 * 60 * 1000;
-                        }
-                        const rawRatio = Math.min(
-                          1,
-                          Math.max(0, (currentTime - dayStart) / dayRange)
+                      const hourMap = new Map<
+                        number,
+                        { hourNum: number; hourLabel: string; shots: any[] }
+                      >();
+                      sortedDayShots.forEach((shot: any) => {
+                        const { hourNum, hourLabel } = getHourBucketInTimezone(
+                          shot.capturedAt,
+                          userTz
                         );
-                        // DEF-111-07: return 6 + rawPercent * 0.88;
-                        return rawRatio;
-                      };
-
-                      const trackMinWidth = Math.max(
-                        1000,
-                        dayShots.length * 190
-                      );
-
-                      // WORKCOMPOSER-121-D: Single unified coordinate system with safe boundary insets
-                      const INSET = 100; // 90px card half-width + 10px safe margin
-                      const usableWidth = Math.max(trackMinWidth - 2 * INSET, 100);
-
-                      // WORKCOMPOSER-121-A: Collision-aware multi-lane placement algorithm
-                      const sortedDayShots = [...dayShots].sort(
-                        (a: any, b: any) =>
-                          new Date(a.capturedAt).getTime() -
-                          new Date(b.capturedAt).getTime()
-                      );
-
-                      const CARD_COLLISION_THRESHOLD = 185; // 180px card + 5px buffer
-                      const lastLaneX: Record<'upper' | 'lower-1' | 'lower-2' | 'lower-3', number> = {
-                        'upper': -9999,
-                        'lower-1': -9999,
-                        'lower-2': -9999,
-                        'lower-3': -9999,
-                      };
-                      let nextPreferredSide: 'upper' | 'lower' = 'upper';
-
-                      const placedDayShots = sortedDayShots.map((shot: any) => {
-                        const positionRatio = getTimelinePosition(shot);
-                        const pixelX = INSET + positionRatio * usableWidth;
-                        const position = positionRatio * 100;
-                        const positionStyle = `calc(${positionRatio * 100}% + ${INSET - positionRatio * (2 * INSET)}px)`;
-
-                        let assignedLane = 'upper';
-                        let laneLevel = 1;
-
-                        if (nextPreferredSide === 'upper') {
-                          if (pixelX - (lastLaneX['upper'] ?? -9999) >= CARD_COLLISION_THRESHOLD) {
-                            assignedLane = 'upper';
-                            laneLevel = 1;
-                            lastLaneX['upper'] = pixelX;
-                            nextPreferredSide = 'lower';
-                          } else if (pixelX - (lastLaneX['lower-1'] ?? -9999) >= CARD_COLLISION_THRESHOLD) {
-                            assignedLane = 'lower-1';
-                            laneLevel = 1;
-                            lastLaneX['lower-1'] = pixelX;
-                            nextPreferredSide = 'upper';
-                          } else if (pixelX - (lastLaneX['lower-2'] ?? -9999) >= CARD_COLLISION_THRESHOLD) {
-                            assignedLane = 'lower-2';
-                            laneLevel = 2;
-                            lastLaneX['lower-2'] = pixelX;
-                          } else {
-                            assignedLane = 'lower-3';
-                            laneLevel = 3;
-                            lastLaneX['lower-3'] = pixelX;
-                          }
+                        const existing = hourMap.get(hourNum);
+                        if (existing) {
+                          existing.shots.push(shot);
                         } else {
-                          if (pixelX - (lastLaneX['lower-1'] ?? -9999) >= CARD_COLLISION_THRESHOLD) {
-                            assignedLane = 'lower-1';
-                            laneLevel = 1;
-                            lastLaneX['lower-1'] = pixelX;
-                            nextPreferredSide = 'upper';
-                          } else if (pixelX - (lastLaneX['upper'] ?? -9999) >= CARD_COLLISION_THRESHOLD) {
-                            assignedLane = 'upper';
-                            laneLevel = 1;
-                            lastLaneX['upper'] = pixelX;
-                            nextPreferredSide = 'lower';
-                          } else if (pixelX - (lastLaneX['lower-2'] ?? -9999) >= CARD_COLLISION_THRESHOLD) {
-                            assignedLane = 'lower-2';
-                            laneLevel = 2;
-                            lastLaneX['lower-2'] = pixelX;
-                          } else {
-                            assignedLane = 'lower-3';
-                            laneLevel = 3;
-                            lastLaneX['lower-3'] = pixelX;
-                          }
+                          hourMap.set(hourNum, {
+                            hourNum,
+                            hourLabel,
+                            shots: [shot],
+                          });
                         }
-
-                        return {
-                          ...shot,
-                          position,
-                          positionRatio,
-                          positionStyle,
-                          lane: assignedLane,
-                          laneLevel,
-                        };
                       });
 
-                      const maxLevel = placedDayShots.reduce(
-                        (max: number, s: any) => Math.max(max, s.laneLevel || 1),
-                        1
-                      );
-                      const dynamicTrackHeight =
-                        maxLevel === 1 ? 425 : maxLevel === 2 ? 540 : 680;
+                      const hourGroups = Array.from(hourMap.values())
+                        .sort((a, b) => a.hourNum - b.hourNum)
+                        .map((group) => {
+                          const totalActivity = group.shots.reduce(
+                            (sum: number, s: any) =>
+                              sum + (Number(s.activityScore) || 0),
+                            0
+                          );
+                          const avgActivity = Math.round(
+                            totalActivity / group.shots.length
+                          );
 
-                      const getLaneConfig = (lane: string) => {
-                        switch (lane) {
-                          case 'upper':
-                            return {
-                              cardTopClass: 'top-[20px]',
-                              connectorClass: 'top-[150px] h-[40px]',
-                            };
-                          case 'lower-2':
-                            return {
-                              cardTopClass: 'top-[376px]',
-                              connectorClass: 'top-[190px] h-[186px]',
-                            };
-                          case 'lower-3':
-                            return {
-                              cardTopClass: 'top-[522px]',
-                              connectorClass: 'top-[190px] h-[332px]',
-                            };
-                          case 'lower-1':
-                          default:
-                            return {
-                              cardTopClass: 'top-[230px]',
-                              connectorClass: 'top-[190px] h-[40px]',
-                            };
-                        }
-                      };
+                          return {
+                            ...group,
+                            avgActivity,
+                            elementId: `timeline-hour-${userIdx}-${dateKey}-${group.hourNum}`,
+                          };
+                        });
 
                       return (
                         <div key={dateKey} className="px-5 py-6">
                           {/* Daily Timeline Header */}
-                          <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                             <div>
                               <div className="flex items-center gap-2">
                                 <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
@@ -1105,173 +1047,159 @@ export default function ScreenshotsCard({
                               </div>
 
                               <p className="mt-0.5 text-sm font-medium text-gray-700 dark:text-slate-200">
-                                {dayShots.length} screenshot{dayShots.length !== 1 ? "s" : ""}
+                                {sortedDayShots.length} screenshot{sortedDayShots.length !== 1 ? "s" : ""} across {hourGroups.length} hour{hourGroups.length !== 1 ? "s" : ""}
                               </p>
                             </div>
 
                             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
-                              <span className="rounded-md bg-gray-100 dark:bg-slate-800 px-2 py-1 font-medium text-gray-700 dark:text-slate-200">
+                              <span className="rounded-md bg-gray-100 dark:bg-[#1E293B] border border-gray-200/70 dark:border-[#22324D] px-2.5 py-1 font-medium text-gray-700 dark:text-slate-200">
                                 {formatScreenshotTime(dayStart, userTz)}
                               </span>
 
                               <span className="text-gray-300 dark:text-slate-500">→</span>
 
-                              <span className="rounded-md bg-gray-100 dark:bg-slate-800 px-2 py-1 font-medium text-gray-700 dark:text-slate-200">
+                              <span className="rounded-md bg-gray-100 dark:bg-[#1E293B] border border-gray-200/70 dark:border-[#22324D] px-2.5 py-1 font-medium text-gray-700 dark:text-slate-200">
                                 {formatScreenshotTime(dayEnd, userTz)}
                               </span>
                             </div>
                           </div>
 
-                          {/* Scrollable Timeline */}
-                          <div className="overflow-x-auto overflow-y-hidden pb-3">
-                            <div
-                              className="relative h-[425px]"
-                              style={{
-                                width: "100%",
-                                minWidth: `${trackMinWidth}px`,
-                                height: dynamicTrackHeight !== 425 ? `${dynamicTrackHeight}px` : undefined,
-                              }}
-                            >
-                              {/* Time Labels */}
-                              {/* DEF-111-07: const labelPos = 6 + percent * 0.88; */}
-                              <div className="absolute left-0 right-0 top-1 h-5 text-[11px] text-gray-400 dark:text-slate-400">
-                                {[0, 25, 50, 75, 100].map((percent) => {
-                                  const labelTime = new Date(
-                                    dayStart + (dayRange * percent) / 100
-                                  );
-                                  const labelRatio = percent / 100;
-                                  const labelPosStyle = `calc(${percent}% + ${INSET - labelRatio * (2 * INSET)}px)`;
-
-                                  return (
-                                    <span
-                                      key={percent}
-                                      className="absolute -translate-x-1/2 whitespace-nowrap font-medium"
-                                      style={{
-                                        left: labelPosStyle,
-                                      }}
-                                    >
-                                      {formatScreenshotTime(labelTime, userTz)}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Vertical Grid Lines */}
-                              {/* DEF-111-07: const linePos = 6 + value * 0.88; */}
-                              <div className="absolute left-0 right-0 top-8 bottom-8 pointer-events-none">
-                                {[0, 25, 50, 75, 100].map((value) => {
-                                  const lineRatio = value / 100;
-                                  const linePosStyle = `calc(${value}% + ${INSET - lineRatio * (2 * INSET)}px)`;
-
-                                  return (
-                                    <div
-                                      key={value}
-                                      className="absolute top-0 bottom-0 w-px bg-gray-100 dark:bg-slate-800"
-                                      style={{
-                                        left: linePosStyle,
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </div>
-
-                              {/* Main Timeline Track */}
-                              {/* DEF-111-07: className="absolute left-[6%] right-[6%] top-[190px]" */}
-                              <div className="absolute left-[100px] right-[100px] top-[190px]">
-                                <div className="h-1 rounded-full bg-gray-200 dark:bg-slate-700" />
-
-                                {/* Progress */}
-                                <div
-                                  className="absolute left-0 top-0 h-1 rounded-full bg-indigo-200 dark:bg-indigo-800"
+                          {/* Quick Jump-to-Hour Pills */}
+                          <div className="mb-6 flex flex-wrap items-center gap-2">
+                            <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-slate-500">
+                              Hours:
+                            </span>
+                            {hourGroups.map((group) => (
+                              <button
+                                key={group.hourNum}
+                                type="button"
+                                onClick={() => {
+                                  document
+                                    .getElementById(group.elementId)
+                                    ?.scrollIntoView({
+                                      behavior: "smooth",
+                                      block: "nearest",
+                                    });
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-[#22324D] bg-gray-50 dark:bg-[#1E293B] px-2.5 py-1 text-xs font-medium text-gray-700 dark:text-slate-200 hover:border-indigo-300 dark:hover:border-indigo-500/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-700 dark:hover:text-indigo-300 transition cursor-pointer"
+                              >
+                                <span
+                                  className="h-1.5 w-1.5 rounded-full shrink-0"
                                   style={{
-                                    width: "100%",
+                                    backgroundColor: getActivityColor(
+                                      group.avgActivity
+                                    ),
                                   }}
                                 />
+                                <span>{group.hourLabel}</span>
+                                <span className="text-[11px] text-gray-400 dark:text-slate-400">
+                                  ({group.shots.length})
+                                </span>
+                              </button>
+                            ))}
+                          </div>
 
-                                {/* Start Point */}
-                                <div className="absolute left-0 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white dark:border-slate-800 bg-indigo-600 shadow-md" />
-
-                                {/* End Point */}
-                                <div className="absolute right-0 top-1/2 h-4 w-4 translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white dark:border-slate-800 bg-indigo-600 shadow-md" />
-                              </div>
-
-                              {/* Screenshot Events */}
-                              {placedDayShots.map((shot: any, index: number) => {
-                                const position = shot.position;
-                                const laneConfig = getLaneConfig(shot.lane);
-
-                                return (
-                                  <div
-                                    key={shot._id || shot.id || index}
-                                    className="absolute top-0 h-full"
-                                    style={{
-                                      left: shot.positionStyle || `${position}%`,
-                                      width: "0px",
-                                    }}
-                                  >
-                                    {/* Connector */}
-                                    <div
-                                      className={`absolute left-1/2 w-px -translate-x-1/2 bg-indigo-300 dark:bg-indigo-600/70 ${laneConfig.connectorClass}`}
-                                    />
-
-                                    {/* Event Point */}
-                                    <div
-                                      className="absolute left-1/2 top-[192px] z-20 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white dark:border-slate-800 bg-indigo-600 shadow-md"
-                                    />
-
-                                    {/* Screenshot Card */}
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedShot(shot);
-                                        setTimelineShotsList(dayShots);
-                                        setTimelineModalTz(userTz);
-                                      }}
-                                      className={`group absolute left-1/2 z-10 w-[180px] -translate-x-1/2 overflow-hidden rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-left shadow-md transition-all duration-200 hover:-translate-y-1 hover:border-indigo-200 dark:hover:border-indigo-500 hover:shadow-lg ${laneConfig.cardTopClass}`}
-                                    >
-                                      {/* Screenshot Image with Fallback (DEF-111-10) */}
-                                      <div className="relative h-[92px] w-full overflow-hidden bg-gray-100 dark:bg-slate-900">
-                                        <TimelineImage src={shot.imageUrl} />
-
-                                        {/* Time Badge */}
-                                        <div className="absolute bottom-2 left-2 rounded-md bg-black/75 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
-                                          {formatScreenshotTime(shot.capturedAt, userTz)}
-                                        </div>
-                                      </div>
-
-                                      {/* Card Info */}
-                                      <div className="flex items-center justify-between px-3 py-2.5">
-                                        <div className="flex items-center gap-1.5">
-                                          <span
-                                            className="h-2 w-2 rounded-full"
-                                            style={{
-                                              backgroundColor: getActivityColor(
-                                                shot.activityScore || 0
-                                              ),
-                                            }}
-                                          />
-
-                                          <span className="text-[11px] font-medium text-gray-600 dark:text-slate-400">
-                                            Activity
-                                          </span>
-                                        </div>
-
-                                        <span className="text-[11px] font-semibold text-gray-700 dark:text-slate-200">
-                                          {shot.activityScore || 0}%
-                                        </span>
-                                      </div>
-                                    </button>
+                          {/* Hourly Swimlane List */}
+                          <div className="space-y-6">
+                            {hourGroups.map((group, groupIdx) => (
+                              <div
+                                key={group.hourNum}
+                                id={group.elementId}
+                                className="flex flex-col md:flex-row gap-4 scroll-mt-24"
+                              >
+                                {/* Time Rail */}
+                                <div className="md:w-36 shrink-0 flex md:flex-col items-center md:items-start justify-between md:justify-start gap-2">
+                                  <div className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200/80 dark:border-indigo-800/60 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                                    <Clock3 className="h-3.5 w-3.5 shrink-0" />
+                                    <span>{group.hourLabel}</span>
                                   </div>
-                                );
-                              })}
-                            </div>
+
+                                  <div className="flex md:flex-col items-center md:items-start gap-2 md:gap-0.5 text-[11px] text-gray-500 dark:text-slate-400">
+                                    <span>
+                                      {group.shots.length} screenshot{group.shots.length !== 1 ? "s" : ""}
+                                    </span>
+                                    <span className="md:hidden text-gray-300 dark:text-slate-600">•</span>
+                                    <span className="inline-flex items-center gap-1 font-medium text-gray-600 dark:text-slate-300">
+                                      <span
+                                        className="h-1.5 w-1.5 rounded-full shrink-0"
+                                        style={{
+                                          backgroundColor: getActivityColor(
+                                            group.avgActivity
+                                          ),
+                                        }}
+                                      />
+                                      {group.avgActivity}% avg
+                                    </span>
+                                  </div>
+
+                                  {groupIdx < hourGroups.length - 1 && (
+                                    <div className="hidden md:block ml-4 mt-1 flex-1 w-px min-h-[24px] bg-gradient-to-b from-indigo-300 dark:from-indigo-700/70 to-transparent" />
+                                  )}
+                                </div>
+
+                                {/* Visual Filmstrip Grid */}
+                                <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                  {group.shots.map((shot: any, index: number) => {
+                                    const score = Number(shot.activityScore) || 0;
+                                    return (
+                                      <button
+                                        key={shot._id || shot.id || `${group.hourNum}-${index}`}
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedShot(shot);
+                                          setTimelineShotsList(sortedDayShots);
+                                          setTimelineModalTz(userTz);
+                                        }}
+                                        className="group flex flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-300 dark:hover:border-indigo-500/70 hover:shadow-md cursor-pointer"
+                                      >
+                                        {/* Thumbnail */}
+                                        <div className="relative aspect-video w-full overflow-hidden bg-gray-100 dark:bg-slate-900 border-b border-gray-100 dark:border-[#22324D]">
+                                          <TimelineImage src={shot.imageUrl} />
+
+                                          <div className="absolute bottom-2 left-2 rounded-md bg-slate-950/80 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-xs">
+                                            {formatScreenshotTime(shot.capturedAt, userTz)}
+                                          </div>
+
+                                          <div className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-slate-950/80 px-2 py-0.5 text-[11px] font-semibold text-white backdrop-blur-xs">
+                                            <span
+                                              className="h-1.5 w-1.5 rounded-full shrink-0"
+                                              style={{
+                                                backgroundColor: getActivityColor(score),
+                                              }}
+                                            />
+                                            <span>{score}%</span>
+                                          </div>
+                                        </div>
+
+                                        {/* App & Window Metadata */}
+                                        <div className="flex-1 bg-gray-50/80 dark:bg-[#1E293B]/60 px-3 py-2.5 space-y-0.5">
+                                          <div className="flex items-center gap-1.5 min-w-0">
+                                            <Activity className="h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-400" />
+                                            <span className="truncate text-xs font-semibold text-gray-800 dark:text-white">
+                                              {shot.appName || "Unknown App"}
+                                            </span>
+                                          </div>
+
+                                          <p
+                                            className="truncate text-[11px] text-gray-500 dark:text-slate-400"
+                                            title={shot.windowTitle || undefined}
+                                          >
+                                            {shot.windowTitle || "No window title"}
+                                          </p>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
                           </div>
 
                           {/* Timeline Footer */}
-                          <div className="mt-2 flex items-center justify-between border-t border-gray-100 dark:border-slate-700/60 pt-3">
+                          <div className="mt-6 flex items-center justify-between border-t border-gray-100 dark:border-[#22324D] pt-3">
                             <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-slate-400">
                               <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                              Screenshot captured
+                              Grouped hourly in {userTz || timezone || "local"} timezone
                             </div>
 
                             <span className="text-[11px] text-gray-400 dark:text-slate-400">
@@ -1287,8 +1215,7 @@ export default function ScreenshotsCard({
             })
           )}
         </div>
-      )
-      }
+      )}
 
       {
         showModal && selectedUser && (
