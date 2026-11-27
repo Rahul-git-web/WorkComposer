@@ -1,6 +1,8 @@
 export type DocSubsection = {
+  id?: string;
   heading: string;
   body: string;
+  steps?: string[];
   bullets?: string[];
   code?: string;
 };
@@ -36,64 +38,80 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "01 · Foundation",
     title: "Getting Started & Architecture",
     summary:
-      "How WorkComposer connects the Next.js Web Dashboard, Electron Desktop Agent, native Windows/macOS helpers, and the Express + Socket.io backend.",
+      "End-to-end onboarding from creating an organization workspace and inviting employees to installing the Electron 42 desktop agent and understanding real-time Socket.io synchronization.",
     tags: [
       "onboarding",
       "invite",
+      "accept-invite",
       "installer",
       "windows",
       "architecture",
       "socket.io",
       "setup",
+      "how it works",
+      "appdata",
+      "oauth",
+      "2fa",
     ],
     subsections: [
       {
-        heading: "Workspace Onboarding & Team Invites",
-        body: "Owners create an organization account via Sign up and invite team members by email or bulk CSV invite. Invited teammates accept their workspace link at /accept-invite, verify email changes securely, and sign in with email/password or Google, Microsoft, or Apple OAuth.",
+        id: "user-onboarding",
+        heading: "Workspace Setup & User Onboarding",
+        body: "Owners register a workspace at /authenticate/signup, configure organization defaults, and invite employees individually or via CSV upload under Dashboard → User Management. Invited team members complete onboarding through a single-use invite token without needing admin intervention.",
+        steps: [
+          "Register an organization at /authenticate/signup (or accept a workspace invitation link at /accept-invite).",
+          "Sign in via email/password or Google, Microsoft, or Apple OAuth at /authenticate/login (with optional 2FA verification under Settings → Account → Security).",
+          "Configure your canonical Report Timezone under Settings → Profile (or Organization defaults) so daily attendance and analytics align across distributed teams.",
+          "Assign employee teams, roles, and multiple managers under Dashboard → User Management.",
+        ],
         bullets: [
-          "Public workspace entry routes (/authenticate/login, /authenticate/signup, /accept-invite, /docs) require no prior session.",
-          "Two-factor authentication (2FA) can be configured under Settings → Account → Security.",
-          "Each organization sets its canonical report timezone (or Browser timezone fallback) in Settings.",
+          "Public routes (/, /docs, /authenticate/*, /accept-invite, /verify-email-change/*) render without an authenticated dashboard session.",
+          "Dashboard routes (/dashboard/*) validate sessions via /api/auth/me with CSRF protection and automatic access-token refresh.",
         ],
       },
       {
-        heading: "Desktop Agent Installation (Windows v1.0.0)",
-        body: "Employees install WorkComposer-Desktop-Setup-v1.0.0.exe (Windows 10/11 64-bit, NSIS installer). Once signed in on the desktop app, sessions, permissions, and tracking rules sync automatically over HTTPS REST APIs and real-time Socket.io rooms.",
+        heading: "Windows Desktop Agent Installation (v1.0.0)",
+        body: "Download WorkComposer-Desktop-Setup-v1.0.0.exe (NSIS 64-bit Windows installer, customizable install path, optional Desktop and Start Menu shortcuts). On first launch, sign in once inside the desktop client — sessions, role permissions, and organization tracking rules sync automatically.",
+        bullets: [
+          "Local Electron runtime state, queued offline payloads, and diagnostics (`workcomposer-error.log`) live under `app.getPath(\"userData\")` (typically `%APPDATA%\\WorkComposer` in packaged Windows builds).",
+          "Single-instance enforcement (`app.requestSingleInstanceLock()`) prevents duplicate background trackers from running simultaneously.",
+        ],
       },
       {
-        heading: "Four-Layer Platform Architecture",
-        body: "WorkComposer splits responsibilities cleanly so telemetry remains lightweight (<1% CPU at idle) while web reporting stays instant across every team size.",
+        id: "how-it-works",
+        heading: "How It Works — Four-Layer Platform Architecture",
+        body: "WorkComposer separates lightweight desktop telemetry capture from real-time web analytics and multi-tenant data enforcement so tracking uses <1% CPU at idle while dashboards stay responsive.",
       },
     ],
     table: {
-      headers: ["Component", "Stack & Runtime", "Primary Role"],
+      headers: ["Component", "Stack & Key Modules", "Primary Responsibilities"],
       rows: [
         [
           "Workcomposer Dashboard",
-          "Next.js 16 (App Router) · React 19 · Tailwind v4",
-          "Web reporting portal, settings console, task boards, and embedded Desktop views (/desktop, /idle, /tracking-bar).",
+          "Next.js 16 (App Router) · React 19 · Tailwind CSS v4",
+          "Web analytics portal (/dashboard/*), role-scoped reports, settings console, plus embedded Desktop views (/desktop, /tracking-bar, /idle).",
         ],
         [
           "WorkComposer Desktop",
-          "Electron 42 · uiohook-napi · active-win · screenshot-desktop",
-          "System-tray time tracker, idle detection, always-on-top Floating Bar, shift scheduler, and offline queues.",
+          "Electron 42.3 · electron-store · uiohook-napi · active-win · screenshot-desktop · sharp",
+          "System-tray timer agent, global input activity counting, always-on-top 410×42 Floating Bar, shift scheduler, and offline retry queues.",
         ],
         [
           "BrowserUrlReader & LocationReader",
-          ".NET 8 Native Helpers (Windows UIAutomation / macOS)",
-          "Reads active foreground browser domain/URL without extensions and provides opt-in device geolocation.",
+          ".NET 8 Native Helpers (Windows UIAutomation / macOS MacBrowserReader)",
+          "Extracts active browser tab domains without browser extensions and provides opt-in Windows device location coordinates.",
         ],
         [
           "WorkComposer Backend",
-          "Express 5 · Socket.io 4.8 · Prisma (PostgreSQL) / Mongoose",
-          "CSRF-protected REST & /api/v1 endpoints, RBAC enforcement, overlap/timezone reporting, and real-time broadcasts.",
+          "Express 5 · Socket.io 4.8 · PostgreSQL (Prisma 6.19) & MongoDB (Mongoose 9)",
+          "Multi-tenant RBAC & CSRF middleware, /api/* & /api/v1/* endpoints, overlap/zoned-day reporting, Cloudinary/Stripe/email services, and Socket.io rooms.",
         ],
       ],
     },
     callout: {
       tone: "info",
-      title: "Live Real-Time Sync",
-      text: "Changes to tracking mode, screenshot intervals, blur strength, roles, or user timezone push immediately through organization Socket.io channels (such as tracking-settings-updated) so connected Desktop agents apply updated rules without restarting.",
+      title: "Real-Time Organization Socket Sync",
+      text: "Whenever an administrator updates tracking settings, capture rules, roles, or user profiles in the web dashboard, the backend broadcasts events (such as `tracking-settings-updated`) to the organization's Socket.io room so connected Desktop clients and open web tabs enforce the new configuration immediately.",
     },
   },
   {
@@ -101,7 +119,7 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "02 · Desktop Client",
     title: "Desktop Tracker, Modes & Floating Bar",
     summary:
-      "Configurable tracking modes (Automatic, Manual, Silent), the compact 410×42 Floating Tracking Bar, idle prompts, shift scheduling, and offline resilience.",
+      "Detailed reference for Automatic, Manual, and Silent tracking modes, the compact 410×42 Floating Bar, inactivity detection (/idle), shift enforcement, and durable offline queues.",
     tags: [
       "desktop",
       "electron",
@@ -113,34 +131,71 @@ export const DOCS_SECTIONS: DocSection[] = [
       "idle",
       "shift",
       "offline",
+      "durabletelemetryqueue",
+      "offlinescreenshotqueue",
     ],
     subsections: [
       {
-        heading: "Workspace Tracking Modes",
-        body: "Administrators configure an organization-wide tracking mode — and optionally override it per employee using per-user configuration — under Settings → Time Tracking → Tracking:",
+        id: "tracking-modes",
+        heading: "Time Tracking Modes Explained",
+        body: "Configure organization defaults under Settings → Time Tracking → Tracking, or override individual users via the per-user Configure modal:",
         bullets: [
-          "Automatic: Tracking starts automatically on sign-in or when the computer boots (startTrackingOnBoot) and follows assigned shift schedules.",
-          "Manual: Employees start, stop, take breaks, and switch active project tasks directly from the Desktop dashboard or Floating Bar.",
-          "Silent: Runs unobtrusively in the background with system-tray status sync and minimal interruption.",
+          "Automatic: Starts tracking automatically on desktop login or system startup (when `startTrackingOnBoot` is enabled) and honors assigned shift start/break/end windows.",
+          "Manual: Employees explicitly start/stop sessions, take breaks, and switch active project tasks from `/desktop` or the Floating Tracking Bar.",
+          "Silent: Records authorized work telemetry unobtrusively from the system tray without interrupting focus workflows.",
         ],
       },
       {
-        heading: "Compact Floating Tracking Bar (/tracking-bar)",
-        body: "While active, the always-on-top 410×42 Floating Bar displays your live elapsed session timer (00:00:00), animated work-state badge (Working, Break, Idle, Stopped with reduced-motion support), quick Stop button, and Expand button to reopen the main Desktop window. Its drag bounds clamp cleanly within the active display work area above the Windows taskbar.",
+        heading: "Floating Tracking Bar (/tracking-bar)",
+        body: "The always-on-top 410×42 Floating Bar keeps current session state visible without cluttering your workspace:",
+        bullets: [
+          "Displays live elapsed timer (`00:00:00`), active state indicator (`Working 💻`, `Break ☕`, `Idle 🌙`, `Stopped ⏸️` with `prefers-reduced-motion` support), quick Stop control, and Expand button to open `/desktop`.",
+          "Position is persisted via `electron-store` (`trackingBarPosition`) and clamped strictly inside the active display's workArea above the Windows taskbar using `setPosition` on drag end and display-metric changes (`Resizable: false`, `useContentSize: true`).",
+        ],
       },
       {
-        heading: "Idle Detection & Work Away From Computer",
-        body: "Mouse and keyboard activity events (sampled locally without logging keystrokes) detect inactivity after your configured inactivityMinutes threshold (1–60 minutes). When triggered, the /idle overlay prompts the user to keep or discard idle time, unless allowWorkAwayFromComputer is enabled.",
+        id: "idle-tracking",
+        heading: "Idle Time Detection & Allow Work Away From Computer",
+        body: "Using `uiohook-napi` mouse and keyboard activity hooks (event timing only, never keystroke content), WorkComposer Desktop checks inactivity against `inactivityMinutes` (configurable from 1 to 60 minutes under `pauseTrackingWhenInactive`).",
+        bullets: [
+          "When `pauseTrackingWhenInactive` is enabled and idle exceeds the threshold, `/idle` opens showing exact idle duration so the employee can keep or discard the idle interval.",
+          "Enabling `allowWorkAwayFromComputer` permits authorized offline/meeting time to remain counted without automatically pausing sessions.",
+        ],
       },
       {
+        id: "offline-tracking",
         heading: "Shift Schedules & Durable Offline Queues",
-        body: "Daytime and overnight shift windows (evaluated in the workspace/shift IANA timezone with DST awareness) govern automatic start/break/stop windows. If internet connectivity drops, durableTelemetryQueue and offlineScreenshotQueue retain payloads safely on disk and replay them in chronological order once reconnected.",
+        body: "WorkComposer Desktop enforces daytime and overnight shifts (evaluated in the shift's IANA timezone across DST transitions) and protects telemetry during disconnects using two dedicated persistent queues under `app.getPath(\"userData\")`:",
+        code: `# Durable Telemetry Queue (durableTelemetryQueue.js)\n- Partitioned per user slug: u_<userId>\n- Max queue size: 500 records / user with idempotency keys\n- Retry backoff: 5s base -> 2m cap (up to 10 retries before quarantine)\n\n# Offline Screenshot Queue (offlineScreenshotQueue.js)\n- Encrypted/archived local safe-retain buffer with free disk-space checks\n- Baseline capacity: 50 captures / 24h retention (30s -> 10m backoff, 5 retries)\n- Rescue & Dead-Letter safety partitions prevent data loss on flaky Wi-Fi`,
       },
     ],
+    table: {
+      headers: ["Tracking Mode", "Session Start Trigger", "Floating Bar / User Controls", "Best Fit"],
+      rows: [
+        [
+          "Automatic",
+          "Desktop sign-in / boot (`startTrackingOnBoot`) / shift start",
+          "Live status display; follows shift windows & idle rules",
+          "Standardized 9-to-5 or scheduled shift teams",
+        ],
+        [
+          "Manual",
+          "User clicks Start in `/desktop` or task row",
+          "Full Start / Break / Stop / Switch Task controls",
+          "Consultants, flexible schedules & project billing",
+        ],
+        [
+          "Silent",
+          "Automatic background agent on active OS session",
+          "Tray-managed telemetry synced with organization policy",
+          "Managed enterprise workstations",
+        ],
+      ],
+    },
     callout: {
       tone: "tip",
-      title: "Keyboard & Tray Lifecycle",
-      text: "Closing the Desktop main window minimizes WorkComposer to the system tray instead of killing an active session, and single-instance locking prevents duplicate background trackers on Windows.",
+      title: "Tray Close & Multi-Window Security Policy",
+      text: "Closing the Desktop window hides it to the system tray rather than aborting active timers. All Electron BrowserWindows enforce `windowPolicy.js` navigation allowlists, blocking arbitrary external popups while permitting OAuth sign-in flows.",
     },
   },
   {
@@ -148,7 +203,7 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "03 · Time & Attendance",
     title: "Time Tracking, Attendance & Reporting",
     summary:
-      "Home dashboards, Attendance punch bounds, My Report, timezone-safe interval merging, manual time approvals, and reusable Date Range persistence.",
+      "How Home, Overview, Attendance, and My Report compute timezone-accurate work/break hours, merge overlapping sessions, handle manual time approvals, and persist calendar filters.",
     tags: [
       "attendance",
       "overview",
@@ -160,28 +215,30 @@ export const DOCS_SECTIONS: DocSection[] = [
       "date range",
       "csv",
       "email reports",
+      "getZonedDayRange",
     ],
     subsections: [
       {
-        heading: "Home, Overview, Attendance & My Report",
-        body: "Managers and employees share consistent time views scoped by their role permissions:",
+        heading: "Home, Overview, Attendance & My Report Views",
+        body: "Time Tracking modules roll session intervals into consistent metrics across Web and Desktop:",
         bullets: [
-          "Personal & Team Home: Live team day status (Online, On Break, Offline), daily metric cards, and weekly comparison summaries.",
-          "Overview: Roll-up totals combining Work Time, Break Time, Idle Time, Activity %, and quick drill-downs.",
-          "Attendance: First punch-in, last punch-out, break durations, and chronological session segments per employee.",
+          "Team & Personal Home (`/dashboard/time-tracking/home`): Real-time status indicators (Working, On Break, Stopped/Offline), daily/weekly trend cards, and team timeline bars.",
+          "Overview (`/dashboard/time-tracking/overview`): Team-wide or self-scoped summary table with Work Time, Break Time, Idle Time, Activity %, and Work Details modal inspection.",
+          "Attendance (`/dashboard/time-tracking/attendance`): Exact first clock-in, last clock-out, session timelines, and printable daily attendance summaries.",
+          "Scheduled Exports & Email Reports: Trigger CSV/background export jobs via Reports modals or automate daily/weekly digests under Settings → Time Tracking → Email Reports.",
         ],
       },
       {
-        heading: "Timezone-Accurate Overlap Accounting",
-        body: "All daily boundaries use half-open zoned day bounds (getZonedDayRange) in your configured Report Timezone (e.g., Asia/Kolkata, America/New_York). Multiple or overlapping work/break intervals are merged via interval-overlap calculation and reconciled with any still-running active Timer up to evaluation time.",
+        heading: "Zoned Day Bounds & Overlap Merging Engine",
+        body: "To prevent cross-midnight drift across global teams, backend controllers compute half-open zoned day intervals (`[startUtc, nextDayStartUtc)` via `getZonedDayRange`) in the caller's Report Timezone, merge overlapping work or break segments via `calculateIntervalOverlap`, and reconcile any currently running Timer up to evaluation time.",
       },
       {
-        heading: "Date Range Picker & Calendar Persistence",
-        body: "Filter any Time Tracking report using Quick Select presets (Today, Yesterday, This week, Last 7/14/30 days, This month, Last month) or Day, Week, Month, Year, and Custom dual-calendar modes. Reopening the calendar preserves your committed range and quick-select highlight in the organization timezone.",
+        heading: "Calendar Persistence & Date Range Controls",
+        body: "All Time Tracking reports share `OverviewHeader` + `DateControls` + `DateRangeModalPreview`. Selecting `Last month`, `This month`, `Last week`, `Yesterday`, `Last 7/14/30 days`, `Year`, or `Custom` range persists the committed range across tab navigation and re-hydrates the exact Quick Select, mode tab, and calendar month/year in your organization timezone on reopen.",
       },
       {
-        heading: "Manual Time Requests & Exports",
-        body: "When enabled in Settings → Time Tracking → Manual Time, employees can submit manual time adjustments for manager approval. Reports support CSV/background export jobs and scheduled daily/weekly Email Reports.",
+        heading: "Manual Time Entries & Approval Controls",
+        body: "Under Settings → Time Tracking → Manual Time, admins configure `allowManualTime`, `requireApproval`, `managerApproval` (allowing managers to approve requests for assigned team members), and backdating limits (`1–366` days). Approved manual adjustments flow straight into Overview and Attendance totals.",
       },
     ],
   },
@@ -190,7 +247,7 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "04 · Telemetry",
     title: "Screenshots & Work Details Activity",
     summary:
-      "Randomized interval screen captures, workspace-wide blur options, newest-first timelines, and 1-minute keystroke/mouse activity buckets.",
+      "Interval/randomized screenshot cadence, workspace-wide blur modes, Cloudinary TLS media pipeline, upcoming S3/GCS/Azure integration, and 1-minute Work Details activity buckets.",
     tags: [
       "screenshots",
       "blur",
@@ -199,26 +256,39 @@ export const DOCS_SECTIONS: DocSection[] = [
       "idle time",
       "screen capture",
       "cloudinary",
+      "external storage",
+      "s3",
+      "1-minute",
     ],
     subsections: [
       {
-        heading: "Configurable Capture Cadence & Blur",
-        body: "Settings → Time Tracking → Screen Capture controls whether screenshots are taken, how frequently captures occur (with randomized intervals to avoid predictable timing), and whether images are stored unblurred, lightly softened, or heavily blurred.",
+        id: "screen-capture-blur",
+        heading: "Screen Capture & Blur Privacy",
+        body: "Configure organization and per-user screenshot rules under Settings → Time Tracking → Screen Capture:",
+        bullets: [
+          "Toggle capture enabled/disabled globally or per user.",
+          "Select frequency intervals (`1`, `2`, `3`, `5`, `10`, `15`, `20`, `30`, or `60` minutes) and optionally enable `Randomize screenshot frequency` so capture times vary organically within each window.",
+          "Set blur intensity globally: `Disabled` (`disabled`), `Slightly Blurred` (`slightly_blurred`), or `Maximum Blurring` (`maximum_blurring`).",
+        ],
       },
       {
-        heading: "Work Details Modal & 1-Minute Buckets",
-        body: "Clicking any user or day opens the Work Details view showing screenshots sorted newest-first in the organization timezone paired with 1-minute mouse/keyboard telemetry buckets.",
+        id: "external-storage",
+        heading: "Screenshot Storage & Cloud Integrations",
+        body: "Captured screenshots are processed with `sharp` according to workspace blur settings, uploaded over authenticated HTTPS requests (or queued in `offlineScreenshotQueue.js` if offline), and stored on Cloudinary media storage by default. Under Settings → Account → Integrations → External Cloud Storage, direct connectors for custom Amazon Web Services (AWS S3), Google Cloud Storage, and Microsoft Azure Blob are scheduled as Coming Soon.",
+      },
+      {
+        heading: "Work Details Modal & 1-Minute Activity Buckets",
+        body: "Opening Work Details from Screenshots or Overview reveals a chronological, newest-first gallery paired with 1-minute activity buckets formatted in the active Report Timezone.",
         bullets: [
-          "Activity % reflects the share of active telemetry minutes relative to tracked work duration.",
-          "Idle intervals remain visible alongside active blocks so managers and employees see the same numbers.",
-          "Zero keystroke text or passwords are ever recorded — only aggregate input activity counts per minute.",
+          "Each 1-minute bucket records aggregate keyboard and mouse activity presence (`activeSeconds / 60`) via `uiohook-napi` — zero keystroke text, window text input, or clipboard contents are ever captured.",
+          "Daily `Activity %` and `Idle Time` cards reconcile identically between the timeline strip, Work Details header, and Overview table.",
         ],
       },
     ],
     callout: {
       tone: "privacy",
-      title: "Privacy-by-Design Capture Storage",
-      text: "Blur strength is configured at the workspace level and visible to tracked team members. Screenshots transfer over authenticated TLS connections to Cloudinary or your configured external S3 storage integration.",
+      title: "Transparent Blur & Access Controls",
+      text: "Blur strength is configured at the workspace level and visible to tracked team members. Screenshot visibility in reports is strictly gated by each role's `screenshotAccess` privilege (`none`, `own`, `assigned`, `all`).",
     },
   },
   {
@@ -226,28 +296,34 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "05 · Analytics",
     title: "Web & App Usage & Productivity",
     summary:
-      "Native foreground app and browser domain tracking, organization-scoped domain normalization, Top-N bar charts, and Productive/Neutral/Unproductive rules.",
+      "Zero-extension native browser URL detection via BrowserUrlReader, case-insensitive domain normalization, Top-N bar charts, Detailed Logs, and Productive/Neutral/Unproductive classification.",
     tags: [
       "usage",
       "web usage",
       "app usage",
       "productivity",
       "browserurlreader",
+      "macbrowserreader",
       "domains",
       "chart",
     ],
     subsections: [
       {
-        heading: "Foreground App & Native Browser URL Detection",
-        body: "Instead of requiring invasive browser extensions, WorkComposer pairs active-win with BrowserUrlReader (.NET 8 Windows UIAutomation and MacBrowserReader on macOS) to extract active browser tab domains cleanly.",
+        heading: "Native Foreground App & Browser URL Detection",
+        body: "WorkComposer avoids brittle browser plugins by combining `active-win` with compiled .NET 8 native readers bundled in `extraResources`:",
+        bullets: [
+          "Windows: `BrowserUrlReader.exe` uses Microsoft `Interop.UIAutomationClient` to inspect only the active browser address bar domain when a supported browser window has focus.",
+          "macOS: `MacBrowserReader` extracts the foreground browser tab URL cleanly when Accessibility permission is granted.",
+          "Only domain/application context and duration are logged — never form data, page content, or incognito/keystroke text.",
+        ],
       },
       {
-        heading: "Domain Normalization & Drill-Down Modals",
-        body: "Domains are normalized case-insensitively per organization so visits to mixed-case hostnames aggregate accurately under one bar. Click Full list or Detailed log inside Web & App Usage to filter, search, and audit minute-by-minute application and domain durations.",
+        heading: "Per-Org Domain Normalization & Drill-Down Modals",
+        body: "Backend usage aggregation normalizes domain hostnames case-insensitively scoped per organization so `GitHub.com` and `github.com` merge into a single clean usage entry. Inside `/dashboard/time-tracking/usage`, inspect the Top-N horizontal bar chart or open `Full list` and `Detailed log` modals to filter, search, and audit minute-level app/website durations.",
       },
       {
-        heading: "Productivity Classification Boards",
-        body: "In Settings → Time Tracking → Productivity and the live Productivity report, admins categorize apps and domains into Productive, Neutral, or Unproductive using portal context menus that update charts and scorecards immediately.",
+        heading: "Productivity Classification Rules",
+        body: "Admins classify apps and websites into `Productive`, `Neutral`, or `Unproductive` buckets under Settings → Time Tracking → Productivity or directly from the live `/dashboard/time-tracking/productivity` board via portaled context menus, recalculating productivity scores instantaneously.",
       },
     ],
   },
@@ -256,7 +332,7 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "06 · Field & Remote",
     title: "Live Location Tracking",
     summary:
-      "Opt-in device and IP geolocation plotted on an interactive Leaflet Street & Esri Satellite team map with date-range work/break cards.",
+      "Privacy-first opt-in team geolocation displayed on interactive OpenStreetMap Street & Esri Satellite tiles with clustered markers and date-range synced Work/Break popups.",
     tags: [
       "location",
       "map",
@@ -265,15 +341,16 @@ export const DOCS_SECTIONS: DocSection[] = [
       "ip",
       "geolocation",
       "work time",
+      "locationreader",
     ],
     subsections: [
       {
-        heading: "Opt-In Location Telemetry",
-        body: "Location tracking is disabled by default for new workspaces. When explicitly enabled, Desktop agents pair native LocationReader coordinates or IP-based ISP lookup metadata with active sessions.",
+        heading: "Opt-In Permission & Telemetry Sources",
+        body: "Location tracking starts disabled for new organizations. When enabled in workspace settings, Desktop agents enrich active sessions with Windows `LocationReader` coordinates or IP geolocation metadata (`IPINFO_TOKEN` / ISP & city resolution).",
       },
       {
-        heading: "Interactive Map, Clustering & Employee Popups",
-        body: "The Live Location view supports toggling between Street (OpenStreetMap) and Satellite (Esri) tiles with MarkerClusterGroup clustering. Clicking a team member marker opens a scroll-stable dark/light themed popup displaying their city, network/ISP, recent timestamps, and exact WORK TIME and BREAK TIME totals synced to the active Date Range filter.",
+        heading: "Interactive Map, Clustering & Employee Cards",
+        body: "In `/dashboard/time-tracking/location`, switch seamlessly between Street (OpenStreetMap) and Satellite (Esri) layers powered by Leaflet and `MarkerClusterGroup`. Clicking a marker opens a dark/light themed, scroll-stable popup showing employee city, ISP/network, recent location timestamps, and exact `WORK TIME` and `BREAK TIME` metrics aligned to the selected Date Range filter.",
       },
     ],
   },
@@ -282,7 +359,7 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "07 · Execution",
     title: "Projects & Task Management",
     summary:
-      "Team- and user-scoped projects, task statuses and priorities, comments, Recently Deleted recovery, Desktop task timers, and Jira/Asana sync.",
+      "Team- and user-scoped projects, task statuses & priorities, comments with unread counts, Recently Deleted recovery, Desktop task timers, and Jira/Asana sync.",
     tags: [
       "projects",
       "tasks",
@@ -295,25 +372,25 @@ export const DOCS_SECTIONS: DocSection[] = [
     ],
     subsections: [
       {
-        heading: "Project Access & Task Lifecycle",
-        body: "Projects live in the Task Management sidebar and can grant access to entire Teams or specific Individual Users. Tasks move through Todo, In progress, and Done states with Low/Medium/High priority, due dates, overdue highlights, and multi-assignee selection.",
+        heading: "Project Scoping & Task Workflows",
+        body: "Projects are managed from the Task Management sidebar (`/dashboard/task-management`) with two access layers: Team-Based Access (auto-granting access to team members) and Individual User Access. Tasks support `Todo`, `In progress`, and `Done` statuses, `Low` / `Medium` / `High` priorities, due-date overdue highlighting, multi-assignee tagging, and multi-select bulk deletion.",
       },
       {
-        heading: "Task Details, Comments & Recovery",
-        body: "Open any task to edit metadata (or view in read-only mode when opened without manage_tasks privilege), post or edit threaded comments with unread comment indicators, bulk delete tasks, or restore soft-deleted items from More → Recently Deleted.",
+        heading: "Task Details, Comments & Soft-Delete Recovery",
+        body: "Open any task to inspect or edit fields (automatically rendered in read-only banner mode if the viewer lacks `manage_tasks` permission), post/edit/delete threaded comments tracked by unread comment badges, or restore deleted tasks from `More → Recently Deleted`.",
       },
       {
-        heading: "Project Time Attribution",
-        body: "In the Desktop app, assigned users can click Start / Done directly on a task row to attribute tracked focus time to that project and task. Managers review aggregated hours in Time Tracking → Project Tracking and export User or Project reports.",
+        heading: "Desktop Task Timers & External Sync",
+        body: "Employees running WorkComposer Desktop can click `Start` / `Done` directly on assigned task rows to attribute tracked session minutes to that project and task. Managers analyze logged project/task hours in Time Tracking → Project Tracking and synchronize external issues via Jira & Asana integrations.",
       },
     ],
   },
   {
     id: "settings-rbac",
     badge: "08 · Governance",
-    title: "Organization Settings, Roles (RBAC) & Integrations",
+    title: "Organization Settings, Roles (RBAC) & API Documentation",
     summary:
-      "Granular role privileges, multi-manager team scoping, live settings propagation, API keys, audit logs, billing, and external tool integrations.",
+      "Role-based privileges (`Owner`, `Admin`, `Manager`, `User`, custom roles), multi-manager team scoping, security/audit logs, third-party integrations, and REST `/api/v1` reference.",
     tags: [
       "rbac",
       "roles",
@@ -323,6 +400,8 @@ export const DOCS_SECTIONS: DocSection[] = [
       "admin",
       "settings",
       "api",
+      "api documentation",
+      "api keys",
       "integrations",
       "stripe",
       "slack",
@@ -331,36 +410,42 @@ export const DOCS_SECTIONS: DocSection[] = [
     ],
     subsections: [
       {
-        heading: "Multi-Manager User Scoping & Team Sync",
-        body: "Under User Management, admins can assign multiple managers to each employee and update team memberships cleanly from both User Edit and Manager modals. Managers automatically scope reports and approvals to their assigned direct reports and managed teams.",
+        heading: "Multi-Manager Scoping & Team Synchronization",
+        body: "Under Dashboard → User Management, admins can assign multiple managers to any user and edit team memberships from either the Edit User modal or the Manager modal. When assigned, managers gain scoped visibility over their direct reports' Attendance, Overview, Screenshots, Usage, and Manual Time approvals without exposing unrelated teams.",
       },
       {
-        heading: "Security, API Access & Integrations",
-        body: "Organizations can enforce Two-Factor Authentication (2FA), inspect Audit Logs, monitor Desktop app update versions, issue scoped /api/v1 API keys with usage logs, manage Stripe subscriptions under Billings, and connect Slack, Jira, Asana, BambooHR, Keka, and custom S3/Cloudinary storage.",
+        heading: "Security, Billing & Ecosystem Integrations",
+        body: "Configure Two-Factor Authentication (`/settings/account/security/two-factor`), inspect Security Audit Logs (`/audit-log`), monitor Desktop client updates (`/app-update`), manage Stripe billing plans (`/billings`), and connect Slack, Jira, Asana, BambooHR, Keka, and Email Reports.",
+      },
+      {
+        id: "api-documentation",
+        heading: "REST API Documentation & API Keys (/api/v1)",
+        body: "Admins with `manage_settings` can create, revoke, and audit scoped API keys under Settings → Account → API Access (`API Keys` and `API Logs` tabs). Backend `apiKeyAuth` middleware verifies active/non-expired keys, active non-archived key owners, and strict organization tenant isolation.",
+        code: `# Authenticate API v1 requests using your organization API key\nAuthorization: Bearer <YOUR_API_KEY>\n\n# Public API v1 endpoint (requires active API key + manage_settings permission)\nGET /api/v1/projects\n# Response: { "success": true, "data": [{ "_id", "name", "description", "createdAt", "updatedAt" }] }\n\n# Core organization endpoints documented in Settings -> API Access:\nGET /api/users         # List organization users\nGET /api/projects      # List organization projects and tasks\nGET /api/reports       # Fetch tracking and productivity reports\nGET /api/attendance    # Fetch attendance and daily time summaries`,
       },
     ],
     table: {
-      headers: ["Role / Privilege", "Scope", "Capabilities"],
+      headers: ["Role / Flag", "Access Scope", "Capabilities & Guards"],
       rows: [
         [
           "Owner / Admin",
-          "Organization-wide",
-          "Full access to billing, organization settings, role definitions, user management, all reports, and audit logs.",
+          "Organization-wide (`callerOrgId`)",
+          "Unrestricted workspace administration: billing, roles, API keys, integrations, audit logs, users, projects, and all reports.",
         ],
         [
           "Manager",
-          "Assigned users & teams",
-          "Views reports, screenshots, attendance, manual time approvals, and projects scoped to assigned team members.",
+          "Assigned users & managed teams",
+          "Scoped access to direct reports' Attendance, Overview, Screenshots, Usage, Location, and optional Manual Time approval.",
         ],
         [
           "User (Employee)",
-          "Self",
-          "Tracks desktop time, views personal Home/My Report telemetry, submits manual time requests, and works on assigned tasks.",
+          "Self only",
+          "Runs Desktop tracker, views personal Home / My Report data, submits manual time requests, and updates assigned tasks/comments.",
         ],
         [
-          "Custom Role Flags",
-          "Granular per role",
-          "Configurable toggles for manage_billing, manage_settings, manage_users, manage_projects, manage_tasks, reportAccess, and screenshotAccess.",
+          "Custom Role Privileges",
+          "Granular role matrix",
+          "Configurable booleans (`manage_billing`, `manage_settings`, `manage_users`, `manage_projects`, `manage_tasks`) + scoped `reportAccess` & `screenshotAccess`.",
         ],
       ],
     },
@@ -370,7 +455,7 @@ export const DOCS_SECTIONS: DocSection[] = [
     badge: "09 · Trust & Support",
     title: "Privacy Transparency & Troubleshooting FAQ",
     summary:
-      "Plain-view monitoring guarantees, timezone diagnostics, offline queue recovery, and desktop permission checks.",
+      "Plain-view employee privacy guarantees, timezone diagnostics, offline queue verification, and Windows/macOS desktop permission troubleshooting.",
     tags: [
       "privacy",
       "faq",
@@ -380,30 +465,36 @@ export const DOCS_SECTIONS: DocSection[] = [
       "network",
       "refresh",
       "token",
+      "browserurlreader",
+      "single instance",
     ],
     subsections: [
       {
-        heading: "Employee Privacy Guarantees",
-        body: "WorkComposer never hides monitoring behind secret config files. Every employee can inspect their organization's active screenshot cadence, blur setting, idle timeout, and location tracking status directly.",
+        heading: "Employee Privacy & Zero Hidden Monitoring",
+        body: "WorkComposer keeps all tracking rules visible inside the workspace rather than buried in hidden config files. Every employee can see whether screenshot capture, blurring, inactivity pause, or location telemetry is active.",
         bullets: [
-          "No keystroke content logging: WorkComposer samples event activity counts only.",
-          "Location tracking is workspace opt-in and off by default.",
-          "All tokens, cookies, CSRF checks, and media uploads are encrypted in transit and scoped strictly by organization tenant ID.",
+          "No keystroke content, clipboard, or password capture — only 1-minute activity counters (`uiohook-napi`).",
+          "Location tracking is opt-in and off by default per organization.",
+          "Cross-tenant isolation (`callerOrgId`) returns `404` non-disclosure responses on unauthorized resource lookups.",
         ],
       },
       {
-        heading: "Why do report timestamps differ from my laptop clock?",
-        body: "Reports follow your configured Report Timezone (shown in the top-right header bar beside Last synced and inside the Date Range modal). Update your timezone under Settings → Profile.",
+        heading: "Why do dashboard report timestamps differ from my laptop clock?",
+        body: "All Time Tracking reports evaluate day bounds and timestamps using your configured Report Timezone (displayed beside `Last synced` in the report header and inside the Date Range modal), rather than whatever temporary browser offset you travel through. Update your preference in Settings → Profile.",
       },
       {
-        heading: "What happens if my internet disconnects mid-shift?",
-        body: "Keep working normally. WorkComposer Desktop queues timer heartbeats, activity telemetry, and screenshots locally on disk and automatically flushes them with original timestamps once connectivity returns.",
+        heading: "What happens if Wi-Fi disconnects or my token expires mid-shift?",
+        body: "WorkComposer Desktop refreshes JWT access tokens cleanly in the background and persists pending heartbeats/screenshots in `durableTelemetryQueue` and `offlineScreenshotQueue` under `app.getPath(\"userData\")`. Once connectivity resumes, queued events flush automatically in chronological order.",
       },
       {
-        heading: "Browser URLs are showing as only the browser app name",
-        body: "On Windows, verify BrowserUrlReader is bundled alongside the Electron executable and the browser window is in focus. On macOS, grant Accessibility permission to WorkComposer Desktop under System Settings → Privacy & Security so MacBrowserReader can inspect the active tab URL.",
+        heading: "Troubleshooting: Browser URLs, Tray Launch, & macOS Permissions",
+        body: "Use this checklist if telemetry looks incomplete on a workstation:",
+        steps: [
+          "Windows URLs missing: Confirm `BrowserUrlReader.exe` exists in the Electron app `resources/` folder and the browser window has foreground focus.",
+          "macOS URLs missing: Open macOS System Settings → Privacy & Security → Accessibility and enable WorkComposer so `MacBrowserReader` can read the active browser tab.",
+          "Desktop app won't open a second window: WorkComposer enforces a single background instance (`requestSingleInstanceLock`); check the Windows system tray icon to restore the active window.",
+        ],
       },
     ],
   },
 ];
-

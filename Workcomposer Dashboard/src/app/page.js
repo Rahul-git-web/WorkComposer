@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
+import {
+  MobileResourcesAccordion,
+  ResourcesMenu,
+} from "@/components/navigation/ResourcesMenu";
 
 export default function HomePage() {
   const DESKTOP_DOWNLOAD_URL =
     "https://github.com/Rahul-git-web/WorkComposer-Desktop/releases/download/v1.0.0/WorkComposer-Desktop-Setup-v1.0.0.exe";
 
   const [elapsed, setElapsed] = useState(14 * 60 + 32);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -93,12 +99,22 @@ export default function HomePage() {
             <a href="#download" className="hover:text-white transition-colors">
               Download
             </a>
+            <ResourcesMenu />
             <Link href="/docs" className="hover:text-white transition-colors">
               Docs
             </Link>
           </nav>
 
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen((prev) => !prev)}
+              className="md:hidden p-2 rounded-lg border border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white transition cursor-pointer"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            </button>
+
             <Link
               href="/docs"
               className="md:hidden px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-900 text-sm font-medium transition"
@@ -121,6 +137,42 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-800/70 bg-slate-950/95 px-6 py-4 space-y-3">
+            <div className="flex flex-col space-y-2 text-sm font-medium text-slate-300">
+              <a
+                href="#features"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-900 hover:text-white transition"
+              >
+                Features
+              </a>
+              <a
+                href="#privacy"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-900 hover:text-white transition"
+              >
+                Privacy
+              </a>
+              <a
+                href="#download"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-900 hover:text-white transition"
+              >
+                Download
+              </a>
+              <Link
+                href="/docs"
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-3 py-2 rounded-lg hover:bg-slate-900 hover:text-white transition"
+              >
+                Docs
+              </Link>
+            </div>
+            <MobileResourcesAccordion onNavigate={() => setMobileMenuOpen(false)} />
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}

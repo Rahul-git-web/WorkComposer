@@ -13,6 +13,10 @@ import {
   X,
 } from "lucide-react";
 import {
+  MobileResourcesAccordion,
+  ResourcesMenu,
+} from "@/components/navigation/ResourcesMenu";
+import {
   DESKTOP_DOWNLOAD_URL,
   DOCS_SECTIONS,
   type DocSection,
@@ -74,6 +78,16 @@ function CalloutBox({ callout }: { callout: NonNullable<DocSection["callout"]> }
   );
 }
 
+function findParentSectionId(anchorId: string): string | null {
+  for (const section of DOCS_SECTIONS) {
+    if (section.id === anchorId) return section.id;
+    if (section.subsections.some((sub) => sub.id === anchorId)) {
+      return section.id;
+    }
+  }
+  return null;
+}
+
 export default function DocsClient() {
   const [query, setQuery] = useState("");
   const [activeId, setActiveId] = useState(DOCS_SECTIONS[0]?.id ?? "getting-started");
@@ -93,6 +107,8 @@ export default function DocsClient() {
         (sub) =>
           sub.heading.toLowerCase().includes(trimmed) ||
           sub.body.toLowerCase().includes(trimmed) ||
+          (sub.code?.toLowerCase().includes(trimmed) ?? false) ||
+          (sub.steps?.some((step) => step.toLowerCase().includes(trimmed)) ?? false) ||
           (sub.bullets?.some((b) => b.toLowerCase().includes(trimmed)) ?? false)
       );
 
@@ -116,6 +132,27 @@ export default function DocsClient() {
       ? activeId
       : filteredSections[0]!.id;
   }, [filteredSections, activeId]);
+
+  useEffect(() => {
+    const syncHashTarget = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (!hash) return;
+      const parentId = findParentSectionId(hash);
+      if (parentId) {
+        requestAnimationFrame(() => {
+          setActiveId(parentId);
+          document.getElementById(hash)?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        });
+      }
+    };
+
+    syncHashTarget();
+    window.addEventListener("hashchange", syncHashTarget);
+    return () => window.removeEventListener("hashchange", syncHashTarget);
+  }, []);
 
   useEffect(() => {
     if (filteredSections.length === 0) return;
@@ -177,7 +214,7 @@ export default function DocsClient() {
             <BrandLogo />
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-400">
             <Link href="/" className="hover:text-white transition-colors">
               Home
             </Link>
@@ -190,6 +227,7 @@ export default function DocsClient() {
             <Link href="/#download" className="hover:text-white transition-colors">
               Download
             </Link>
+            <ResourcesMenu />
             <Link href="/docs" className="text-white font-semibold">
               Docs
             </Link>
@@ -216,6 +254,8 @@ export default function DocsClient() {
       {mobileTocOpen && (
         <div className="lg:hidden fixed inset-0 z-40 pt-20 bg-slate-950/90 backdrop-blur-md">
           <div className="h-full overflow-y-auto p-6 space-y-4">
+            <MobileResourcesAccordion onNavigate={() => setMobileTocOpen(false)} />
+
             <div className="relative">
               <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3 pointer-events-none" />
               <input
@@ -400,13 +440,32 @@ export default function DocsClient() {
 
                   <div className="space-y-6">
                     {section.subsections.map((sub) => (
-                      <div key={sub.heading} className="space-y-2.5">
+                      <div
+                        key={sub.heading}
+                        id={sub.id}
+                        className="scroll-mt-28 space-y-2.5"
+                      >
                         <h3 className="text-lg font-semibold text-slate-100">
                           {sub.heading}
                         </h3>
                         <p className="text-sm md:text-[15px] text-slate-300/90 leading-relaxed">
                           {sub.body}
                         </p>
+                        {sub.steps && (
+                          <ol className="space-y-2.5 pt-1">
+                            {sub.steps.map((step, sIdx) => (
+                              <li
+                                key={step}
+                                className="flex items-start gap-3 text-sm text-slate-300"
+                              >
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-950/90 border border-indigo-700/60 text-[11px] font-bold text-indigo-300 font-mono">
+                                  {sIdx + 1}
+                                </span>
+                                <span className="leading-relaxed">{step}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        )}
                         {sub.bullets && (
                           <ul className="space-y-2 pt-1">
                             {sub.bullets.map((bullet) => (
@@ -419,6 +478,11 @@ export default function DocsClient() {
                               </li>
                             ))}
                           </ul>
+                        )}
+                        {sub.code && (
+                          <pre className="mt-2 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/90 p-4 text-xs text-indigo-200 font-mono leading-relaxed">
+                            <code>{sub.code}</code>
+                          </pre>
                         )}
                       </div>
                     ))}
@@ -498,4 +562,3 @@ export default function DocsClient() {
     </div>
   );
 }
-
