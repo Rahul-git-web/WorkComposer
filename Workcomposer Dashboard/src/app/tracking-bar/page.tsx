@@ -3,7 +3,7 @@
 import { Play, Pause, Square, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type BarStatus = "working" | "break" | "stopped";
+type BarStatus = "working" | "break" | "idle" | "stopped";
 
 export default function TrackingBar() {
     const [seconds, setSeconds] = useState(0);
@@ -17,7 +17,7 @@ export default function TrackingBar() {
         let currentStatus: BarStatus = "working";
 
         const updateTimer = () => {
-            if (currentStatus === "stopped") {
+            if (currentStatus === "stopped" || currentStatus === "idle") {
                 setSeconds(baseSeconds);
                 return;
             }
@@ -30,10 +30,21 @@ export default function TrackingBar() {
         };
 
         const removeListener = window.electronAPI?.onTrackingUpdate?.((data: any) => {
-            const isBreak = Boolean(data?.isOnBreak) || data?.status === "break";
-            const isWorking = Boolean(data?.isTracking) && !isBreak;
+            const rawStatus = String(data?.status || "").toLowerCase();
+            const isIdle = rawStatus === "idle" || Boolean(data?.isIdle);
+            const isBreak =
+                !isIdle &&
+                (Boolean(data?.isOnBreak) ||
+                    rawStatus === "break" ||
+                    rawStatus === "paused");
+            const isWorking =
+                !isIdle &&
+                !isBreak &&
+                (Boolean(data?.isTracking) || rawStatus === "working");
 
-            currentStatus = isBreak
+            currentStatus = isIdle
+                ? "idle"
+                : isBreak
                 ? "break"
                 : isWorking
                 ? "working"
@@ -81,28 +92,53 @@ export default function TrackingBar() {
                 } as any
             }
         >
+            <style jsx>{`
+                @keyframes wcBarFloat {
+                    0%, 100% {
+                        transform: translateY(0px) scale(1);
+                    }
+                    50% {
+                        transform: translateY(-1.5px) scale(1.06);
+                    }
+                }
+                @keyframes wcBarSway {
+                    0%, 100% {
+                        transform: rotate(-5deg) translateY(0px);
+                    }
+                    50% {
+                        transform: rotate(5deg) translateY(-1px);
+                    }
+                }
+                @keyframes wcBarBreathe {
+                    0%, 100% {
+                        opacity: 0.72;
+                        transform: scale(0.95);
+                    }
+                    50% {
+                        opacity: 1;
+                        transform: scale(1.03);
+                    }
+                }
+                .wc-emoji-working {
+                    animation: wcBarFloat 2s ease-in-out infinite;
+                }
+                .wc-emoji-break {
+                    animation: wcBarSway 2.4s ease-in-out infinite;
+                }
+                .wc-emoji-idle {
+                    animation: wcBarBreathe 2.8s ease-in-out infinite;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .wc-emoji-working,
+                    .wc-emoji-break,
+                    .wc-emoji-idle {
+                        animation: none;
+                    }
+                }
+            `}</style>
+
             <div
-                className="
-                    relative
-                    h-12
-                    min-w-[355px]
-                    max-w-[400px]
-                    rounded-2xl
-                    border
-                    border-white/15
-                    bg-gradient-to-r
-                    from-[#0f172a]/95
-                    via-[#261042]/90
-                    to-[#110f36]/95
-                    shadow-[0_20px_45px_-10px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)_inset]
-                    backdrop-blur-2xl
-                    flex
-                    items-center
-                    justify-between
-                    px-4
-                    text-white
-                    overflow-hidden
-                "
+                className="relative w-[456px] h-12 shrink-0 rounded-2xl border border-white/15 bg-gradient-to-r from-[#0f172a]/95 via-[#261042]/90 to-[#110f36]/95 shadow-[0_20px_45px_-10px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)_inset] backdrop-blur-2xl flex items-center justify-between px-4 text-white overflow-hidden"
             >
                 {/* Multi-Color Ambient Glow Spheres */}
                 <div className="pointer-events-none absolute -left-6 -top-8 h-20 w-20 rounded-full bg-cyan-500/30 blur-xl" />
@@ -114,13 +150,13 @@ export default function TrackingBar() {
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-cyan-400/50 via-fuchsia-400/60 to-indigo-400/60" />
 
                 {/* Left: Indicator, Timer, and Status */}
-                <div className="relative z-10 flex items-center gap-2.5">
+                <div className="relative z-10 flex items-center gap-3 min-w-0">
                     {/* Glowing status pill */}
                     <div
                         className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border ${
                             status === "break"
                                 ? "bg-amber-500/20 border-amber-400/40 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
-                                : status === "stopped"
+                                : status === "idle" || status === "stopped"
                                 ? "bg-slate-500/20 border-slate-400/30"
                                 : "bg-indigo-500/20 border-indigo-400/40 shadow-[0_0_14px_rgba(99,102,241,0.35)]"
                         }`}
@@ -131,7 +167,7 @@ export default function TrackingBar() {
                                 fill="currentColor"
                                 className="text-amber-300"
                             />
-                        ) : status === "stopped" ? (
+                        ) : status === "idle" || status === "stopped" ? (
                             <Square
                                 size={9}
                                 fill="currentColor"
@@ -145,15 +181,15 @@ export default function TrackingBar() {
                             />
                         )}
                         {/* Blinking Pulse Dot */}
-                        {status !== "stopped" && (
+                        {status !== "stopped" && status !== "idle" && (
                             <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 items-center justify-center">
                                 <span
-                                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-80 ${
+                                    className={`animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full opacity-80 ${
                                         status === "break" ? "bg-amber-400" : "bg-emerald-400"
                                     }`}
                                 />
                                 <span
-                                    className={`relative inline-flex rounded-full h-2 w-2 animate-pulse ${
+                                    className={`relative inline-flex rounded-full h-2 w-2 animate-pulse motion-reduce:animate-none ${
                                         status === "break"
                                             ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.9)]"
                                             : "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
@@ -168,33 +204,61 @@ export default function TrackingBar() {
                         {time}
                     </span>
 
-                    {/* Status Badge */}
+                    {/* Status Badge with Subtle Animated State Emoji */}
                     {status === "break" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-400/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
-                            <span className="relative flex h-1.5 w-1.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-400/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                            <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                <span className="animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
                                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-400" />
                             </span>
-                            Break
+                            <span
+                                aria-hidden="true"
+                                className="wc-emoji-break motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                            >
+                                ☕
+                            </span>
+                            <span>Break</span>
+                        </span>
+                    ) : status === "idle" ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-500/20 text-slate-300 border border-slate-400/30">
+                            <span
+                                aria-hidden="true"
+                                className="wc-emoji-idle motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                            >
+                                🌙
+                            </span>
+                            <span>Idle</span>
                         </span>
                     ) : status === "stopped" ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-500/20 text-slate-300 border border-slate-400/30">
-                            Stopped
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-slate-500/20 text-slate-300 border border-slate-400/30">
+                            <span
+                                aria-hidden="true"
+                                className="wc-emoji-idle motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                            >
+                                ⏸️
+                            </span>
+                            <span>Stopped</span>
                         </span>
                     ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
-                            <span className="relative flex h-1.5 w-1.5">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-300 border border-indigo-400/30 shadow-[0_0_10px_rgba(99,102,241,0.2)]">
+                            <span className="relative flex h-1.5 w-1.5 shrink-0">
+                                <span className="animate-ping motion-reduce:animate-none absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
                             </span>
-                            Working
+                            <span
+                                aria-hidden="true"
+                                className="wc-emoji-working motion-reduce:animate-none inline-flex w-3.5 items-center justify-center text-[11px] leading-none"
+                            >
+                                💻
+                            </span>
+                            <span>Working</span>
                         </span>
                     )}
                 </div>
 
                 {/* Right: Actions Container */}
                 <div
-                    className="relative z-10 flex items-center gap-1 rounded-xl border border-white/10 bg-black/30 p-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] backdrop-blur-md"
+                    className="relative z-10 flex items-center gap-1 shrink-0 rounded-xl border border-white/10 bg-black/30 p-1 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] backdrop-blur-md"
                     style={
                         {
                             WebkitAppRegion: "no-drag",
@@ -205,24 +269,10 @@ export default function TrackingBar() {
                     <button
                         type="button"
                         onClick={() => {
-                            window.electronAPI.stopTrackingFromBar();
+                            window.electronAPI?.stopTrackingFromBar?.();
                         }}
                         title="Stop tracking"
-                        className="
-                            group
-                            h-7
-                            w-7
-                            flex
-                            items-center
-                            justify-center
-                            rounded-lg
-                            bg-transparent
-                            hover:bg-rose-500/25
-                            active:scale-90
-                            transition-all
-                            duration-150
-                            cursor-pointer
-                        "
+                        className="group h-7 w-7 flex items-center justify-center rounded-lg bg-transparent hover:bg-rose-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
                     >
                         <Square
                             size={10}
@@ -238,24 +288,10 @@ export default function TrackingBar() {
                     <button
                         type="button"
                         onClick={() => {
-                            window.electronAPI.openMainWindow();
+                            window.electronAPI?.openMainWindow?.();
                         }}
                         title="Open dashboard"
-                        className="
-                            group
-                            h-7
-                            w-7
-                            flex
-                            items-center
-                            justify-center
-                            rounded-lg
-                            bg-transparent
-                            hover:bg-indigo-500/25
-                            active:scale-90
-                            transition-all
-                            duration-150
-                            cursor-pointer
-                        "
+                        className="group h-7 w-7 flex items-center justify-center rounded-lg bg-transparent hover:bg-indigo-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
                     >
                         <ChevronRight
                             size={14}

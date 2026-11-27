@@ -959,6 +959,7 @@ function updateTrackingBarVisibility() {
 
   switch (visibility) {
     case "always":
+      clampTrackingBarPosition({ persist: false });
       trackingBar.show();
       break;
 
@@ -969,6 +970,7 @@ function updateTrackingBarVisibility() {
 
     case "during_tracking":
       if (isTracking || isOnBreak) {
+        clampTrackingBarPosition({ persist: false });
         trackingBar.show();
       } else {
         trackingBar.hide();
@@ -2125,12 +2127,110 @@ function hideIdleWindow(resetIdle = true) {
   devLog("IDLE WINDOW HIDDEN");
 }
 
+const TRACKING_BAR_WIDTH = 456;
+const TRACKING_BAR_HEIGHT = 48;
+const TRACKING_BAR_BOTTOM_MARGIN = 8;
+let isClampingTrackingBar = false;
+
+/**
+ * Clamps window bounds strictly inside the target display workArea
+ * (excluding taskbars/docks) while keeping top/left safe on short viewports.
+ */
+function clampBoundsToWorkArea(
+  bounds,
+  workArea,
+  bottomMargin = TRACKING_BAR_BOTTOM_MARGIN,
+) {
+  const width = Number.isFinite(bounds?.width)
+    ? bounds.width
+    : TRACKING_BAR_WIDTH;
+  const height = Number.isFinite(bounds?.height)
+    ? bounds.height
+    : TRACKING_BAR_HEIGHT;
+  const safeMargin = Number.isFinite(bottomMargin)
+    ? Math.max(0, bottomMargin)
+    : 0;
+
+  const minX = workArea.x;
+  const maxX = Math.max(minX, workArea.x + workArea.width - width);
+  const minY = workArea.y;
+  const maxY = Math.max(
+    minY,
+    workArea.y + workArea.height - height - safeMargin,
+  );
+
+  const rawX = Number.isFinite(bounds?.x) ? bounds.x : minX;
+  const rawY = Number.isFinite(bounds?.y) ? bounds.y : minY;
+
+  return {
+    x: Math.round(Math.min(Math.max(rawX, minX), maxX)),
+    y: Math.round(Math.min(Math.max(rawY, minY), maxY)),
+  };
+}
+
+/**
+ * Clamps trackingBar onto its matched display workArea using setPosition
+ * to avoid fractional-DPI resize drift on Windows.
+ */
+function clampTrackingBarPosition({
+  persist = false,
+  bottomMargin = TRACKING_BAR_BOTTOM_MARGIN,
+} = {}) {
+  if (!trackingBar || trackingBar.isDestroyed() || isClampingTrackingBar) {
+    return null;
+  }
+
+  const currentBounds = trackingBar.getBounds();
+  const fixedBounds = {
+    x: currentBounds.x,
+    y: currentBounds.y,
+    width: TRACKING_BAR_WIDTH,
+    height: TRACKING_BAR_HEIGHT,
+  };
+
+  let display = null;
+  try {
+    display = screen.getDisplayMatching(fixedBounds);
+  } catch {
+    display = null;
+  }
+  if (!display || !display.workArea) {
+    display = screen.getPrimaryDisplay();
+  }
+
+  const clamped = clampBoundsToWorkArea(
+    fixedBounds,
+    display.workArea,
+    bottomMargin,
+  );
+
+  if (clamped.x !== currentBounds.x || clamped.y !== currentBounds.y) {
+    isClampingTrackingBar = true;
+    try {
+      trackingBar.setPosition(clamped.x, clamped.y);
+    } finally {
+      isClampingTrackingBar = false;
+    }
+  }
+
+  if (persist) {
+    store.set("trackingBarPosition", clamped);
+  }
+
+  return clamped;
+}
+
 function createTrackingBar() {
   devLog("CREATING TRACKING BAR");
 
   trackingBar = new BrowserWindow({
-    width: 380,
-    height: 46,
+    width: TRACKING_BAR_WIDTH,
+    height: TRACKING_BAR_HEIGHT,
+    minWidth: TRACKING_BAR_WIDTH,
+    maxWidth: TRACKING_BAR_WIDTH,
+    minHeight: TRACKING_BAR_HEIGHT,
+    maxHeight: TRACKING_BAR_HEIGHT,
+    useContentSize: true,
     frame: false,
     transparent: false,
     resizable: false,
@@ -2169,16 +2269,62 @@ function createTrackingBar() {
     },
   );
 
+  trackingBar.on("moved", () => {
+    clampTrackingBarPosition({ persist: true });
+  });
+
   trackingBar.once("ready-to-show", () => {
-    const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+    if (!trackingBar || trackingBar.isDestroyed()) return;
 
-    const barWidth = 260;
-    const barHeight = 52;
+    const savedPos = store.get("trackingBarPosition");
+    const hasSavedPos =
+      savedPos &&
+      Number.isFinite(savedPos.x) &&
+      Number.isFinite(savedPos.y);
 
-    trackingBar.setPosition(
-      Math.round((width - barWidth) / 2),
-      height - barHeight - 20,
+    const primaryWorkArea = screen.getPrimaryDisplay().workArea;
+    const candidateBounds = hasSavedPos
+      ? {
+          x: savedPos.x,
+          y: savedPos.y,
+          width: TRACKING_BAR_WIDTH,
+          height: TRACKING_BAR_HEIGHT,
+        }
+      : {
+          x:
+            primaryWorkArea.x +
+            Math.round((primaryWorkArea.width - TRACKING_BAR_WIDTH) / 2),
+          y:
+            primaryWorkArea.y +
+            primaryWorkArea.height -
+            TRACKING_BAR_HEIGHT -
+            TRACKING_BAR_BOTTOM_MARGIN,
+          width: TRACKING_BAR_WIDTH,
+          height: TRACKING_BAR_HEIGHT,
+        };
+
+    let display = null;
+    try {
+      display = screen.getDisplayMatching(candidateBounds);
+    } catch {
+      display = null;
+    }
+    if (!display || !display.workArea) {
+      display = screen.getPrimaryDisplay();
+    }
+
+    const clamped = clampBoundsToWorkArea(
+      candidateBounds,
+      display.workArea,
+      TRACKING_BAR_BOTTOM_MARGIN,
     );
+
+    isClampingTrackingBar = true;
+    try {
+      trackingBar.setPosition(clamped.x, clamped.y);
+    } finally {
+      isClampingTrackingBar = false;
+    }
 
     updateTrackingBarVisibility();
   });
@@ -2689,6 +2835,12 @@ app.whenReady().then(async () => {
   createTrackingBar();
   updateTrackingBarVisibility();
   createIdleWindow();
+
+  const reclampTrackingBarOnDisplayChange = () => {
+    clampTrackingBarPosition({ persist: true });
+  };
+  screen.on("display-metrics-changed", reclampTrackingBarOnDisplayChange);
+  screen.on("display-removed", reclampTrackingBarOnDisplayChange);
 
   setInterval(() => {
     if (!trackingSettings?.shift?.enabled) return;
