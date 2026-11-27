@@ -314,6 +314,7 @@ export default function OverviewHeader({
         <DateControls
           date={date}
           setDate={setDate}
+          reportRange={reportRange}
           setReportRange={setReportRange}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}
