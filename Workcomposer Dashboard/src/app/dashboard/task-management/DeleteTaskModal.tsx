@@ -44,7 +44,7 @@ const DeleteTaskModal = ({
                                 <button
                                     type='button'
                                     onClick={handleDeleteTask}
-                                    className='inline-flex justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600'>{deleting ? "Deleting..." : "Delete"}</button>
+                                    className='inline-flex justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-600 dark:focus:ring-offset-slate-800'>{deleting ? "Deleting..." : "Delete"}</button>
                             </div>
                         </div>
                     </div>

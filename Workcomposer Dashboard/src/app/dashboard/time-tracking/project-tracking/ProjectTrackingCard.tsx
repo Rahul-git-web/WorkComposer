@@ -169,7 +169,7 @@ const ProjectTrackingCard = ({
                                                 >
                                                     <td className="py-4 pr-3 pl-6 text-sm font-medium whitespace-nowrap text-gray-900 dark:text-white">
                                                         <div className="flex items-center gap-2">
-                                                            <HiFolder className="h-5 w-5 text-indigo-600 flex-shrink-0" />
+                                                            <HiFolder className="h-5 w-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
                                                             <span className="truncate max-w-xs">
                                                                 {project.name}
                                                             </span>
@@ -189,7 +189,7 @@ const ProjectTrackingCard = ({
                                                                     </span>
                                                                 ))
                                                             ) : (
-                                                                <span className="text-sm text-gray-400">
+                                                                <span className="text-sm text-gray-400 dark:text-gray-500">
                                                                     No users
                                                                 </span>
                                                             )}
@@ -206,7 +206,7 @@ const ProjectTrackingCard = ({
                                                     <td className="px-3 py-4 text-sm whitespace-nowrap text-right pr-6">
                                                         <button
                                                             onClick={() => setSelectedProject(project)}
-                                                            className="inline-flex items-center px-3 py-1.5 border border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-[#1E293B] hover:bg-indigo-50 dark:hover:bg-[#273549] rounded-md cursor-pointer font-medium text-sm transition-colors duration-150 shadow-sm"
+                                                            className="inline-flex items-center px-3 py-1.5 border border-indigo-500 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-[#1E293B] hover:bg-indigo-50 dark:hover:bg-[#273549] rounded-md cursor-pointer font-medium text-sm transition-colors duration-150 shadow-sm"
                                                         >
                                                             <span>View Tasks</span>
                                                         </button>

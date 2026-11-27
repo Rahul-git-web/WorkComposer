@@ -320,8 +320,8 @@ const NewProject = ({
                                                                                                 setSelectedTeams([])
                                                                                             }
                                                                                         }}
-                                                                                        className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"></input>
-                                                                                    <MdOutlineCheckBoxOutlineBlank className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25" />
+                                                                                        className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 dark:disabled:border-slate-700 disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:checked:bg-gray-100 dark:disabled:checked:bg-slate-800 forced-colors:appearance-auto"></input>
+                                                                                    <MdOutlineCheckBoxOutlineBlank className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25 dark:group-has-disabled:stroke-white/25" />
                                                                                 </div>
                                                                             </div>
 
@@ -483,8 +483,8 @@ const NewProject = ({
                                                                                                         setSelectedUsers([])
                                                                                                     }
                                                                                                 }}
-                                                                                                className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto"></input>
-                                                                                            <MdOutlineCheckBoxOutlineBlank className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25" />
+                                                                                                                                className="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 dark:disabled:border-slate-700 disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:checked:bg-gray-100 dark:disabled:checked:bg-slate-800 forced-colors:appearance-auto"></input>
+                                                                                            <MdOutlineCheckBoxOutlineBlank className="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25 dark:group-has-disabled:stroke-white/25" />
                                                                                         </div>
                                                                                     </div>
 
@@ -575,7 +575,7 @@ const NewProject = ({
                                 <button
                                     type="submit"
                                     disabled={!projectName.trim() || saving}
-                                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                                     <Check className="w-4 h-4" />
                                     <span>{saving ? "Saving..." : (editingProject ? "Update Project" : "Create New Project")}</span>
                                 </button>

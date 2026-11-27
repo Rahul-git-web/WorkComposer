@@ -129,7 +129,11 @@ export default function ReportsSidebar({
                     onChange={(e) =>
                         setProjectSearch(e.target.value)
                     }
-                    className="mb-4 w-full rounded-md bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-gray-300 dark:border-gray-700" />
+                    className={`mb-4 w-full rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 border ${
+                        desktop
+                            ? "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-700"
+                            : "bg-gray-800 text-white placeholder-gray-400 border-gray-700"
+                    }`} />
             </div>
 
             <nav className="flex flex-1 flex-col mt-2">
@@ -151,12 +155,18 @@ export default function ReportsSidebar({
                                 }}
                                 className={`py-2 group flex items-center justify-between cursor-pointer px-3 transition-all duration-200 ease-in-out ${currentProject === project.name
                                     ? "bg-gradient-to-r from-indigo-900/70 to-gray-800 shadow-md text-white border-l-3 border-indigo-500"
-                                    : "text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-gray-800/50"
+                                    : desktop
+                                        ? "text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-gray-800/50"
+                                        : "text-gray-300 hover:bg-gray-800/50 hover:text-white"
                                     }`}
                             >
                                 <span className="flex items-center gap-x-2">
                                     <div className="flex-shrink-0 flex items-center justify-center w-8 h-8">
-                                        <FolderClosed className="w-5 h-5 shrink-0 transition-transform group-hover:scale-110 duration-150 text-indigo-500 dark:text-indigo-300" />
+                                        <FolderClosed className={`w-5 h-5 shrink-0 transition-transform group-hover:scale-110 duration-150 ${
+                                            currentProject === project.name || !desktop
+                                                ? "text-indigo-300"
+                                                : "text-indigo-500 dark:text-indigo-300"
+                                        }`} />
                                     </div>
 
                                     <span className="text-sm font-bold">
@@ -177,11 +187,19 @@ export default function ReportsSidebar({
                                                 );
                                             }}
                                             type="button"
-                                            className="cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md"
+                                            className={`cursor-pointer p-1 rounded-md ${
+                                                desktop
+                                                    ? "hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                    : "hover:bg-gray-700"
+                                            }`}
                                             title="Project options"
                                             aria-label="Project options"
                                         >
-                                            <EllipsisVertical className="h-5 w-5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white" />
+                                            <EllipsisVertical className={`h-5 w-5 ${
+                                                desktop
+                                                    ? "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                                                    : "text-gray-400 hover:text-white"
+                                            }`} />
                                         </button>
 
                                         {openProjectMenu === projectId && (

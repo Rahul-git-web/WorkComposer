@@ -304,7 +304,7 @@ export default function TaskManagement({
     return (
         <>
             <div className="mx-auto w-full max-w-[1700px] px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-wrap items-center gap-3 bg-gray-50 px-4 py-3 border border-gray-200 sm:px-6 lg:px-8 rounded-md">
+                <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-[#0F172A] px-4 py-3 border border-gray-200 dark:border-[#22324D] sm:px-6 lg:px-8 rounded-md">
                     <div className="w-full sm:w-64">
                         <div className="relative">
                             <input
@@ -316,7 +316,7 @@ export default function TaskManagement({
                                 }
                                 className="block w-full rounded-md bg-white dark:bg-[#1E293B] px-3 py-1.5 text-base text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6">
                             </input>
-                            <Search className='absolute right-3 top-2 h-5 w-5 text-gray-400 pointer-events-none' />
+                            <Search className='absolute right-3 top-2 h-5 w-5 text-gray-400 dark:text-slate-400 pointer-events-none' />
                         </div>
                     </div>
 
@@ -329,7 +329,7 @@ export default function TaskManagement({
                                 type='button'
                                 className='grid w-full cursor-default grid-cols-1 rounded-md bg-white dark:bg-[#1E293B] py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
                                 <span className='col-start-1 row-start-1 truncate pr-6'>{selectedStatus}</span>
-                                <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4' />
+                                <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 dark:text-slate-400 sm:size-4' />
                             </button>
 
                             {statusOpen && (
@@ -342,19 +342,19 @@ export default function TaskManagement({
                                                 setSelectedStatus(status);
                                                 setStatusOpen(false);
                                             }}
-                                            className='flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer'
+                                            className='flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer'
                                         >
                                             <span
                                                 className={`block truncate ${selectedStatus === status
-                                                    ? "font-semibold text-gray-900"
-                                                    : "font-normal text-gray-500"
+                                                    ? "font-semibold text-gray-900 dark:text-white"
+                                                    : "font-normal text-gray-500 dark:text-gray-400"
                                                     }`}
                                             >
                                                 {status}
                                             </span>
 
                                             {selectedStatus === status && (
-                                                <IoCheckmark className='w-4 h-4 text-indigo-600' />
+                                                <IoCheckmark className='w-4 h-4 text-indigo-600 dark:text-indigo-400' />
                                             )}
                                         </li>
                                     ))}
@@ -380,7 +380,7 @@ export default function TaskManagement({
                                         : selectedAssignees.length === 1
                                             ? selectedAssignees[0]
                                             : `${selectedAssignees.length} assignees`}</span>
-                                <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4' />
+                                <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 dark:text-slate-400 sm:size-4' />
                             </button>
 
                             {assigneeOpen && (
@@ -399,7 +399,7 @@ export default function TaskManagement({
                                             }>{assignee}</span>
 
                                             {selectedAssignees.includes(assignee) && (
-                                                <IoCheckmark className='w-4 h-4 text-indigo-600' />
+                                                <IoCheckmark className='w-4 h-4 text-indigo-600 dark:text-indigo-400' />
                                             )}
                                         </li>
                                     ))}
@@ -419,7 +419,7 @@ export default function TaskManagement({
                                 type='button'
                                 className='grid w-full cursor-default grid-cols-1 rounded-md bg-white dark:bg-[#1E293B] py-1.5 pr-2 pl-3 text-left text-gray-900 dark:text-white outline-1 -outline-offset-1 outline-gray-300 dark:outline-gray-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6'>
                                 <span className='col-start-1 row-start-1 truncate pr-6'>{selectedType}</span>
-                                <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4' />
+                                <TbSelector className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 dark:text-slate-400 sm:size-4' />
                             </button>
 
                             {typeOpen && (
@@ -549,7 +549,7 @@ export default function TaskManagement({
                         {canManageTasks && (
                             <button
                                 onClick={() => setShowNewTaskModal(true)}
-                                className="inline-flex items-center gap-2 rounded-md border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 text-sm font-medium"
+                                className="inline-flex items-center gap-2 rounded-md border border-indigo-600 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 px-3 py-1.5 text-sm font-medium"
                             >
                                 <Plus className="w-4 h-4" />
                                 New Task
@@ -577,7 +577,7 @@ export default function TaskManagement({
                                             setSelectedTasks([]);
                                         }
                                     }}
-                                    className='col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 void-colors:appearance-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
+                                    className='col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1E293B] checked:border-indigo-600 checked:bg-indigo-600 void-colors:appearance-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600'
                                 />
                                 <svg className='pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25' viewBox='0 0 14 14' fill='none'>
                                     <path className='opacity-0 group-has-checked:opacity-100' d='M3 8L6 11L11 3.5' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'></path>
@@ -862,7 +862,7 @@ export default function TaskManagement({
                                                                         </span>
                                                                     </>
                                                                 ) : (
-                                                                    <span className="text-sm text-gray-400 italic">Unassigned</span>
+                                                                    <span className="text-sm text-gray-400 dark:text-gray-500 italic">Unassigned</span>
                                                                 )}
                                                             </div>
                                                         )}
@@ -894,6 +894,7 @@ export default function TaskManagement({
                                                                         switchTask(projId, task.id);
                                                                     }
                                                                 }}
+                                                                className='shrink-0 rounded-md border border-gray-300 dark:border-gray-700 px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                                                             >
                                                                 {(timer?.task?._id || timer?.task?.id) === task.id ? "Done" : "Start"}
                                                             </button>
@@ -903,7 +904,7 @@ export default function TaskManagement({
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan={6} className='py-10 text-center text-gray-500'>No tasks found</td>
+                                                <td colSpan={6} className='py-10 text-center text-gray-500 dark:text-gray-400'>No tasks found</td>
                                             </tr>
                                         )}
                                     </tbody>

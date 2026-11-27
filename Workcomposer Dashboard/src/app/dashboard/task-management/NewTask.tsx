@@ -373,7 +373,7 @@ const NewTask = ({
                                                 onChange={(e) =>
                                                     setDueDate(e.target.value)
                                                 }
-                                                className="block w-full rounded-md bg-white dark:bg-slate-900 px-3 py-1.5 text-base text-gray-900 dark:text-slate-100 outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6"
+                                                className="block w-full rounded-md bg-white dark:bg-slate-900 dark:[color-scheme:dark] px-3 py-1.5 text-base text-gray-900 dark:text-slate-100 outline-1 outline-gray-300 dark:outline-slate-700 focus:outline-2 focus:outline-indigo-600 sm:text-sm/6"
                                             />
                                         </div>
                                     </div>
