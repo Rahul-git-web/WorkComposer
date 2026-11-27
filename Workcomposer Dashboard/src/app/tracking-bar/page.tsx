@@ -93,6 +93,11 @@ export default function TrackingBar() {
             }
         >
             <style jsx>{`
+                :global(nextjs-portal),
+                :global([data-nextjs-toast]),
+                :global([data-next-badge-root]) {
+                    display: none !important;
+                }
                 @keyframes wcBarFloat {
                     0%, 100% {
                         transform: translateY(0px) scale(1);
