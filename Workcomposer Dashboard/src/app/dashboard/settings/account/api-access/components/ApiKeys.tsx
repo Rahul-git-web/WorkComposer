@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link";
 import { TbExternalLink } from "react-icons/tb";
 import GenerateApiKeyModal from "./GenerateApiKeyModal";
 import GeneratedApiKeyModal from "./GeneratedApiKeyModal";
@@ -8,11 +9,7 @@ import EditApiKeyModal from "./EditApiKeyModal";
 import DeleteApiKeyModal from "./DeleteApiKeyModal";
 import useApiKeys from "../hooks/useApiKeys";
 
-type ApiKeysProps = {
-    onOpenDocs?: () => void;
-};
-
-export default function ApiKeys({ onOpenDocs }: ApiKeysProps) {
+export default function ApiKeys() {
 
     const {
         apiKeys,
@@ -71,14 +68,15 @@ export default function ApiKeys({ onOpenDocs }: ApiKeysProps) {
                 <div className="mt-8">
                     <p className="text-[15px] text-gray-700 dark:text-gray-300">
                         Read the API documentation here:{" "}
-                        <button
-                            type="button"
-                            onClick={() => onOpenDocs?.()}
+                        <Link
+                            href="/developer-api/docs/api-quickstart"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="inline-flex font-medium text-[#2F6BFF] hover:underline cursor-pointer"
                         >
                             WorkComposer API Documentation
                             <TbExternalLink className="w-4 h-4 ml-1.5 mt-1"/>
-                        </button>
+                        </Link>
                     </p>
                 </div>
 
