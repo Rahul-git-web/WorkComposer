@@ -53,7 +53,7 @@ export default function SecurityLayoutView({
                             <select
                                 value={mobileSelectValue}
                                 onChange={(e) => handleMobileTabChange(e.target.value)}
-                                className="w-full appearance-none rounded-md bg-wc-surface-2 py-3 pr-10 pl-4 text-base border border-wc-border focus:outline-none focus:ring-2 focus:ring-wc-primary focus:border-wc-primary text-gray-900 dark:text-white"
+                                className="w-full appearance-none rounded-md bg-wc-surface-2 py-3 pr-10 pl-4 text-base border border-wc-border focus:outline-none focus:ring-2 focus:ring-wc-primary focus:border-wc-primary text-gray-900 dark:text-white dark:[color-scheme:dark]"
                             >
                                 <option value="two-factor">
                                     Two Factor Authentication

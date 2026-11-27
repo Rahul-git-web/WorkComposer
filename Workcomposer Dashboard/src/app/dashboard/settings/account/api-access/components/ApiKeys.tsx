@@ -58,7 +58,7 @@ export default function ApiKeys() {
                 <div className="flex justify-end">
                     <button
                         onClick={() => setOpenGenerateModal(true)}
-                        className="rounded-lg border border-[#2F6BFF] px-5 py-1.5 text-sm font-medium text-[#2F6BFF] hover:bg-blue-50 transition"
+                        className="rounded-lg border border-[#2F6BFF] px-5 py-1.5 text-sm font-medium text-[#2F6BFF] dark:text-blue-400 dark:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition cursor-pointer"
                     >
                         Generate a New API Key
                     </button>
@@ -72,7 +72,7 @@ export default function ApiKeys() {
                             href="/developer-api/docs/api-quickstart"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex font-medium text-[#2F6BFF] hover:underline cursor-pointer"
+                            className="inline-flex font-medium text-[#2F6BFF] dark:text-blue-400 hover:underline cursor-pointer"
                         >
                             WorkComposer API Documentation
                             <TbExternalLink className="w-4 h-4 ml-1.5 mt-1"/>
@@ -80,16 +80,16 @@ export default function ApiKeys() {
                     </p>
                 </div>
 
-                <div className="my-6 border-b border-gray-200" />
+                <div className="my-6 border-b border-gray-200 dark:border-[#22324D]" />
 
                 {/* Empty State */}
                 {loading ? (
                     <div className="flex h-64 items-center justify-center">
-                        <p className="text-gray-500">Loading...</p>
+                        <p className="text-gray-500 dark:text-slate-400">Loading...</p>
                     </div>
                 ) : apiKeys.length === 0 ? (
                     <div className="flex h-64 items-center justify-center">
-                        <p className="text-lg text-gray-500">
+                        <p className="text-lg text-gray-500 dark:text-slate-400">
                             You have no API Keys yet.
                         </p>
                     </div>

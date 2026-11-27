@@ -6,6 +6,7 @@ import ToggleRow from "../tracking/components/ToggleRow";
 import useShiftSettings from "./hooks/useShiftSettings";
 import { useState } from "react";
 import ConfigurePerUserModal from "@/components/settings/ConfigurePerUserModal";
+import SettingsLoading from "@/components/settings/SettingsLoading";
 import ConfigureShiftScheduleModal from "./components/ConfigureShiftScheduleModal";
 import ShiftScheduleEditor from "./components/ShiftScheduleEditor";
 
@@ -21,7 +22,13 @@ export default function ShiftPage() {
     const [configureShiftModalOpen, setConfigureShiftModalOpen] = useState(false);
 
     if (loading || !settings) {
-        return <div>Loading...</div>;
+        return (
+            <div className="py-10 flex-1">
+                <div className="mx-auto w-full max-w-[1700px] px-6 sm:px-8 lg:px-10">
+                    <SettingsLoading />
+                </div>
+            </div>
+        );
     }
 
     return (

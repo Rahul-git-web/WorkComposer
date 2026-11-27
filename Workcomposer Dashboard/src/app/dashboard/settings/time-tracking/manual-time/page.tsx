@@ -4,6 +4,7 @@ import TrackingHeader from "../tracking/components/TrackingHeader";
 import SettingRow from "../tracking/components/SettingRow";
 import ToggleRow from "../tracking/components/ToggleRow";
 import CustomSelect from "../tracking/components/CustomSelect";
+import SettingsLoading from "@/components/settings/SettingsLoading";
 import useManualTimeSettings from "./hooks/useManualTimeSettings";
 
 type Option = {
@@ -20,7 +21,13 @@ export default function ManualTimePage() {
 
 
     if (loading || !settings) {
-        return <div>Loading...</div>;
+        return (
+            <div className="py-10 flex-1">
+                <div className="mx-auto w-full max-w-[1700px] px-6 sm:px-8 lg:px-10">
+                    <SettingsLoading />
+                </div>
+            </div>
+        );
     }
 
     const backdatingOptions: Option[] = Array.from(

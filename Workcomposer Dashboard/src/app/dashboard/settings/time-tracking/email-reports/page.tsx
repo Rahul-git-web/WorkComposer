@@ -294,10 +294,10 @@ export default function EmailReportsPage() {
                                                     hours: Number(e.target.value),
                                                 })
                                             }
-                                            className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-20 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                                         />
 
-                                        <span className="text-sm text-gray-500">
+                                        <span className="text-sm text-gray-500 dark:text-slate-400">
                                             Hours
                                         </span>
 
@@ -312,10 +312,10 @@ export default function EmailReportsPage() {
                                                     minutes: Number(e.target.value),
                                                 })
                                             }
-                                            className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                            className="w-20 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                                         />
 
-                                        <span className="text-sm text-gray-500">
+                                        <span className="text-sm text-gray-500 dark:text-slate-400">
                                             Minutes
                                         </span>
 
@@ -448,10 +448,10 @@ export default function EmailReportsPage() {
                                                 hours: Number(e.target.value),
                                             })
                                         }
-                                        className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-20 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                                     />
 
-                                    <span className="text-sm text-gray-500">
+                                    <span className="text-sm text-gray-500 dark:text-slate-400">
                                         Hours
                                     </span>
 
@@ -466,10 +466,10 @@ export default function EmailReportsPage() {
                                                 minutes: Number(e.target.value),
                                             })
                                         }
-                                        className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-20 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                                     />
 
-                                    <span className="text-sm text-gray-500">
+                                    <span className="text-sm text-gray-500 dark:text-slate-400">
                                         Minutes
                                     </span>
 
@@ -506,10 +506,10 @@ export default function EmailReportsPage() {
                                                 idlePercentage: Number(e.target.value),
                                             }))
                                         }
-                                        className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                        className="w-20 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
                                     />
 
-                                    <span className="text-sm text-gray-500">%</span>
+                                    <span className="text-sm text-gray-500 dark:text-slate-400">%</span>
 
                                     <button
                                         onClick={() =>

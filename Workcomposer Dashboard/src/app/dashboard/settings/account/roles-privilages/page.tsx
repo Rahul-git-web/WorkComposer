@@ -421,7 +421,7 @@ export default function RolesPage() {
                                                         setReportAccess(value);
                                                         updateRole(permissions, value, screenshotAccess, permissions, prev, screenshotAccess);
                                                     }}
-                                                    className="w-56 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-3 py-2 text-sm"
+                                                    className="w-56 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-3 py-2 text-sm dark:[color-scheme:dark]"
                                                 >
                                                     <option value="none">No Access</option>
                                                     <option value="own">Only Own Reports</option>
@@ -460,7 +460,7 @@ export default function RolesPage() {
                                                         setScreenshotAccess(value);
                                                         updateRole(permissions, reportAccess, value, permissions, reportAccess, prev);
                                                     }}
-                                                    className="w-60 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-3 py-2 text-sm"
+                                                    className="w-60 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#1E293B] text-gray-900 dark:text-white px-3 py-2 text-sm dark:[color-scheme:dark]"
                                                 >
                                                     <option value="none">No Access</option>
                                                     <option value="own">Only Own Screenshots</option>
@@ -482,17 +482,17 @@ export default function RolesPage() {
 
                                 {(activeTab === "all" || activeTab === "admin") && (
 
-                                    <div className="rounded-2xl border border-gray-200 bg-white">
+                                    <div className="rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A]">
 
                                         <div className="px-6 py-4">
 
-                                            <h3 className="text-md font-semibold text-gray-900">
+                                            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
                                                 Administration
                                             </h3>
 
                                         </div>
 
-                                        <div className="divide-y divide-gray-200">
+                                        <div className="divide-y divide-gray-200 dark:divide-slate-800">
 
                                             {/* Billing */}
 
@@ -500,11 +500,11 @@ export default function RolesPage() {
 
                                                 <div>
 
-                                                    <h4 className="text-md font-semibold text-gray-900">
+                                                    <h4 className="text-md font-semibold text-gray-900 dark:text-white">
                                                         Manage Billing
                                                     </h4>
 
-                                                    <p className="mt-1 text-sm text-gray-500">
+                                                    <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                                                         View and manage billing information and payment methods
                                                     </p>
 
@@ -532,11 +532,11 @@ export default function RolesPage() {
 
                                                 <div>
 
-                                                    <h4 className="text-md font-semibold text-gray-900">
+                                                    <h4 className="text-md font-semibold text-gray-900 dark:text-white">
                                                         Manage Settings
                                                     </h4>
 
-                                                    <p className="mt-1 text-sm text-gray-500">
+                                                    <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                                                         View and modify organization settings and preferences
                                                     </p>
 
@@ -564,11 +564,11 @@ export default function RolesPage() {
 
                                                 <div>
 
-                                                    <h4 className="text-md font-semibold text-gray-900">
+                                                    <h4 className="text-md font-semibold text-gray-900 dark:text-white">
                                                         Manage Users & Teams
                                                     </h4>
 
-                                                    <p className="mt-1 text-sm text-gray-500">
+                                                    <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                                                         Add, edit, and remove users and teams from the organization
                                                     </p>
 
@@ -597,27 +597,27 @@ export default function RolesPage() {
 
                                 {(activeTab === "all" || activeTab === "project") && (
 
-                                    <div className="rounded-2xl border border-gray-200 bg-white">
+                                    <div className="rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A]">
 
                                         <div className="px-6 py-4">
 
-                                            <h3 className="text-md font-semibold text-gray-900">
+                                            <h3 className="text-md font-semibold text-gray-900 dark:text-white">
                                                 Project Management
                                             </h3>
 
                                         </div>
 
-                                        <div className="divide-y divide-gray-200">
+                                        <div className="divide-y divide-gray-200 dark:divide-slate-800">
 
                                             <div className="flex items-center justify-between px-6 py-6">
 
                                                 <div>
 
-                                                    <h4 className="text-md font-semibold text-gray-900">
+                                                    <h4 className="text-md font-semibold text-gray-900 dark:text-white">
                                                         Manage Projects
                                                     </h4>
 
-                                                    <p className="mt-1 text-sm text-gray-500">
+                                                    <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                                                         Allow creating, editing and deleting projects.
                                                     </p>
 
@@ -643,11 +643,11 @@ export default function RolesPage() {
 
                                                 <div>
 
-                                                    <h4 className="text-md font-semibold text-gray-900">
+                                                    <h4 className="text-md font-semibold text-gray-900 dark:text-white">
                                                         Manage Tasks
                                                     </h4>
 
-                                                    <p className="mt-1 text-sm text-gray-500">
+                                                    <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
                                                         Allow creating, editing and deleting tasks.
                                                     </p>
 

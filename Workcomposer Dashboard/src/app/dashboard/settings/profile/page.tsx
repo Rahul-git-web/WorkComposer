@@ -492,7 +492,7 @@ export default function ProfilePage() {
                                                 <span className="col-start-1 row-start-1 truncate pr-6">
                                                     {selectedTeam ? selectedTeam.name : "All Teams"}
                                                 </span>
-                                                <ChevronsUpDown className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 sm:size-4' />
+                                                <ChevronsUpDown className='col-start-1 row-start-1 size-5 self-center justify-self-end text-gray-500 dark:text-gray-400 sm:size-4' />
                                             </button>
 
                                             {teamDropdownOpen && (
@@ -562,7 +562,7 @@ export default function ProfilePage() {
 
                                 <div>
                                     <div>
-                                        <label className='block text-sm/6 font-medium text-gray-900'>Reports timezone</label>
+                                        <label className='block text-sm/6 font-medium text-gray-900 dark:text-gray-200'>Reports timezone</label>
                                         <div
                                             ref={timezoneDropdownRef}
                                             className="relative mt-2"
@@ -713,7 +713,7 @@ export default function ProfilePage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                                className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600'>
+                                                className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'>
                                                 <MdRemoveRedEye className='h-5 w-5' />
                                             </button>
                                         </div>
@@ -736,7 +736,7 @@ export default function ProfilePage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setShowNewPassword(!showNewPassword)}
-                                                className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600'>
+                                                className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'>
                                                 <MdRemoveRedEye className='h-5 w-5' />
                                             </button>
                                         </div>
@@ -758,7 +758,7 @@ export default function ProfilePage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600'>
+                                                className='absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'>
                                                 <MdRemoveRedEye className='w-5 h-5' />
                                             </button>
                                         </div>
@@ -776,7 +776,7 @@ export default function ProfilePage() {
                                                             signOutAllDevices: e.target.checked,
                                                         })
                                                     }
-                                                    className='col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto cursor-pointer'></input>
+                                                    className='col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1E293B] checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 dark:disabled:border-gray-700 disabled:bg-gray-100 dark:disabled:bg-slate-800 disabled:checked:bg-gray-100 forced-colors:appearance-auto cursor-pointer'></input>
                                                 <Check
                                                     className={`pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center text-white transition-opacity duration-100 ${passwordData.signOutAllDevices ? "opacity-100" : "opacity-0"
                                                         }`}
@@ -785,7 +785,7 @@ export default function ProfilePage() {
                                         </div>
 
                                         <div className='text-sm'>
-                                            <label htmlFor="signOutAllDevices" className='font-medium text-gray-900 cursor-pointer'>Sign out from all devices</label>
+                                            <label htmlFor="signOutAllDevices" className='font-medium text-gray-900 dark:text-gray-200 cursor-pointer'>Sign out from all devices</label>
                                         </div>
                                     </div>
                                     <div className='pt-4 text-center'>

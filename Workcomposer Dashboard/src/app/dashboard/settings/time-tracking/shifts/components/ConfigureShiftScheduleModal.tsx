@@ -311,7 +311,7 @@ export default function ConfigureShiftScheduleModal({
                                     <button
                                         type="button"
                                         onClick={() => setDropdownOpen(!dropdownOpen)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400"
                                     >
                                         ▼
                                     </button>
@@ -471,7 +471,7 @@ export default function ConfigureShiftScheduleModal({
                                 {filteredUsers.length > USERS_PER_PAGE && (
                                     <div className="mt-4 flex items-center justify-between">
 
-                                        <p className="text-sm text-gray-500">
+                                        <p className="text-sm text-gray-500 dark:text-slate-400">
                                             Showing{" "}
                                             {(currentPage - 1) * USERS_PER_PAGE + 1}
                                             -
@@ -487,19 +487,19 @@ export default function ConfigureShiftScheduleModal({
                                             <button
                                                 disabled={currentPage === 1}
                                                 onClick={() => setCurrentPage((p) => p - 1)}
-                                                className="rounded-md border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+                                                className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 px-3 py-1 text-sm disabled:opacity-50"
                                             >
                                                 Previous
                                             </button>
 
-                                            <span className="px-3 py-1 text-sm">
+                                            <span className="px-3 py-1 text-sm text-gray-700 dark:text-slate-300">
                                                 {currentPage} / {totalPages}
                                             </span>
 
                                             <button
                                                 disabled={currentPage === totalPages}
                                                 onClick={() => setCurrentPage((p) => p + 1)}
-                                                className="rounded-md border border-gray-300 px-3 py-1 text-sm disabled:opacity-50"
+                                                className="rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700 px-3 py-1 text-sm disabled:opacity-50"
                                             >
                                                 Next
                                             </button>

@@ -6,6 +6,7 @@ import SettingRow from "../tracking/components/SettingRow";
 import ToggleRow from "../tracking/components/ToggleRow";
 import CustomSelect from "../tracking/components/CustomSelect";
 import ConfigurePerUserModal from "@/components/settings/ConfigurePerUserModal";
+import SettingsLoading from "@/components/settings/SettingsLoading";
 import useScreenCaptureSettings from "./hooks/useScreenCaptureSettings";
 
 type Option = {
@@ -38,7 +39,13 @@ export default function ScreenCapturePage() {
     } | null>(null);
 
     if (loading || !settings) {
-        return <div>Loading...</div>;
+        return (
+            <div className="py-10 flex-1">
+                <div className="mx-auto w-full max-w-[1700px] px-6 sm:px-8 lg:px-10">
+                    <SettingsLoading />
+                </div>
+            </div>
+        );
     }
 
     const frequencyOptions = [

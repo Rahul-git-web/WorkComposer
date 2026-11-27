@@ -332,7 +332,7 @@ export default function NewAppConfigurationModal({
                                         Exclusions
                                     </p>
 
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500 dark:text-slate-400">
                                         Teams & Users
                                     </p>
                                 </div>
@@ -361,7 +361,7 @@ export default function NewAppConfigurationModal({
                                                 value={appName}
                                                 onChange={(e) => setAppName(e.target.value)}
                                                 placeholder="Enter app or website name (e.g., Chrome, firefox.com, Slack)"
-                                                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:[color-scheme:dark]"
                                             />
 
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -379,7 +379,7 @@ export default function NewAppConfigurationModal({
                                             <select
                                                 value={classification}
                                                 onChange={(e) => setClassification(e.target.value)}
-                                                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                className="w-full h-9 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:[color-scheme:dark]"
                                             >
                                                 <option value="productive">
                                                     Productive
@@ -571,9 +571,9 @@ export default function NewAppConfigurationModal({
                                                 <div className="mt-3">
 
                                                     <div className="flex items-start gap-3">
-                                                        <BsInfoCircle className="w-4 h-4 text-blue-800 mt-0.5" />
+                                                        <BsInfoCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
 
-                                                        <p className="text-xs text-gray-600">
+                                                        <p className="text-xs text-gray-600 dark:text-slate-400">
                                                             Exclude entire teams from this tracking rule. Members of
                                                             selected teams will not be affected by this configuration.
                                                         </p>
@@ -622,7 +622,7 @@ export default function NewAppConfigurationModal({
                                                             type="checkbox"
                                                             checked={allTeamsSelected}
                                                             onChange={(e) => toggleSelectAllTeams(e.target.checked)}
-                                                            className="h-3.5 w-3.5 rounded border-gray-300"
+                                                            className="h-3.5 w-3.5 rounded border-gray-300 dark:border-gray-600 dark:bg-slate-800 accent-indigo-600"
                                                         />
 
                                                         <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -653,7 +653,7 @@ export default function NewAppConfigurationModal({
                                                                         );
                                                                     }
                                                                 }}
-                                                                className="h-3.5 w-3.5 rounded border-gray-300"
+                                                                className="h-3.5 w-3.5 rounded border-gray-300 dark:border-gray-600 dark:bg-slate-800 accent-indigo-600"
                                                             />
 
                                                             <div className="flex flex-col">
@@ -677,9 +677,9 @@ export default function NewAppConfigurationModal({
                                         {exclusionTab === "users" && (
                                             <>
                                                 <div className="mt-3 flex items-start gap-3">
-                                                    <BsInfoCircle className="mt-1 h-3.5 w-3.5 flex-shrink-0 text-blue-600" />
+                                                    <BsInfoCircle className="mt-1 h-3.5 w-3.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
 
-                                                    <p className="text-xs text-gray-600">
+                                                    <p className="text-xs text-gray-600 dark:text-slate-400">
                                                         Exclude individual users from this tracking rule. These users will
                                                         not be affected even if they belong to included teams.
                                                     </p>
@@ -715,7 +715,7 @@ export default function NewAppConfigurationModal({
                                                         <select
                                                             value={selectedTeamFilter}
                                                             onChange={(e) => setSelectedTeamFilter(e.target.value)}
-                                                            className="h-10 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                            className="h-10 w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white px-4 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:[color-scheme:dark]"
                                                         >
                                                             <option value="all">All Teams</option>
 
@@ -752,7 +752,7 @@ export default function NewAppConfigurationModal({
                                                                 type="checkbox"
                                                                 checked={allUsersSelected}
                                                                 onChange={(e) => toggleSelectAllUsers(e.target.checked)}
-                                                                className="h-4 w-4 rounded border-gray-300"
+                                                                className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-slate-800 accent-indigo-600"
                                                             />
                                                         </div>
 
@@ -806,7 +806,7 @@ export default function NewAppConfigurationModal({
                                                                                 );
                                                                             }
                                                                         }}
-                                                                        className="h-4 w-4 rounded border-gray-300"
+                                                                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 dark:bg-slate-800 accent-indigo-600"
                                                                     />
                                                                 </div>
 

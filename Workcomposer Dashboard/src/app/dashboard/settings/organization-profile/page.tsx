@@ -386,13 +386,13 @@ const OrganizationPage = () => {
                             <div className="relative flex justify-center"></div>
                         </div>
                         <div className="mt-10 max-w-6xl mx-auto">
-                            <h4 className="text-base font-semibold text-red-600 mb-3">
+                            <h4 className="text-base font-semibold text-red-600 dark:text-red-400 mb-3">
                                 Delete Account
                             </h4>
 
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-md border border-wc-danger bg-red-100 px-5 py-4">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-md border border-wc-danger dark:border-red-900/50 bg-red-100 dark:bg-red-950/30 px-5 py-4">
 
-                                <p className="text-sm text-red-700 leading-6">
+                                <p className="text-sm text-red-700 dark:text-red-300 leading-6">
                                     <strong>Warning: </strong>
                                     This action is irreversible. All organization data will be permanently erased.
                                     Make sure to export anything important before proceeding.

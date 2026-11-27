@@ -11,7 +11,7 @@ export default function Invoices() {
 
     if (loading) {
         return (
-            <div className="rounded-3xl border border-gray-200 bg-white p-8">
+            <div className="rounded-3xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] p-8 text-gray-700 dark:text-slate-300">
                 Loading invoices...
             </div>
         );
@@ -21,33 +21,33 @@ export default function Invoices() {
         <div className="space-y-6">
 
             <div>
-                <h2 className="text-xl font-bold">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                     Invoices
                 </h2>
 
-                <p className="text-gray-500">
+                <p className="text-gray-500 dark:text-slate-400">
                     View and download your billing history.
                 </p>
             </div>
 
             {invoices.length === 0 ? (
 
-                <div className="rounded-3xl border border-gray-200 bg-white shadow-sm">
+                <div className="rounded-3xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
 
                     <div className="flex min-h-[180px] flex-col items-center justify-center px-6 py-12">
 
-                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-slate-800">
                             <FileText
-                                className="h-5 w-5 text-gray-500"
+                                className="h-5 w-5 text-gray-500 dark:text-slate-400"
                                 strokeWidth={1.8}
                             />
                         </div>
 
-                        <h3 className="mt-4 text-lg font-semibold text-gray-900">
+                        <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">
                             No invoices yet
                         </h3>
 
-                        <p className="max-w-sm text-center text-sm text-gray-500">
+                        <p className="max-w-sm text-center text-sm text-gray-500 dark:text-slate-400">
                             Your invoices will appear here once they&apos;re issued.
                         </p>
 
@@ -57,37 +57,37 @@ export default function Invoices() {
 
             ) : (
 
-                <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+                <div className="overflow-hidden rounded-3xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] shadow-sm">
 
                     <div className="overflow-x-auto">
 
                         <table className="w-full min-w-[900px]">
 
-                            <thead className="border-b border-gray-200 bg-gray-50">
+                            <thead className="border-b border-gray-200 dark:border-[#22324D] bg-gray-50 dark:bg-[#1E293B]">
 
                                 <tr>
 
-                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                                         Invoice
                                     </th>
 
-                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                                         Billing period
                                     </th>
 
-                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                                         Issued
                                     </th>
 
-                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                                         Amount
                                     </th>
 
-                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                                         Status
                                     </th>
 
-                                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
                                         Action
                                     </th>
 
@@ -95,29 +95,29 @@ export default function Invoices() {
 
                             </thead>
 
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
 
                                 {invoices.map((invoice) => (
 
                                     <tr
                                         key={invoice._id}
-                                        className="transition hover:bg-gray-50"
+                                        className="transition hover:bg-gray-50 dark:hover:bg-slate-800/40"
                                     >
 
                                         <td className="px-6 py-5">
 
                                             <div className="flex items-center gap-3">
 
-                                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
-                                                    <FileText className="h-4 w-4 text-gray-500" />
+                                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 dark:bg-slate-800">
+                                                    <FileText className="h-4 w-4 text-gray-500 dark:text-slate-400" />
                                                 </div>
 
                                                 <div>
-                                                    <p className="font-medium text-gray-900">
+                                                    <p className="font-medium text-gray-900 dark:text-white">
                                                         {invoice.invoiceNumber}
                                                     </p>
 
-                                                    <p className="text-xs text-gray-500">
+                                                    <p className="text-xs text-gray-500 dark:text-slate-400">
                                                         {invoice.currency}
                                                     </p>
                                                 </div>
@@ -126,7 +126,7 @@ export default function Invoices() {
 
                                         </td>
 
-                                        <td className="px-6 py-5 text-sm text-gray-600">
+                                        <td className="px-6 py-5 text-sm text-gray-600 dark:text-slate-300">
 
                                             {invoice.billingPeriodStart &&
                                             invoice.billingPeriodEnd ? (
@@ -141,11 +141,11 @@ export default function Invoices() {
 
                                         </td>
 
-                                        <td className="px-6 py-5 text-sm text-gray-600">
+                                        <td className="px-6 py-5 text-sm text-gray-600 dark:text-slate-300">
                                             {formatDate(invoice.issuedAt)}
                                         </td>
 
-                                        <td className="px-6 py-5 text-sm font-semibold text-gray-900">
+                                        <td className="px-6 py-5 text-sm font-semibold text-gray-900 dark:text-white">
                                             {formatAmount(
                                                 invoice.amount,
                                                 invoice.currency
@@ -172,7 +172,7 @@ export default function Invoices() {
                                                     href={invoice.pdfUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                                                    className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 transition hover:bg-gray-50 dark:hover:bg-slate-700"
                                                 >
                                                     <Download className="h-4 w-4" />
                                                     Download
@@ -180,7 +180,7 @@ export default function Invoices() {
 
                                             ) : (
 
-                                                <span className="text-sm text-gray-400">
+                                                <span className="text-sm text-gray-400 dark:text-slate-500">
                                                     —
                                                 </span>
 
@@ -229,18 +229,18 @@ function formatAmount(amount: number, currency: string) {
 function getStatusClasses(status: string) {
     switch (status?.toLowerCase()) {
         case "paid":
-            return "bg-green-100 text-green-700";
+            return "bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300";
 
         case "pending":
-            return "bg-yellow-100 text-yellow-700";
+            return "bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-300";
 
         case "failed":
-            return "bg-red-100 text-red-700";
+            return "bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300";
 
         case "refunded":
-            return "bg-purple-100 text-purple-700";
+            return "bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300";
 
         default:
-            return "bg-gray-100 text-gray-700";
+            return "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300";
     }
 }

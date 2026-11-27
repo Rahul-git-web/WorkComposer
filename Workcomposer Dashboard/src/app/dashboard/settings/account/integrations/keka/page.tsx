@@ -5,6 +5,7 @@ import API from "@/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOptionalDesktop } from "@/context/DesktopContext";
+import SettingsLoading from "@/components/settings/SettingsLoading";
 import toast from "react-hot-toast";
 
 type KekaIntegration = {
@@ -225,7 +226,7 @@ export default function KekaIntegrationPage() {
     if (loading) {
         return (
             <div className="max-w-4xl mx-auto px-6 py-6">
-                <p className="text-gray-500">Loading...</p>
+                <SettingsLoading />
             </div>
         );
     }

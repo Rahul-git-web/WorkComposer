@@ -136,12 +136,12 @@ export default function SettingsModule() {
         <div className="max-w-3xl mx-auto px-6 py-10">
             <div
                 role="alert"
-                className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950"
+                className="rounded-2xl border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 p-6 text-amber-950 dark:text-amber-100"
             >
                 <h2 className="text-lg font-semibold">
                     Settings page unavailable
                 </h2>
-                <p className="mt-2 text-sm text-amber-900">
+                <p className="mt-2 text-sm text-amber-900 dark:text-amber-200">
                     The requested settings view (<code>{activeSetting}</code>) is not registered.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
@@ -149,7 +149,7 @@ export default function SettingsModule() {
                         <button
                             type="button"
                             onClick={() => setActiveSetting("integrations")}
-                            className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100"
+                            className="rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-amber-900/40 px-4 py-2 text-sm font-medium text-amber-950 dark:text-amber-100 transition hover:bg-amber-100 dark:hover:bg-amber-900/60"
                         >
                             Back to Integrations
                         </button>

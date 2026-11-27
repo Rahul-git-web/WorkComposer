@@ -376,7 +376,7 @@ const ProductivityPage = () => {
                                                                     setSelectedIds([]);
                                                                 }
                                                             }}
-                                                            className='w-4 h-4 rounded border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer'
+                                                            className='w-4 h-4 rounded border-gray-200 dark:border-gray-700 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer'
                                                         />
                                                     </th>
                                                     <th className='px-4 py-3 text-left text-xs font-medium text-gray-600 dark:text-gray-300 uppercase tracking-wider'>
@@ -430,7 +430,7 @@ const ProductivityPage = () => {
                                                                             );
                                                                         }
                                                                     }}
-                                                                    className="w-4 h-4 rounded border-gray-200 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                                    className="w-4 h-4 rounded border-gray-200 dark:border-gray-700 dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                                                                 />
                                                             </td>
 
@@ -612,7 +612,7 @@ const ProductivityPage = () => {
                                                     setLimit(Number(e.target.value));
                                                     setPage(1);
                                                 }}
-                                                className="px-2 py-1 border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md text-sm cursor-pointer"
+                                                className="px-2 py-1 border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-md text-sm cursor-pointer dark:[color-scheme:dark]"
                                             >
                                                 <option value={10}>10</option>
                                                 <option value={25}>25</option>

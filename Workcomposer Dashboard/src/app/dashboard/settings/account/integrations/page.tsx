@@ -158,11 +158,11 @@ export default function IntegrationsPage() {
     <div className="max-w-7xl mx-auto px-6 py-6">
       {/* Header */}
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
           Integrations
         </h1>
 
-        <p className="mt-2 text-gray-600">
+        <p className="mt-2 text-gray-600 dark:text-slate-400">
           Connect your favorite tools and manage all integrations in one place.
         </p>
       </div>
@@ -170,13 +170,13 @@ export default function IntegrationsPage() {
       {statusError && (
         <div
           role="alert"
-          className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-800 dark:text-amber-200"
         >
           <span>{statusError}</span>
           <button
             type="button"
             onClick={() => fetchIntegrationStatuses({ showErrorToast: true, force: true })}
-            className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1 font-medium text-amber-900 transition hover:bg-amber-100"
+            className="shrink-0 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-amber-900/40 px-3 py-1 font-medium text-amber-900 dark:text-amber-100 transition hover:bg-amber-100 dark:hover:bg-amber-900/60"
           >
             Retry
           </button>
@@ -184,7 +184,7 @@ export default function IntegrationsPage() {
       )}
 
       {/* Project Management */}
-      <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
         Project Management
       </h2>
 
@@ -230,7 +230,7 @@ export default function IntegrationsPage() {
 
       {/* Communication */}
       <div className="mt-10">
-        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
           Communication
         </h2>
 
@@ -258,7 +258,7 @@ export default function IntegrationsPage() {
 
       {/* HR & Payroll */}
       <div className="mt-10">
-        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
           HR & Payroll
         </h2>
 
@@ -305,7 +305,7 @@ export default function IntegrationsPage() {
 
       {/* Storage */}
       <div className="mt-10">
-        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h2 className="mb-6 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400">
           Storage
         </h2>
 

@@ -39,15 +39,15 @@ export default function Subscription() {
     if (loading) {
         return (
             <div className="space-y-6">
-                <div className="h-10 w-48 animate-pulse rounded-lg bg-gray-200" />
+                <div className="h-10 w-48 animate-pulse rounded-lg bg-gray-200 dark:bg-slate-800" />
 
-                <div className="h-48 animate-pulse rounded-2xl bg-gray-200" />
+                <div className="h-48 animate-pulse rounded-2xl bg-gray-200 dark:bg-slate-800" />
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     {[1, 2, 3].map((item) => (
                         <div
                             key={item}
-                            className="h-[520px] animate-pulse rounded-2xl bg-gray-200"
+                            className="h-[520px] animate-pulse rounded-2xl bg-gray-200 dark:bg-slate-800"
                         />
                     ))}
                 </div>
@@ -176,21 +176,21 @@ export default function Subscription() {
     return (
         <div className="space-y-8">
 
-            <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <div className="rounded-2xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] p-6">
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
                     <div>
 
-                        <p className="text-sm font-semibold uppercase tracking-wider text-gray-500">
+                        <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
                             YOUR PLAN
                         </p>
 
-                        <h2 className="mt-1 text-md font-bold capitalize">
+                        <h2 className="mt-1 text-md font-bold capitalize text-gray-900 dark:text-white">
                             {subscription?.plan} · {billingCycle}
                         </h2>
 
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-slate-400">
                             Renews each month, billed in arrears.
                         </p>
 
@@ -198,13 +198,13 @@ export default function Subscription() {
 
                     <div className="flex flex-col items-start lg:items-end">
 
-                        <div className="flex rounded-2xl border border-gray-200 p-1">
+                        <div className="flex rounded-2xl border border-gray-200 dark:border-[#22324D] bg-gray-50 dark:bg-[#1E293B] p-1">
 
                             <button
                                 onClick={() => setBillingCycle("monthly")}
                                 className={`rounded-2xl px-3 py-1 text-sm font-medium transition ${billingCycle === "monthly"
                                     ? "bg-indigo-600 text-white shadow"
-                                    : "text-gray-700"
+                                    : "text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white"
                                     }`}
                             >
                                 Monthly
@@ -214,7 +214,7 @@ export default function Subscription() {
                                 onClick={() => setBillingCycle("annual")}
                                 className={`rounded-2xl px-3 py-1 text-sm font-medium transition ${billingCycle === "annual"
                                     ? "bg-indigo-600 text-white shadow"
-                                    : "text-gray-700"
+                                    : "text-gray-700 dark:text-slate-300 hover:text-gray-900 dark:hover:text-white"
                                     }`}
                             >
                                 Annual
@@ -222,11 +222,11 @@ export default function Subscription() {
 
                         </div>
 
-                        <div className="inline-flex mt-2 text-sm">
-                            <p className="text-green-600">
-                                Save up to 25% {" "}
+                        <div className="inline-flex gap-1 mt-2 text-sm">
+                            <p className="text-green-600 dark:text-green-400">
+                                Save up to 25%
                             </p>
-                            <p>with annual billing</p>
+                            <p className="text-gray-600 dark:text-slate-300">with annual billing</p>
                         </div>
 
                     </div>
@@ -240,9 +240,9 @@ export default function Subscription() {
                 {/* Standard Card */}
 
                 <div
-                    className={`relative flex h-full flex-col rounded-3xl bg-white p-6 shadow-sm ${currentPlan === "standard"
-                        ? "border-2 border-blue-600"
-                        : "border border-gray-200"
+                    className={`relative flex h-full flex-col rounded-3xl bg-white dark:bg-[#0F172A] p-6 shadow-sm ${currentPlan === "standard"
+                        ? "border-2 border-blue-600 dark:border-blue-500"
+                        : "border border-gray-200 dark:border-[#22324D]"
                         }`}
                 >
 
@@ -252,24 +252,24 @@ export default function Subscription() {
                         </div>
                     )}
 
-                    <h3 className="mt-3 text-lg text-indigo-500 font-bold">
+                    <h3 className="mt-3 text-lg text-indigo-500 dark:text-indigo-400 font-bold">
                         Standard
                     </h3>
 
-                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                    <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">
                         Everything you need to get started.
                     </p>
 
                     <div className="mt-5">
 
-                        <span className="text-3xl font-extrabold">
+                        <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
                             ₹
                             {billingCycle === "monthly"
                                 ? standardPlan.monthly
                                 : standardPlan.annual}
                         </span>
 
-                        <span className="ml-2 text-gray-700 font-semibold">
+                        <span className="ml-2 text-gray-700 dark:text-slate-300 font-semibold">
                             / user / month
                         </span>
 
@@ -285,7 +285,7 @@ export default function Subscription() {
                             checkoutLoading
                         }
                         className={`mt-8 w-full rounded-lg py-1.5 font-semibold transition ${currentPlan === "standard"
-                            ? "cursor-not-allowed bg-gray-100 text-gray-700"
+                            ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300"
                             : "bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                             }`}
                     >
@@ -303,9 +303,9 @@ export default function Subscription() {
                                 key={feature}
                                 className="flex items-center gap-3"
                             >
-                                <Check className="h-5 w-5 text-blue-600" />
+                                <Check className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
 
-                                <span className="text-sm text-gray-700">
+                                <span className="text-sm text-gray-700 dark:text-slate-300">
                                     {feature}
                                 </span>
                             </div>
@@ -318,30 +318,30 @@ export default function Subscription() {
                 {/* Premium */}
 
                 <div
-                    className={`flex h-full flex-col rounded-3xl bg-white p-8 transition-all duration-200 ${currentPlan === "premium"
-                        ? "border-2 border-blue-600"
-                        : "border border-gray-200 hover:-translate-y-2 hover:shadow-2xl hover:border-blue-400"
+                    className={`flex h-full flex-col rounded-3xl bg-white dark:bg-[#0F172A] p-8 transition-all duration-200 ${currentPlan === "premium"
+                        ? "border-2 border-blue-600 dark:border-blue-500"
+                        : "border border-gray-200 dark:border-[#22324D] hover:-translate-y-2 hover:shadow-2xl hover:border-blue-400 dark:hover:border-blue-500"
                         }`}
                 >
 
-                    <h3 className="text-lg text-indigo-500 font-bold">
+                    <h3 className="text-lg text-indigo-500 dark:text-indigo-400 font-bold">
                         Premium
                     </h3>
 
-                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                    <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">
                         Advanced tools and customization.
                     </p>
 
                     <div className="mt-5">
 
-                        <span className="text-3xl font-extrabold">
+                        <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
                             ₹
                             {billingCycle === "monthly"
                                 ? premiumPlan.monthly
                                 : premiumPlan.annual}
                         </span>
 
-                        <span className="ml-2 text-gray-700 font-semibold">
+                        <span className="ml-2 text-gray-700 dark:text-slate-300 font-semibold">
                             / user / month
                         </span>
 
@@ -358,7 +358,7 @@ export default function Subscription() {
                             currentPlan === "premium"
                         }
                         className={`mt-8 w-full rounded-lg py-1.5 font-semibold transition ${currentPlan === "premium"
-                            ? "cursor-not-allowed bg-gray-100 text-gray-700"
+                            ? "cursor-not-allowed bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300"
                             : "bg-blue-600 text-white hover:bg-blue-700"
                             }`}
                     >
@@ -376,9 +376,9 @@ export default function Subscription() {
                                 key={feature}
                                 className="flex items-center gap-3"
                             >
-                                <Check className="h-5 w-5 text-blue-600" />
+                                <Check className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
 
-                                <span className="text-sm text-gray-700">
+                                <span className="text-sm text-gray-700 dark:text-slate-300">
                                     {feature}
                                 </span>
                             </div>
@@ -390,19 +390,19 @@ export default function Subscription() {
 
                 {/* Enterprise */}
 
-                <div className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-8 transition-all duration-200 hover:-translate-y-2 hover:shadow-2xl hover:border-blue-400">
+                <div className="flex h-full flex-col rounded-3xl border border-gray-200 dark:border-[#22324D] bg-white dark:bg-[#0F172A] p-8 transition-all duration-200 hover:-translate-y-2 hover:shadow-2xl hover:border-blue-400 dark:hover:border-blue-500">
 
-                    <h3 className="text-lg text-indigo-500 font-bold">
+                    <h3 className="text-lg text-indigo-500 dark:text-indigo-400 font-bold">
                         {enterprisePlan.name}
                     </h3>
 
-                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                    <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-slate-400">
                         {enterprisePlan.description}
                     </p>
 
                     <div className="mt-5">
 
-                        <span className="text-3xl font-extrabold">
+                        <span className="text-3xl font-extrabold text-gray-900 dark:text-white">
                             Custom
                         </span>
                     </div>
@@ -429,9 +429,9 @@ export default function Subscription() {
                                 key={feature}
                                 className="flex items-center gap-3"
                             >
-                                <Check className="h-5 w-5 text-blue-600" />
+                                <Check className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0" />
 
-                                <span className="text-sm text-gray-700">
+                                <span className="text-sm text-gray-700 dark:text-slate-300">
                                     {feature}
                                 </span>
                             </div>

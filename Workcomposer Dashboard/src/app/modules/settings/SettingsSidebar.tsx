@@ -73,11 +73,21 @@ const SettingsSidebar = ({
         key?: string,
     ) => {
         const isActive = desktop ? activeSetting === key : pathname.startsWith(href);
+        if (desktop) {
+            return `flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition ${isActive
+                ? "bg-indigo-600/10 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-semibold shadow-xs"
+                : "font-medium text-slate-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
+                }`;
+        }
         return `flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13px] transition ${isActive
-            ? "bg-indigo-600/10 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-semibold shadow-xs"
-            : "font-medium text-slate-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
+            ? "bg-indigo-600/20 text-indigo-300 font-semibold shadow-xs"
+            : "font-medium text-gray-300 hover:text-white hover:bg-white/[0.08]"
             }`;
     };
+
+    const groupHeadingClass = desktop
+        ? "group w-full flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition text-slate-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+        : "group w-full flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]";
 
     return (
         <>
@@ -93,7 +103,13 @@ const SettingsSidebar = ({
             >
                 <nav aria-label="App sections" className="space-y-0.5">
                     <div data-test="settings-group-0" className="mb-3">
-                        <button type="button" className="group w-full flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition text-indigo-600 dark:text-indigo-400">
+                        <button
+                            type="button"
+                            className={`group w-full flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition ${desktop
+                                ? "text-indigo-600 dark:text-indigo-400"
+                                : "text-indigo-400"
+                                }`}
+                        >
                             <CiUser className="h-4 w-4 shrink-0" />
                             <span className="flex-1 text-left">Personal</span>
                         </button>
@@ -130,7 +146,7 @@ const SettingsSidebar = ({
                     {(canManageSettings || canManageBilling) && (
                         <>
                             <div data-test="settings-group-1" className="mb-3">
-                                <button type="button" className="group w-full flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition text-slate-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]">
+                                <button type="button" className={groupHeadingClass}>
                                     <HiBuildingOffice2 className="h-4 w-4 shrink-0" />
                                     <span className="flex-1 text-left">Account & Security</span>
                                 </button>
@@ -301,7 +317,7 @@ const SettingsSidebar = ({
                     {canManageSettings && (
                         <>
                             <div data-test="settins-group-2" className="mb-3">
-                                <button type="button" className="group w-full flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition text-slate-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]">
+                                <button type="button" className={groupHeadingClass}>
                                     <Clock3 className="h-4 w-4 shrink-0" />
                                     <span className="flex-1 text-left">Time Tracking</span>
                                 </button>
@@ -466,7 +482,7 @@ const SettingsSidebar = ({
                             </div>
 
                             <div data-test="settings-group-3" className="mb-3">
-                                <button type="button" className="group w-full flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition text-slate-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-black/[0.04] dark:hover:bg-white/[0.04]">
+                                <button type="button" className={groupHeadingClass}>
                                     <HiOutlineClipboardDocumentList className="h-4 w-4 shrink-0" />
                                     <span className="flex-1 text-left">Task Management</span>
                                 </button>
