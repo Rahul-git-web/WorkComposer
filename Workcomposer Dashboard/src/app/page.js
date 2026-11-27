@@ -93,9 +93,19 @@ export default function HomePage() {
             <a href="#download" className="hover:text-white transition-colors">
               Download
             </a>
+            <Link href="/docs" className="hover:text-white transition-colors">
+              Docs
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/docs"
+              className="md:hidden px-3 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-900 text-sm font-medium transition"
+            >
+              Docs
+            </Link>
+
             <Link
               href="/authenticate/login"
               className="px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-900 text-sm font-semibold transition"
@@ -504,7 +514,7 @@ export default function HomePage() {
             <span className="font-bold text-white font-mono">WorkComposer</span>
           </div>
 
-          <div className="flex items-center gap-8 text-sm text-slate-400">
+          <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-400">
             <a href="#features" className="hover:text-white transition">
               Features
             </a>
@@ -514,6 +524,9 @@ export default function HomePage() {
             <a href="#download" className="hover:text-white transition">
               Download
             </a>
+            <Link href="/docs" className="hover:text-white transition">
+              Docs
+            </Link>
           </div>
 
           <span className="text-xs text-slate-500">© 2026 WorkComposer</span>
