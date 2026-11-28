@@ -96,7 +96,7 @@ export const changePassword = async (req, res) => {
     };
 
     if (signOutAllDevices) {
-      updateData.refreshToken = null;
+      updateData.refreshTokens = [];
       updateData.devices = [];
       if (isPostgres()) {
         try {

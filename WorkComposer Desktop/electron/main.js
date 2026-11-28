@@ -121,16 +121,18 @@ const API_BASE_URL = resolvedEndpoints.apiUrl;
 const WEB_APP_URL = resolvedEndpoints.webAppUrl;
 
 
+function encodeTokenForStorage(token) {
+  if (safeStorage.isEncryptionAvailable()) {
+    return safeStorage.encryptString(token).toString("base64");
+  }
+  devWarn("Electron safeStorage unavailable; storing obfuscated session token fallback");
+  return `plain:${Buffer.from(token, "utf8").toString("base64")}`;
+}
+
 function saveAuthToken(token) {
   if (!token) return;
 
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error("Secure storage is not available");
-  }
-
-  const encryptedToken = safeStorage.encryptString(token);
-
-  store.set("authToken", encryptedToken.toString("base64"));
+  store.set("authToken", encodeTokenForStorage(token));
   currentUserId = offlineQueue.getUserIdFromToken(token);
   if (currentUserId && durableTelemetryQueue.isInitialized()) {
     durableTelemetryQueue.bindUser(currentUserId);
@@ -144,13 +146,7 @@ function getStoredAuthToken() {
 function saveSecureToken(key, token) {
   if (!token) return;
 
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error("Electron secure storage is unavailable");
-  }
-
-  const encrypted = safeStorage.encryptString(token);
-
-  store.set(key, encrypted.toString("base64"));
+  store.set(key, encodeTokenForStorage(token));
 }
 
 function getDeviceInfo() {
@@ -173,10 +169,20 @@ function getDeviceInfo() {
 }
 
 function getSecureToken(key) {
-  const encrypted = store.get(key);
+  const stored = store.get(key);
 
-  if (!encrypted) {
+  if (!stored || typeof stored !== "string") {
     return null;
+  }
+
+  if (stored.startsWith("plain:")) {
+    try {
+      return Buffer.from(stored.slice("plain:".length), "base64").toString("utf8");
+    } catch (err) {
+      logError(err, `FAILED TO DECODE ${key}`);
+      store.delete(key);
+      return null;
+    }
   }
 
   if (!safeStorage.isEncryptionAvailable()) {
@@ -184,7 +190,7 @@ function getSecureToken(key) {
   }
 
   try {
-    return safeStorage.decryptString(Buffer.from(encrypted, "base64"));
+    return safeStorage.decryptString(Buffer.from(stored, "base64"));
   } catch (err) {
     logError(err, `FAILED TO DECRYPT ${key}`);
 
@@ -196,14 +202,6 @@ function getSecureToken(key) {
 
 function deleteSecureToken(key) {
   store.delete(key);
-}
-
-function deleteAuthToken() {
-  store.delete("authToken");
-  store.delete("refreshToken");
-  authToken = null;
-
-  devLog("AUTH TOKENS DELETED");
 }
 
 async function clearAuthSessionCookies() {
@@ -249,7 +247,8 @@ async function clearAuthSessionCookies() {
   }
 }
 
-function clearElectronAuth() {
+async function clearElectronAuth(options = {}) {
+  const eventName = options?.event || "electron-logged-out";
   authToken = null;
   clearPendingIntegrationOAuthState();
 
@@ -267,16 +266,30 @@ function clearElectronAuth() {
 
   offlineQueue.clearRetryTimer();
 
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("electron-logged-out");
+  if (trackingBar && !trackingBar.isDestroyed()) {
+    trackingBar.webContents.send("tracking-update", {
+      duration: 0,
+      isTracking: false,
+      isOnBreak: false,
+      status: "stopped",
+    });
+    trackingBar.hide();
   }
 
-  devLog("ELECTRON AUTH CLEARED");
-  return clearAuthSessionCookies();
+  if (idleWindow && !idleWindow.isDestroyed()) {
+    idleWindow.hide();
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(eventName);
+  }
+
+  devLog("ELECTRON AUTH CLEARED:", eventName);
+  await clearAuthSessionCookies();
 }
 
 function deleteAuthToken() {
-  clearElectronAuth();
+  return clearElectronAuth();
 }
 
 function extractDomain(url) {
@@ -1377,6 +1390,40 @@ async function handleAuthDeepLink(deepLinkUrl) {
       return;
     }
 
+    if (validation.type === "login") {
+      const params = new URLSearchParams();
+      if (validation.requiresTwoFactor) {
+        params.set("requiresTwoFactor", "true");
+      }
+      if (validation.email) {
+        params.set("email", validation.email);
+      }
+      if (validation.error) {
+        params.set("error", validation.error);
+      }
+      const query = params.toString();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(`${WEB_APP_URL}/authenticate/login${query ? `?${query}` : ""}`);
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+      return;
+    }
+
+    if (validation.type === "signup") {
+      const params = new URLSearchParams();
+      params.set(validation.provider, "true");
+      params.set("token", validation.token);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(`${WEB_APP_URL}/authenticate/signup?${params.toString()}`);
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.show();
+        mainWindow.focus();
+      }
+      return;
+    }
+
     const { accessToken, refreshToken } = validation;
 
     authToken = accessToken;
@@ -1432,9 +1479,9 @@ app.on("second-instance", (event, argv) => {
   }
 });
 
-ipcMain.on("save-token", async (_, tokens) => {
+ipcMain.handle("save-token", async (_, tokens) => {
   try {
-    const { accessToken, refreshToken } = tokens;
+    const { accessToken, refreshToken } = tokens || {};
 
     if (!accessToken || !refreshToken) {
       throw new Error("Access token or refresh token missing");
@@ -1452,18 +1499,25 @@ ipcMain.on("save-token", async (_, tokens) => {
 
     devLog("ELECTRON AUTH TOKENS SAVED SECURELY");
 
-    const deviceInfo = getDeviceInfo();
+    try {
+      const deviceInfo = getDeviceInfo();
 
-    await axios.post(`${API_BASE_URL}/users/device`, deviceInfo, {
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
-    });
+      await axios.post(`${API_BASE_URL}/users/device`, deviceInfo, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
 
-    await loadTrackingSettings();
-    triggerOfflineQueueProcessing();
+      await loadTrackingSettings();
+      triggerOfflineQueueProcessing();
+    } catch (syncErr) {
+      logError(syncErr, "DEVICE REGISTRATION");
+    }
+
+    return { success: true };
   } catch (err) {
-    logError(err, "DEVICE REGISTRATION");
+    logError(err, "SAVE TOKEN");
+    return { success: false, message: err.message };
   }
 });
 
@@ -1488,16 +1542,7 @@ const checkDeviceStatus = async () => {
 
     if (!response.data.authorized) {
       devLog("DEVICE REMOTELY SIGNED OUT");
-
-      authToken = null;
-      deleteSecureToken("authToken");
-      deleteSecureToken("refreshToken");
-      stopTracking();
-      void clearAuthSessionCookies();
-
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("device-signed-out");
-      }
+      await clearElectronAuth({ event: "device-signed-out" });
     }
   } catch (err) {
     logError(err, "DEVICE STATUS CHECK");
@@ -1830,7 +1875,7 @@ async function uploadScreenshot(filePath, metadata = null) {
 
     if (isAccessTokenExpired(authToken)) {
       const refreshed = await refreshAuthToken();
-      if (!refreshed || !authToken) {
+      if (!refreshed?.success || !authToken) {
         return false;
       }
     }
@@ -3229,6 +3274,7 @@ ipcMain.handle("logout-electron", async () => {
           {
             client: "desktop",
             refreshToken,
+            ...(store.get("deviceId") ? { deviceId: store.get("deviceId") } : {}),
           },
           {
             headers: authToken

@@ -211,22 +211,65 @@ function validateDeepLink(deepLinkUrl) {
     return { valid: false, reason: "INVALID_PROTOCOL" };
   }
 
-  if (parsed.hostname !== "auth") {
-    return { valid: false, reason: "NON_AUTH_HOST" };
+  const host = parsed.hostname.toLowerCase();
+
+  if (host === "auth") {
+    const accessToken = parsed.searchParams.get("accessToken");
+    const refreshToken = parsed.searchParams.get("refreshToken");
+
+    if (!accessToken || !refreshToken) {
+      return { valid: false, reason: "MISSING_TOKENS" };
+    }
+
+    return {
+      valid: true,
+      type: "auth",
+      accessToken,
+      refreshToken,
+    };
   }
 
-  const accessToken = parsed.searchParams.get("accessToken");
-  const refreshToken = parsed.searchParams.get("refreshToken");
+  if (host === "login") {
+    const requiresTwoFactor = parsed.searchParams.get("requiresTwoFactor") === "true";
+    const email = parsed.searchParams.get("email") || "";
+    const error = parsed.searchParams.get("error") || "";
 
-  if (!accessToken || !refreshToken) {
-    return { valid: false, reason: "MISSING_TOKENS" };
+    if (!requiresTwoFactor && !error) {
+      return { valid: false, reason: "INVALID_LOGIN_DEEP_LINK" };
+    }
+
+    return {
+      valid: true,
+      type: "login",
+      requiresTwoFactor,
+      email,
+      error,
+    };
   }
 
-  return {
-    valid: true,
-    accessToken,
-    refreshToken,
-  };
+  if (host === "signup") {
+    const token = parsed.searchParams.get("token");
+    const provider = parsed.searchParams.get("google") === "true"
+      ? "google"
+      : parsed.searchParams.get("microsoft") === "true"
+        ? "microsoft"
+        : parsed.searchParams.get("apple") === "true"
+          ? "apple"
+          : "";
+
+    if (!token || !provider) {
+      return { valid: false, reason: "MISSING_SIGNUP_PARAMS" };
+    }
+
+    return {
+      valid: true,
+      type: "signup",
+      provider,
+      token,
+    };
+  }
+
+  return { valid: false, reason: "NON_AUTH_HOST" };
 }
 
 const SUPPORTED_INTEGRATION_PROVIDERS = new Set(["jira", "asana", "slack"]);

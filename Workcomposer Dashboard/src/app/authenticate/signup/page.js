@@ -13,6 +13,7 @@ import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
 import Microsoft from "@/assets/microsoft.svg";
 import logoW from "@/assets/logo.W.png";
+import toast from "react-hot-toast";
 
 const FreeTrialFormContent = () => {
   const router = useRouter();

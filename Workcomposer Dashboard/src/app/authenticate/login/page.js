@@ -54,15 +54,18 @@ const SignInContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verified = searchParams.get("verified");
+  const oauthRequiresTwoFactor = searchParams.get("requiresTwoFactor") === "true";
+  const oauthEmail = searchParams.get("email") || "";
+  const oauthError = searchParams.get("error");
   const returnUrlParam = searchParams.get("redirect") || searchParams.get("returnUrl") || searchParams.get("from");
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formData, setFormData] = useState({
-    email: "",
+    email: oauthEmail,
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(oauthRequiresTwoFactor);
   const [otp, setOtp] = useState("");
   const [isDesktop, setIsDesktop] = useState(false);
 
@@ -71,6 +74,24 @@ const SignInContent = () => {
     setIsDesktop(isDesk);
     ensureCsrfToken().catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (oauthRequiresTwoFactor) {
+      setRequiresTwoFactor(true);
+    }
+    if (oauthEmail) {
+      setFormData((prev) => ({ ...prev, email: prev.email || oauthEmail }));
+    }
+    if (oauthError) {
+      const errorMessages = {
+        account_archived: "Account is archived. Please contact your organization administrator.",
+        google_auth_failed: "Google sign in failed. Please try again.",
+        microsoft_auth_failed: "Microsoft sign in failed. Please try again.",
+        apple_auth_failed: "Apple sign in failed. Please try again.",
+      };
+      toast.error(errorMessages[oauthError] || "Authentication failed. Please try again.");
+    }
+  }, [oauthRequiresTwoFactor, oauthEmail, oauthError]);
 
   const handleChange = (e) => {
     setFormData({
@@ -100,26 +121,32 @@ const SignInContent = () => {
       return;
     }
 
+    const electronAPI =
+      typeof window !== "undefined" ? window.electronAPI : null;
+    const deviceId = electronAPI?.getDeviceId
+      ? await electronAPI.getDeviceId().catch(() => undefined)
+      : undefined;
+
     if (requiresTwoFactor) {
       try {
-        const electronAPI =
-          typeof window !== "undefined" ? window.electronAPI : null;
-
         const res = await API.post("/auth/verify-two-factor", {
           email: formData.email,
           otp,
-          ...(electronAPI ? { client: "desktop" } : {}),
+          ...(electronAPI ? { client: "desktop", ...(deviceId ? { deviceId } : {}) } : {}),
         });
 
-        toast.success("Signed in successfully!");
+        if (electronAPI) {
+          await electronAPI.saveToken(res.data.accessToken, res.data.refreshToken);
+        }
 
         if (res.data?.accessToken) {
           void reconnectSocketWithToken(res.data.accessToken);
         }
 
+        toast.success("Signed in successfully!");
+
         if (electronAPI) {
-          electronAPI.saveToken(res.data.accessToken, res.data.refreshToken);
-          router.push("/desktop");
+          router.replace("/desktop");
         } else {
           router.push(getSafeRedirectUrl(returnUrlParam));
         }
@@ -134,12 +161,9 @@ const SignInContent = () => {
     }
 
     try {
-      const electronAPI =
-        typeof window !== "undefined" ? window.electronAPI : null;
-
       const res = await API.post("/auth/login", {
         ...formData,
-        ...(electronAPI ? { client: "desktop" } : {}),
+        ...(electronAPI ? { client: "desktop", ...(deviceId ? { deviceId } : {}) } : {}),
       });
 
       if (res.data.requiresTwoFactor) {
@@ -147,20 +171,20 @@ const SignInContent = () => {
         return;
       }
 
-      if (res.data?.accessToken) {
-        void reconnectSocketWithToken(res.data.accessToken);
-      }
-
       if (electronAPI) {
-        electronAPI.saveToken(res.data.accessToken, res.data.refreshToken);
+        await electronAPI.saveToken(res.data.accessToken, res.data.refreshToken);
       } else {
         console.info("ELECTRON API MISSING");
+      }
+
+      if (res.data?.accessToken) {
+        void reconnectSocketWithToken(res.data.accessToken);
       }
 
       toast.success("Signed in successfully!");
 
       if (window.electronAPI) {
-        router.push("/desktop");
+        router.replace("/desktop");
       } else {
         router.push(getSafeRedirectUrl(returnUrlParam));
       }
@@ -252,6 +276,7 @@ const SignInContent = () => {
                   </label>
                   <div className="text-sm">
                     <button
+                      type="button"
                       onClick={() =>
                         router.push("/authenticate/forgot-password")
                       }
@@ -375,7 +400,8 @@ const SignInContent = () => {
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
+                  const suffix = isDesktop ? "?client=desktop" : "";
+                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/google${suffix}`;
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-800 ring-1 ring-gray-200 hover:bg-gray-800 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
                 tabIndex={11}
@@ -387,7 +413,8 @@ const SignInContent = () => {
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/microsoft`;
+                  const suffix = isDesktop ? "?client=desktop" : "";
+                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/microsoft${suffix}`;
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-800 ring-1 ring-gray-200 hover:bg-gray-800 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
                 tabIndex={12}
@@ -397,8 +424,10 @@ const SignInContent = () => {
               </button>
 
               <button
+                type="button"
                 onClick={() => {
-                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/apple`;
+                  const suffix = isDesktop ? "?client=desktop" : "";
+                  window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/apple${suffix}`;
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-800 ring-1 ring-gray-200 hover:bg-gray-800 hover:ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 active:bg-gray-100 transition-all duration-200 shadow-sm"
                 tabIndex={13}

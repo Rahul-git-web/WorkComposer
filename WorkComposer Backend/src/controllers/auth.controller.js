@@ -39,6 +39,60 @@ import {
 import { getAppleAuthUrl, getAppleUser } from "../utils/appleOAuth.js";
 import { userRepository } from "../db/repositories/user.repository.js";
 import { isPostgres } from "../db/index.js";
+import { getPrismaClient } from "../db/prisma.js";
+
+const REFRESH_GRACE_TTL_MS = 20 * 1000;
+const refreshRotationGraceCache = new Map();
+
+function pruneRefreshGraceCache(now = Date.now()) {
+  for (const [token, entry] of refreshRotationGraceCache.entries()) {
+    if (!entry || entry.expiresAt <= now) {
+      refreshRotationGraceCache.delete(token);
+    }
+  }
+}
+
+function purgeRefreshGraceForToken(token) {
+  if (!token) return;
+  for (const [oldToken, entry] of refreshRotationGraceCache.entries()) {
+    if (oldToken === token || entry?.refreshToken === token) {
+      refreshRotationGraceCache.delete(oldToken);
+    }
+  }
+}
+
+function purgeRefreshGraceForUser(userId) {
+  if (!userId) return;
+  const targetId = String(userId);
+  for (const [oldToken, entry] of refreshRotationGraceCache.entries()) {
+    if (String(entry?.userId || "") === targetId) {
+      refreshRotationGraceCache.delete(oldToken);
+    }
+  }
+}
+
+function isJwtFormat(token) {
+  return typeof token === "string" && token.split(".").length === 3;
+}
+
+function isJwtTokenExpired(token, now = Date.now()) {
+  if (!isJwtFormat(token)) return false;
+  try {
+    const decoded = jwt.decode(token);
+    if (!decoded || typeof decoded !== "object" || !decoded.exp) {
+      return false;
+    }
+    return decoded.exp * 1000 <= now;
+  } catch {
+    return false;
+  }
+}
+
+function resolveDeviceId(deviceId) {
+  return typeof deviceId === "string" && deviceId.trim().length > 0
+    ? deviceId.trim()
+    : crypto.randomUUID();
+}
 import {
   recordOtpFailure,
   clearOtpFailures,
@@ -300,7 +354,7 @@ async function triggerTwoFactorChallenge(user) {
 function buildOAuthTwoFactorRedirect(email, isDesktop) {
   return isDesktop
     ? `workcomposer://login?requiresTwoFactor=true&email=${encodeURIComponent(email)}`
-    : `${process.env.FRONTEND_URL}/authenticate/login?requiresTwoFactor=true&email=${encodeURIComponent(email)}`;
+    : `${resolveAppBaseUrl()}/authenticate/login?requiresTwoFactor=true&email=${encodeURIComponent(email)}`;
 }
 
 // Login Controller
@@ -352,8 +406,10 @@ export const loginUser = async (req, res) => {
       });
     }
 
+    const resolvedDeviceId = resolveDeviceId(deviceId);
+
     const deviceInfo = {
-      deviceId: deviceId || crypto.randomUUID(),
+      deviceId: resolvedDeviceId,
 
       ip: req.ip || req.headers["x-forwarded-for"] || "Unknown IP",
 
@@ -391,7 +447,7 @@ export const loginUser = async (req, res) => {
 
     const refreshToken = generateRefreshToken(user._id);
 
-    const deviceIdForToken = deviceId || crypto.randomUUID();
+    const deviceIdForToken = resolvedDeviceId;
 
     // Remove any existing token for this same device, then add the new one
     user.refreshTokens = user.refreshTokens.filter(
@@ -405,13 +461,26 @@ export const loginUser = async (req, res) => {
 
     await user.save();
 
+    if (isPostgres()) {
+      try {
+        const prisma = getPrismaClient();
+        await prisma.userRefreshToken.deleteMany({
+          where: {
+            userId: String(user._id || user.id),
+            deviceId: resolvedDeviceId,
+            NOT: { token: refreshToken },
+          },
+        });
+      } catch {}
+    }
+
     await auditLogin({
       req,
       user,
       appVersion: deviceInfo.appVersion,
     });
 
-    const csrfToken = issueSessionCookies(res, { accessToken, refreshToken });
+    const csrfToken = isDesktop ? null : issueSessionCookies(res, { accessToken, refreshToken });
 
     const permissions = await getUserPermissions(user);
 
@@ -456,9 +525,76 @@ export const refreshAccessToken = async (req, res) => {
       return res.status(401).json({ message: "Refresh token missing" });
     }
 
+    pruneRefreshGraceCache();
+
+    if (isJwtFormat(oldRefreshToken)) {
+      try {
+        jwt.verify(oldRefreshToken, process.env.JWT_SECRET);
+      } catch (jwtErr) {
+        purgeRefreshGraceForToken(oldRefreshToken);
+        if (jwtErr?.name === "TokenExpiredError") {
+          try {
+            if (
+              userRepository &&
+              typeof userRepository.removeRefreshToken === "function"
+            ) {
+              await userRepository.removeRefreshToken(oldRefreshToken);
+            }
+            if (!isPostgres()) {
+              await User.updateOne(
+                { "refreshTokens.token": oldRefreshToken },
+                { $pull: { refreshTokens: { token: oldRefreshToken } } },
+              );
+            }
+          } catch {}
+          if (!isDesktop) {
+            res.clearCookie("accessToken", cookieOptions);
+            res.clearCookie("refreshToken", cookieOptions);
+            res.clearCookie("csrfToken", csrfCookieOptions);
+          }
+          return res.status(401).json({ message: "Refresh token expired" });
+        }
+        return res.status(401).json({ message: "Invalid refresh token" });
+      }
+    }
+
     const user = await User.findOne({ "refreshTokens.token": oldRefreshToken });
 
     if (!user) {
+      const graceEntry = refreshRotationGraceCache.get(oldRefreshToken);
+      if (graceEntry && graceEntry.expiresAt > Date.now()) {
+        const graceUser = await User.findById(graceEntry.userId).select(
+          "isArchived",
+        );
+        if (graceUser?.isArchived) {
+          purgeRefreshGraceForUser(graceEntry.userId);
+          return res.status(401).json({
+            message:
+              "Account is archived. Please contact your organization administrator.",
+          });
+        }
+        if (graceUser) {
+          const csrfToken = isDesktop
+            ? null
+            : issueSessionCookies(res, {
+                accessToken: graceEntry.accessToken,
+                refreshToken: graceEntry.refreshToken,
+              });
+
+          const graceResponse = {
+            message: "Token refreshed",
+            ...(csrfToken ? { csrfToken } : {}),
+          };
+
+          if (isDesktop) {
+            graceResponse.accessToken = graceEntry.accessToken;
+            graceResponse.refreshToken = graceEntry.refreshToken;
+          }
+
+          return res.json(graceResponse);
+        }
+      }
+
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
@@ -482,7 +618,34 @@ export const refreshAccessToken = async (req, res) => {
       });
     }
 
-    const tokenEntry = user.refreshTokens.find(
+    const expiredTokens = (user.refreshTokens || [])
+      .filter(
+        (rt) =>
+          rt?.token &&
+          rt.token !== oldRefreshToken &&
+          isJwtTokenExpired(rt.token),
+      )
+      .map((rt) => rt.token);
+
+    if (expiredTokens.length > 0) {
+      for (const expTok of expiredTokens) {
+        purgeRefreshGraceForToken(expTok);
+        if (
+          userRepository &&
+          typeof userRepository.removeRefreshToken === "function"
+        ) {
+          await userRepository.removeRefreshToken(expTok).catch(() => {});
+        }
+      }
+      if (!isPostgres()) {
+        const expSet = new Set(expiredTokens);
+        user.refreshTokens = (user.refreshTokens || []).filter(
+          (rt) => !expSet.has(rt.token),
+        );
+      }
+    }
+
+    const tokenEntry = (user.refreshTokens || []).find(
       (rt) => rt.token === oldRefreshToken,
     );
 
@@ -499,11 +662,23 @@ export const refreshAccessToken = async (req, res) => {
         newRefreshToken,
       );
     } else {
+      if (!tokenEntry) {
+        return res.status(401).json({ message: "Invalid refresh token" });
+      }
       tokenEntry.token = newRefreshToken;
       await user.save();
     }
 
-    const csrfToken = issueSessionCookies(res, {
+    refreshRotationGraceCache.set(oldRefreshToken, {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+      userId: String(user._id || user.id),
+      expiresAt: Date.now() + REFRESH_GRACE_TTL_MS,
+    });
+
+    const csrfToken = isDesktop
+      ? null
+      : issueSessionCookies(res, {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
     });
@@ -541,6 +716,75 @@ export const logoutUser = async (req, res) => {
         : null;
 
     const refreshToken = cookieToken || bodyToken;
+
+    if (refreshToken) {
+      purgeRefreshGraceForToken(refreshToken);
+    }
+
+    const deviceId =
+      typeof req.body?.deviceId === "string" &&
+      req.body.deviceId.trim().length > 0
+        ? req.body.deviceId.trim()
+        : null;
+
+    const authHeaderToken =
+      typeof req.headers?.authorization === "string" &&
+      req.headers.authorization.startsWith("Bearer ")
+        ? req.headers.authorization.slice(7).trim()
+        : null;
+
+    let decodedUserId = req.user?._id || req.user?.id || null;
+    if (!decodedUserId && refreshToken && isJwtFormat(refreshToken)) {
+      try {
+        decodedUserId = jwt.decode(refreshToken)?.userId || null;
+      } catch {}
+    }
+    if (!decodedUserId && authHeaderToken && isJwtFormat(authHeaderToken)) {
+      try {
+        decodedUserId = jwt.decode(authHeaderToken)?.userId || null;
+      } catch {}
+    }
+
+    if (deviceId && decodedUserId) {
+      try {
+        if (isPostgres()) {
+          const prisma = getPrismaClient();
+          await prisma.userDevice.updateMany({
+            where: { userId: String(decodedUserId), deviceId },
+            data: { isOnline: false, isTracking: false, lastSync: new Date() },
+          });
+        } else {
+          await User.updateOne(
+            { _id: decodedUserId, "devices.deviceId": deviceId },
+            {
+              $set: {
+                "devices.$.isOnline": false,
+                "devices.$.isTracking": false,
+                "devices.$.lastSync": new Date(),
+              },
+            },
+          );
+        }
+      } catch {}
+    }
+
+    if (
+      req.user?.organization ||
+      (decodedUserId && refreshToken && isJwtFormat(refreshToken))
+    ) {
+      try {
+        const auditUser = req.user?.organization
+          ? req.user
+          : await User.findById(decodedUserId).select("organization");
+        if (auditUser?.organization) {
+          await auditLogout({
+            req,
+            user: auditUser,
+            reason: "User initiated",
+          });
+        }
+      } catch {}
+    }
 
     if (refreshToken) {
       if (
@@ -712,8 +956,20 @@ export const resetPassword = async (req, res) => {
   user.password = await bcrypt.hash(password, 10);
   user.resetToken = undefined;
   user.resetTokenExpire = undefined;
+  user.refreshTokens = [];
 
   await user.save();
+
+  purgeRefreshGraceForUser(user._id || user.id);
+
+  if (isPostgres()) {
+    try {
+      const prisma = getPrismaClient();
+      await prisma.userRefreshToken.deleteMany({
+        where: { userId: String(user._id || user.id) },
+      });
+    } catch {}
+  }
 
   res.json({ message: "Password updated successfully" });
 };
@@ -777,8 +1033,10 @@ export const verifyTwoFactor = async (req, res) => {
 
     await user.save();
 
+    const resolvedDeviceId = resolveDeviceId(deviceId);
+
     const deviceInfo = {
-      deviceId: deviceId || crypto.randomUUID(),
+      deviceId: resolvedDeviceId,
 
       ip: req.ip || req.headers["x-forwarded-for"] || "Unknown IP",
 
@@ -816,7 +1074,7 @@ export const verifyTwoFactor = async (req, res) => {
 
     const refreshToken = generateRefreshToken(user._id);
 
-    const deviceIdForToken = deviceId || crypto.randomUUID();
+    const deviceIdForToken = resolvedDeviceId;
     user.refreshTokens = user.refreshTokens.filter(
       (rt) => rt.deviceId !== deviceIdForToken,
     );
@@ -827,13 +1085,26 @@ export const verifyTwoFactor = async (req, res) => {
 
     await user.save();
 
+    if (isPostgres()) {
+      try {
+        const prisma = getPrismaClient();
+        await prisma.userRefreshToken.deleteMany({
+          where: {
+            userId: String(user._id || user.id),
+            deviceId: resolvedDeviceId,
+            NOT: { token: refreshToken },
+          },
+        });
+      } catch {}
+    }
+
     await auditLogin({
       req,
       user,
       appVersion: deviceInfo.appVersion,
     });
 
-    const csrfToken = issueSessionCookies(res, { accessToken, refreshToken });
+    const csrfToken = isDesktop ? null : issueSessionCookies(res, { accessToken, refreshToken });
 
     const permissions = await getUserPermissions(user);
 
@@ -937,7 +1208,7 @@ export const googleCallback = async (req, res) => {
 
       const signupTarget = isDesktop
         ? `workcomposer://signup?google=true&token=${encodeURIComponent(googleSignupToken)}`
-        : `${process.env.FRONTEND_URL}/authenticate/signup?google=true&token=${encodeURIComponent(googleSignupToken)}`;
+        : `${resolveAppBaseUrl()}/authenticate/signup?google=true&token=${encodeURIComponent(googleSignupToken)}`;
 
       return res.redirect(signupTarget);
     }
@@ -956,7 +1227,7 @@ export const googleCallback = async (req, res) => {
     if (user.isArchived) {
       const errorTarget = isDesktop
         ? `workcomposer://login?error=account_archived`
-        : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
+        : `${resolveAppBaseUrl()}/authenticate/login?error=account_archived`;
       return res.redirect(errorTarget);
     }
 
@@ -987,13 +1258,13 @@ export const googleCallback = async (req, res) => {
     issueSessionCookies(res, { accessToken, refreshToken });
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/dashboard/time-tracking/home`,
+      `${resolveAppBaseUrl()}/dashboard/time-tracking/home`,
     );
   } catch (err) {
     console.error("GOOGLE AUTH ERROR:", err);
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/authenticate/login?error=google_auth_failed`,
+      `${resolveAppBaseUrl()}/authenticate/login?error=google_auth_failed`,
     );
   }
 };
@@ -1081,7 +1352,7 @@ export const microsoftCallback = async (req, res) => {
 
       const signupTarget = isDesktop
         ? `workcomposer://signup?microsoft=true&token=${encodeURIComponent(microsoftSignupToken)}`
-        : `${process.env.FRONTEND_URL}/authenticate/signup?microsoft=true&token=${encodeURIComponent(microsoftSignupToken)}`;
+        : `${resolveAppBaseUrl()}/authenticate/signup?microsoft=true&token=${encodeURIComponent(microsoftSignupToken)}`;
 
       return res.redirect(signupTarget);
     }
@@ -1100,7 +1371,7 @@ export const microsoftCallback = async (req, res) => {
     if (user.isArchived) {
       const errorTarget = isDesktop
         ? `workcomposer://login?error=account_archived`
-        : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
+        : `${resolveAppBaseUrl()}/authenticate/login?error=account_archived`;
       return res.redirect(errorTarget);
     }
 
@@ -1130,13 +1401,13 @@ export const microsoftCallback = async (req, res) => {
     issueSessionCookies(res, { accessToken, refreshToken });
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/dashboard/time-tracking/home`,
+      `${resolveAppBaseUrl()}/dashboard/time-tracking/home`,
     );
   } catch (err) {
     console.error("MICROSOFT AUTH ERROR:", err);
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/authenticate/login?error=microsoft_auth_failed`,
+      `${resolveAppBaseUrl()}/authenticate/login?error=microsoft_auth_failed`,
     );
   }
 };
@@ -1242,7 +1513,7 @@ export const appleCallback = async (req, res) => {
 
       const signupTarget = isDesktop
         ? `workcomposer://signup?apple=true&token=${encodeURIComponent(appleSignupToken)}`
-        : `${process.env.FRONTEND_URL}/authenticate/signup?apple=true&token=${encodeURIComponent(appleSignupToken)}`;
+        : `${resolveAppBaseUrl()}/authenticate/signup?apple=true&token=${encodeURIComponent(appleSignupToken)}`;
 
       return res.redirect(signupTarget);
     }
@@ -1261,7 +1532,7 @@ export const appleCallback = async (req, res) => {
     if (existingUser.isArchived) {
       const errorTarget = isDesktop
         ? `workcomposer://login?error=account_archived`
-        : `${process.env.FRONTEND_URL}/authenticate/login?error=account_archived`;
+        : `${resolveAppBaseUrl()}/authenticate/login?error=account_archived`;
       return res.redirect(errorTarget);
     }
 
@@ -1293,13 +1564,13 @@ export const appleCallback = async (req, res) => {
     issueSessionCookies(res, { accessToken, refreshToken });
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/dashboard/time-tracking/home`,
+      `${resolveAppBaseUrl()}/dashboard/time-tracking/home`,
     );
   } catch (err) {
     console.error("APPLE AUTH ERROR:", err);
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/authenticate/login?error=apple_auth_failed`,
+      `${resolveAppBaseUrl()}/authenticate/login?error=apple_auth_failed`,
     );
   }
 };

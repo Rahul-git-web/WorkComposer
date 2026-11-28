@@ -95,10 +95,6 @@ export default function Sidebar({
     fetchUser();
   }, []);
 
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
   const canManageUsersTeams =
     user?.permissions?.includes("manage_users");
 
@@ -107,26 +103,25 @@ export default function Sidebar({
       setLoggingOut(true);
       setShowProfile(false);
 
-      // Clear Electron authentication + stop desktop tracking
-      if (window.electronAPI) {
+      // Clear Electron authentication + stop desktop tracking (main process revokes refresh token & clears cookies)
+      if (window.electronAPI?.logoutElectron) {
         await window.electronAPI.logoutElectron();
+      } else {
+        await API.post("/auth/logout");
       }
-
-      // Existing backend logout
-      await API.post("/auth/logout");
 
       disconnectSocket();
 
       localStorage.removeItem("accessToken");
+      localStorage.removeItem("token");
 
       toast.success("Logged out successfully");
-
-      router.replace("/authenticate/login");
     } catch (err) {
       console.error("Logout failed:", err);
-      toast.error("Failed to logout");
+      toast.error("Signed out locally");
     } finally {
       setLoggingOut(false);
+      router.replace("/authenticate/login");
     }
   };
 

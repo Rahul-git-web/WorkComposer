@@ -41,37 +41,37 @@ const DashNavbar = ({ sidebarOpen = false, onOpenSidebar }) => {
         : "Time Tracking";
 
   const handleLogout = async () => {
-  const toastId = toast.loading("Signing out...");
+    const toastId = toast.loading("Signing out...");
 
-  try {
-    if (typeof window !== "undefined" && window.electronAPI?.logoutElectron) {
-      await window.electronAPI.logoutElectron();
+    try {
+      if (typeof window !== "undefined" && window.electronAPI?.logoutElectron) {
+        await window.electronAPI.logoutElectron();
+      } else {
+        await API.post("/auth/logout");
+      }
+
+      disconnectSocket();
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("token");
+      }
+
+      toast.success("Logged out successfully", {
+        id: toastId,
+        duration: 1200,
+      });
+    } catch (err) {
+      console.error("LOGOUT ERROR:", err);
+
+      toast.error("Signed out locally (server session may already be closed).", {
+        id: toastId,
+        duration: 2500,
+      });
+    } finally {
+      setProfileOpen(false);
+      router.replace("/authenticate/login");
     }
-
-    await API.post("/auth/logout");
-
-    disconnectSocket();
-
-    toast.success("Logged out successfully", {
-      id: toastId,
-      duration: 1200,
-    });
-
-    setProfileOpen(false);
-
-    // Give the success toast time to be visible
-    setTimeout(() => {
-      router.push("/authenticate/login");
-    }, 500);
-  } catch (err) {
-    console.error("LOGOUT ERROR:", err);
-
-    toast.error("Logout failed. Please try again.", {
-      id: toastId,
-      duration: 3000,
-    });
-  }
-};
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {

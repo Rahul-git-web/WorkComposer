@@ -16,6 +16,9 @@ import {
   microsoftLogin,
   microsoftCallback,
   getMicrosoftSignupInfo,
+  appleLogin,
+  appleCallback,
+  getAppleSignupInfo,
   getCsrfToken,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middleware/auth.middleware.js";
@@ -63,6 +66,12 @@ router.get("/microsoft", microsoftLogin);
 router.get("/microsoft/callback", microsoftCallback);
 
 router.get("/microsoft-signup-info", getMicrosoftSignupInfo);
+
+router.get("/apple", appleLogin);
+
+router.post("/apple/callback", appleCallback);
+
+router.get("/apple-signup-info", getAppleSignupInfo);
 
 router.post("/refresh", refreshLimiter, refreshAccessToken);
 

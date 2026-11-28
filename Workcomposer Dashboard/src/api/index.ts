@@ -42,10 +42,27 @@ const notifySubscribersFailure = (error: any) => {
     refreshSubscribers = [];
 };
 
+let isInvalidatingSession = false;
+
 const handleConfirmedSessionInvalidation = () => {
     disconnectSocket();
-    if (typeof window !== "undefined" && window.location.pathname !== "/authenticate/login") {
-        window.location.href = "/authenticate/login";
+    inMemoryCsrfToken = null;
+    if (typeof localStorage !== "undefined") {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("token");
+    }
+    if (typeof window !== "undefined") {
+        if (!isInvalidatingSession && window.electronAPI?.logoutElectron) {
+            isInvalidatingSession = true;
+            Promise.resolve(window.electronAPI.logoutElectron())
+                .catch(() => {})
+                .finally(() => {
+                    isInvalidatingSession = false;
+                });
+        }
+        if (window.location?.pathname !== "/authenticate/login") {
+            window.location.href = "/authenticate/login";
+        }
     }
 };
 
@@ -495,6 +512,8 @@ API.interceptors.response.use(
                     withCredentials: true,
                 }
             );
+
+            void reconnectSocketWithToken();
 
             notifySubscribersSuccess();
 

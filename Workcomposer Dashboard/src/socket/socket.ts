@@ -56,7 +56,7 @@ export const reconnectSocketWithToken = async (explicitToken?: string) => {
     /*
      * Web fallback resolution if explicit token not provided
      */
-    if (!token && !window.electronAPI) {
+    if (!token && !window.electronAPI && typeof localStorage !== "undefined") {
         token =
             localStorage.getItem("accessToken") ||
             localStorage.getItem("token");
@@ -66,7 +66,7 @@ export const reconnectSocketWithToken = async (explicitToken?: string) => {
         socket.disconnect();
     }
 
-    if (!token) {
+    if (!token && window.electronAPI) {
         socket.auth = {};
         console.warn(
             "SOCKET: NO AUTH TOKEN AVAILABLE"
@@ -74,9 +74,7 @@ export const reconnectSocketWithToken = async (explicitToken?: string) => {
         return;
     }
 
-    socket.auth = {
-        token,
-    };
+    socket.auth = token ? { token } : {};
 
     socket.connect();
 };

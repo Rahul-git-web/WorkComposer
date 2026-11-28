@@ -2,7 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
   saveToken: (accessToken, refreshToken) =>
-    ipcRenderer.send("save-token", {
+    ipcRenderer.invoke("save-token", {
       accessToken,
       refreshToken,
     }),

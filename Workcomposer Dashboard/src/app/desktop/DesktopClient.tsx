@@ -37,21 +37,24 @@ function DesktopLayout() {
         if (typeof window === "undefined") return;
         if (!window.electronAPI) return;
 
-        const cleanup = window.electronAPI.onDeviceSignedOut(() => {
-
+        const handleSignedOut = () => {
             // Clear renderer-side authentication if present
             localStorage.removeItem("accessToken");
             localStorage.removeItem("token");
 
             router.replace("/authenticate/login");
-        });
+        };
+
+        const cleanupDeviceSignedOut = window.electronAPI.onDeviceSignedOut?.(handleSignedOut);
+        const cleanupElectronLoggedOut = window.electronAPI.onElectronLoggedOut?.(handleSignedOut);
 
         const cleanupOpenSettings = (window.electronAPI as any)?.onOpenSettings?.(() => {
             setActivePage("settings");
         });
 
         return () => {
-            cleanup?.();
+            cleanupDeviceSignedOut?.();
+            cleanupElectronLoggedOut?.();
             cleanupOpenSettings?.();
         };
     }, [router, setActivePage]);

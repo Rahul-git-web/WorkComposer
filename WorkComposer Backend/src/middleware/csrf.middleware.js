@@ -84,6 +84,14 @@ export const csrfProtection = (req, res, next) => {
   const cookieToken = req.cookies?.csrfToken;
   const headerToken = req.headers["x-csrf-token"] || req.headers["x-xsrf-token"];
 
+  // Allow stale/rotated logout requests where csrfToken cookie is absent or an explicit CSRF header was sent
+  // so expired/offline client sessions can still clear server cookies cleanly, while blocking cookie-only CSRF forms.
+  const isLogoutRoute =
+    req.path === "/api/auth/logout" || req.path === "/auth/logout";
+  if (isLogoutRoute && (!cookieToken || Boolean(headerToken))) {
+    return next();
+  }
+
   if (!cookieToken || !headerToken) {
     return res.status(403).json({
       message: "CSRF token missing or invalid",
