@@ -45,28 +45,42 @@
       "!**/*.log"
     ],
     "asarUnpack": [
-      "node_modules/screenshot-desktop/**"
+      "node_modules/screenshot-desktop/**",
+      "node_modules/sharp/**",
+      "node_modules/@img/**",
+      "node_modules/active-win/**",
+      "node_modules/uiohook-napi/**"
     ],
-    "extraResources": [
+    "protocols": [
       {
-        "from": "resources/BrowserUrlReader.exe",
-        "to": "BrowserUrlReader.exe"
-      },
-      {
-        "from": "resources/LocationReader/bin/Release/net8.0-windows10.0.19041.0/win-x64/publish",
-        "to": "LocationReader"
-      },
-      {
-        "from": "resources/MacBrowserReader",
-        "to": "MacBrowserReader"
+        "name": "WorkComposer",
+        "schemes": [
+          "workcomposer"
+        ]
       }
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/workcomposer.ico"
+      "icon": "assets/workcomposer.ico",
+      "extraResources": [
+        {
+          "from": "resources/BrowserUrlReader.exe",
+          "to": "BrowserUrlReader.exe"
+        },
+        {
+          "from": "resources/LocationReader/bin/Release/net8.0-windows10.0.19041.0/win-x64/publish",
+          "to": "LocationReader"
+        }
+      ]
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "extraResources": [
+        {
+          "from": "resources/MacBrowserReader",
+          "to": "MacBrowserReader"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
