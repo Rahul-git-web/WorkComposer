@@ -2,10 +2,26 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { BrevoClient } from "@getbrevo/brevo";
+import { sanitizeHeaderText } from "./emailSanitizer.js";
+
+const DEFAULT_BREVO_TIMEOUT_SECONDS = 15;
 
 const brevo = new BrevoClient({
   apiKey: process.env.BREVO_API_KEY,
+  timeoutInSeconds: DEFAULT_BREVO_TIMEOUT_SECONDS,
 });
+
+function sanitizeHeadersMap(headers = {}) {
+  const sanitized = {};
+  for (const [key, value] of Object.entries(headers)) {
+    const cleanKey = sanitizeHeaderText(key);
+    if (!cleanKey || value === undefined || value === null) {
+      continue;
+    }
+    sanitized[cleanKey] = typeof value === "string" ? sanitizeHeaderText(value) : value;
+  }
+  return sanitized;
+}
 
 /**
  * Builds the exact request payload expected by Brevo v3 transactional email API.
@@ -20,28 +36,34 @@ const brevo = new BrevoClient({
  * @returns {Object} Brevo SendTransacEmailRequest payload
  */
 export function buildBrevoEmailPayload(to, subject, html, options = {}) {
+  const cleanTo = sanitizeHeaderText(to);
+  const cleanSubject = sanitizeHeaderText(subject);
+  const cleanSenderEmail =
+    sanitizeHeaderText(process.env.EMAIL_FROM || "noreply@workcomposer.com") ||
+    "noreply@workcomposer.com";
+
   const payload = {
     sender: {
       name: "WorkComposer",
-      email: process.env.EMAIL_FROM || "noreply@workcomposer.com",
+      email: cleanSenderEmail,
     },
     to: [
       {
-        email: to,
+        email: cleanTo,
       },
     ],
-    subject,
+    subject: cleanSubject,
     htmlContent: html,
   };
 
   // Brevo v3 transactional email API specifies idempotencyKey within headers object of JSON payload
   if (options.idempotencyKey) {
     payload.headers = {
-      idempotencyKey: options.idempotencyKey,
-      ...(options.headers || {}),
+      idempotencyKey: sanitizeHeaderText(options.idempotencyKey),
+      ...sanitizeHeadersMap(options.headers || {}),
     };
   } else if (options.headers) {
-    payload.headers = { ...options.headers };
+    payload.headers = sanitizeHeadersMap(options.headers);
   }
 
   return payload;
@@ -55,6 +77,8 @@ export function buildBrevoEmailPayload(to, subject, html, options = {}) {
  * @param {string} html - HTML content body
  * @param {Object} [options] - Additional provider options
  * @param {string} [options.idempotencyKey] - UUIDv4 idempotency key for deduplication
+ * @param {number} [options.timeoutInSeconds] - Optional provider request timeout override
+ * @param {AbortSignal} [options.abortSignal] - Optional AbortSignal for provider request
  * @param {number} [options.mockDelayMs] - Simulated latency for testing
  * @param {Error} [options.mockError] - Simulated error for testing
  * @param {string} [options.mockMessageId] - Custom mock messageId
@@ -76,11 +100,32 @@ const sendEmail = async (to, subject, html, options = {}) => {
     };
   }
 
+  const cleanTo = sanitizeHeaderText(to);
+  if (!cleanTo) {
+    throw new Error("Recipient email address is required");
+  }
+
+  if (!options.brevoClient && !process.env.BREVO_API_KEY) {
+    throw new Error("BREVO_API_KEY is required when MOCK_EMAIL_SERVICE is disabled");
+  }
+
   try {
-    const payload = buildBrevoEmailPayload(to, subject, html, options);
+    const payload = buildBrevoEmailPayload(cleanTo, subject, html, options);
     const client = options.brevoClient || brevo;
 
-    const response = await client.transactionalEmails.sendTransacEmail(payload);
+    const requestOptions =
+      options.timeoutInSeconds !== undefined || options.abortSignal
+        ? {
+            ...(options.timeoutInSeconds !== undefined
+              ? { timeoutInSeconds: options.timeoutInSeconds }
+              : {}),
+            ...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
+          }
+        : undefined;
+
+    const response = requestOptions
+      ? await client.transactionalEmails.sendTransacEmail(payload, requestOptions)
+      : await client.transactionalEmails.sendTransacEmail(payload);
 
     console.log("BREVO EMAIL SENT:", response.messageId || response.data?.messageId);
 

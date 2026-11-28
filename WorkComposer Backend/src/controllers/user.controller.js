@@ -12,6 +12,7 @@ import { Parser } from "json2csv";
 import sendEmail from "../utils/sendEmail.js";
 import inviteEmailTemplate from "../templates/inviteEmailTemplate.js";
 import verifyEmailTemplate from "../templates/veifyEmailTemplate.js";
+import { resolveAppBaseUrl } from "../utils/emailSanitizer.js";
 import { getAvatarUrl } from "../utils/avatar.js";
 import {
   auditSettingsChanged,
@@ -319,7 +320,7 @@ export const inviteUser = async (req, res) => {
       // -----------------------------
       // 10. Generate invitation link
       // -----------------------------
-      const inviteLink = `${process.env.CLIENT_URL}/accept-invite?token=${rawToken}`;
+      const inviteLink = `${resolveAppBaseUrl()}/accept-invite?token=${rawToken}`;
 
       // -----------------------------
       // 11. Generate email
@@ -1042,7 +1043,7 @@ export const resendInvite = async (req, res) => {
     await invite.save();
 
     try {
-      const inviteLink = `${process.env.CLIENT_URL}/accept-invite?token=${rawToken}`;
+      const inviteLink = `${resolveAppBaseUrl()}/accept-invite?token=${rawToken}`;
 
       const html = inviteEmailTemplate({
         inviteLink,
@@ -1566,7 +1567,7 @@ export const bulkInvitesUsers = async (req, res) => {
           // -----------------------------
           // Generate invitation URL
           // -----------------------------
-          const inviteLink = `${process.env.CLIENT_URL}/accept-invite?token=${rawToken}`;
+          const inviteLink = `${resolveAppBaseUrl()}/accept-invite?token=${rawToken}`;
 
           // -----------------------------
           // Generate email
@@ -1901,7 +1902,7 @@ export const requestEmailChange = async (req, res) => {
     });
 
     // Construct verification link delivered exclusively via email
-    const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+    const clientUrl = resolveAppBaseUrl();
     const verifyUrl = `${clientUrl}/verify-email-change/${rawToken}`;
     const html = verifyEmailTemplate({
       verifyUrl,

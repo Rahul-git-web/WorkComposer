@@ -1,7 +1,10 @@
+import { escapeHtml, sanitizeHttpUrl } from "../utils/emailSanitizer.js";
+
 const inviteEmailTemplate = ({ inviteLink, organization, role, team }) => {
-  const safeOrganization = organization || "your organization";
-  const safeRole = role || "Team Member";
-  const safeTeam = team || "Your Team";
+  const safeOrganization = escapeHtml(organization || "your organization") || "your organization";
+  const safeRole = escapeHtml(role || "Team Member") || "Team Member";
+  const safeTeam = escapeHtml(team || "Your Team") || "Your Team";
+  const safeInviteLink = sanitizeHttpUrl(inviteLink, "#");
 
   return `
 <!DOCTYPE html>
@@ -338,7 +341,7 @@ const inviteEmailTemplate = ({ inviteLink, organization, role, team }) => {
                   <td align="center">
 
                     <a
-                      href="${inviteLink}"
+                      href="${safeInviteLink}"
                       target="_blank"
                       style="
                         display:inline-block;
@@ -384,13 +387,13 @@ const inviteEmailTemplate = ({ inviteLink, organization, role, team }) => {
                 font-size:12px;
               ">
                 <a
-                  href="${inviteLink}"
+                  href="${safeInviteLink}"
                   style="
                     color:#4f46e5;
                     text-decoration:none;
                   "
                 >
-                  ${inviteLink}
+                  ${safeInviteLink}
                 </a>
               </p>
 

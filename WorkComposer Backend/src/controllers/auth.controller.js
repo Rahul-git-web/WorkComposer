@@ -18,6 +18,8 @@ export const resetSendEmailTransportForTesting = () => {
   sendEmailTransport = sendEmail;
 };
 import verifyEmailTemplate from "../templates/veifyEmailTemplate.js";
+import resetPasswordTemplate from "../templates/resetPasswordTemplate.js";
+import { resolveApiBaseUrl, resolveAppBaseUrl } from "../utils/emailSanitizer.js";
 import Organization from "../models/organization.model.js";
 import {
   auditLogin,
@@ -210,7 +212,7 @@ export const registerUser = async (req, res) => {
     // Verification Link (External side effect - strictly POST-COMMIT)
     if (!googleId && !microsoftId && !appleId) {
       try {
-        const verifyUrl = `${process.env.BACKEND_URL}/api/auth/verify/${verificationToken}`;
+        const verifyUrl = `${resolveApiBaseUrl()}/api/auth/verify/${verificationToken}`;
 
         const html = verifyEmailTemplate({
           verifyUrl,
@@ -595,7 +597,7 @@ export const verifyEmail = async (req, res) => {
     await user.save();
 
     return res.redirect(
-      `${process.env.FRONTEND_URL}/authenticate/login?verified=true`,
+      `${resolveAppBaseUrl()}/authenticate/login?verified=true`,
     );
   } catch (err) {
     console.error("VERIFY EMAIL ERROR:", err);
@@ -632,7 +634,7 @@ export const resendVerification = async (req, res) => {
 
     await user.save();
 
-    const verifyUrl = `${process.env.BACKEND_URL}/api/auth/verify/${verificationToken}`;
+    const verifyUrl = `${resolveApiBaseUrl()}/api/auth/verify/${verificationToken}`;
 
     const html = verifyEmailTemplate({
       verifyUrl,
@@ -670,12 +672,16 @@ export const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const resetUrl = `${process.env.FRONTEND_URL}/authenticate/reset-password?token=${resetToken}`;
+    const resetUrl = `${resolveAppBaseUrl()}/authenticate/reset-password?token=${resetToken}`;
+    const html = resetPasswordTemplate({
+      resetUrl,
+      firstName: user.firstName,
+    });
 
     await sendEmail(
       user.email,
       "Reset Password",
-      `<a href="${resetUrl}">Reset Password</a>`,
+      html,
     );
 
     res.json({

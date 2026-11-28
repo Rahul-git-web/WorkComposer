@@ -7,6 +7,7 @@ import { buildDailyReport } from "./reportBuilder.service.js";
 import { getTrackingReportRecipients } from "./reportRecipient.service.js";
 import { extractManagerIds } from "../security/policyEvaluator.js";
 import sendEmail from "../utils/sendEmail.js";
+import { escapeHtml } from "../utils/emailSanitizer.js";
 import { dailyTrackingReportTemplate } from "../templates/dailyTrackingReportTemplate.js";
 import { dailyTeamTrackingReportTemplate } from "../templates/dailyTeamTrackingReportTemplate.js";
 import { dailyOrganizationTrackingReportTemplate } from "../templates/dailyOrganizationTrackingReportTemplate.js";
@@ -258,12 +259,12 @@ export const sendDailyTrackingReports = async (date = null, targetOrgId = null) 
             .map(
               ({ user, report }) => `
 <tr>
-  <td>${user.firstName} ${user.lastName}</td>
-  <td align="center">${report.attendance}</td>
+  <td>${escapeHtml(`${user.firstName || ""} ${user.lastName || ""}`.trim() || "Employee")}</td>
+  <td align="center">${escapeHtml(report.attendance || "")}</td>
   <td align="center">${Math.floor(
-    report.workedSeconds / 3600,
-  )}h ${Math.floor((report.workedSeconds % 3600) / 60)}m</td>
-  <td align="center">${report.productivity}%</td>
+    (Number(report.workedSeconds) || 0) / 3600,
+  )}h ${Math.floor(((Number(report.workedSeconds) || 0) % 3600) / 60)}m</td>
+  <td align="center">${Number(report.productivity) || 0}%</td>
 </tr>
 `,
             )
@@ -380,13 +381,13 @@ export const sendDailyTrackingReports = async (date = null, targetOrgId = null) 
             .map(
               ({ user, report }) => `
 <tr>
-  <td>${user.firstName} ${user.lastName}</td>
-  <td align="center">${report.attendance}</td>
+  <td>${escapeHtml(`${user.firstName || ""} ${user.lastName || ""}`.trim() || "Employee")}</td>
+  <td align="center">${escapeHtml(report.attendance || "")}</td>
   <td align="center">
-    ${Math.floor(report.workedSeconds / 3600)}h
-    ${Math.floor((report.workedSeconds % 3600) / 60)}m
+    ${Math.floor((Number(report.workedSeconds) || 0) / 3600)}h
+    ${Math.floor(((Number(report.workedSeconds) || 0) % 3600) / 60)}m
   </td>
-  <td align="center">${report.productivity}%</td>
+  <td align="center">${Number(report.productivity) || 0}%</td>
 </tr>
 `,
             )

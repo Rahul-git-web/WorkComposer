@@ -1,22 +1,37 @@
+import { escapeHtml, sanitizeHttpUrl } from "../utils/emailSanitizer.js";
+
 const formatDuration = (seconds) => {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
+  const safeSeconds = Number(seconds) || 0;
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
 
   return `${hours}h ${minutes}m`;
 };
 
 export const weeklyTrackingReportTemplate = ({
-  user,
-  report,
-  startDate,
-  endDate,
+  user = {},
+  report = {},
+  startDate = "",
+  endDate = "",
 }) => {
+  const safeFirstName = escapeHtml(user.firstName || "there") || "there";
+  const safeStartDate = escapeHtml(startDate);
+  const safeEndDate = escapeHtml(endDate);
+  const safeAttendance = escapeHtml(report.attendance || "");
+  const safeProductivity = Number(report.productivity) || 0;
+  const safeScreenshots = Number(report.screenshots) || 0;
+  const safeReportUrl = sanitizeHttpUrl(report.reportUrl, "#");
+  const appsUsed = Array.isArray(report.appsUsed) ? report.appsUsed : [];
+  const urlsVisited = Array.isArray(report.urlsVisited) ? report.urlsVisited : [];
+  const projects = Array.isArray(report.projects) ? report.projects : [];
+  const tasks = report.tasks || {};
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Daily Tracking Report</title>
+<title>Weekly Tracking Report</title>
 </head>
 
 <body
@@ -59,11 +74,11 @@ export const weeklyTrackingReportTemplate = ({
   "
 >
 <h1 style="margin:0;font-size:24px;">
-Daily Tracking Report
+Weekly Tracking Report
 </h1>
 
 <p style="margin-top:10px;">
-${startDate} - ${endDate}
+${safeStartDate} - ${safeEndDate}
 </p>
 </td>
 </tr>
@@ -72,11 +87,11 @@ ${startDate} - ${endDate}
 <td style="padding:30px;">
 
 <h2 style="margin-top:0;">
-Hello ${user.firstName},
+Hello ${safeFirstName},
 </h2>
 
 <p>
-Here is your tracking summary for the day.
+Here is your tracking summary for the week.
 </p>
 
 <table
@@ -92,7 +107,7 @@ Here is your tracking summary for the day.
 
 <tr style="background:#f9fafb;">
   <th align="left">Attendance</th>
-  <td>${report.attendance}</td>
+  <td>${safeAttendance}</td>
 </tr>
 
 <tr>
@@ -112,12 +127,12 @@ Here is your tracking summary for the day.
 
 <tr style="background:#f9fafb;">
   <th align="left">Productivity</th>
-  <td>${report.productivity}%</td>
+  <td>${safeProductivity}%</td>
 </tr>
 
 <tr>
   <th align="left">Screenshots</th>
-  <td>${report.screenshots}</td>
+  <td>${safeScreenshots}</td>
 </tr>
 
 </table>
@@ -142,13 +157,13 @@ Top Applications
 </tr>
 
 ${
-  report.appsUsed.length
-    ? report.appsUsed
+  appsUsed.length
+    ? appsUsed
         .map(
           (app) => `
 <tr>
-  <td>${app.appName}</td>
-  <td align="right">${formatDuration(app.duration)}</td>
+  <td>${escapeHtml(app?.appName || "Unknown App")}</td>
+  <td align="right">${formatDuration(app?.duration)}</td>
 </tr>
 `,
         )
@@ -179,12 +194,12 @@ Websites Visited
 >
 
 ${
-  report.urlsVisited.length
-    ? report.urlsVisited
+  urlsVisited.length
+    ? urlsVisited
         .map(
           (url) => `
 <tr>
-  <td>${url}</td>
+  <td>${escapeHtml(url)}</td>
 </tr>
 `,
         )
@@ -215,12 +230,12 @@ Projects
 >
 
 ${
-  report.projects.length
-    ? report.projects
+  projects.length
+    ? projects
         .map(
           (project) => `
 <tr>
-  <td>${project.name}</td>
+  <td>${escapeHtml(project?.name || "Unnamed Project")}</td>
 </tr>
 `,
         )
@@ -252,22 +267,22 @@ Task Summary
 
 <tr style="background:#f9fafb;">
   <th align="left">Local Tasks</th>
-  <td>${report.tasks.local}</td>
+  <td>${Number(tasks.local) || 0}</td>
 </tr>
 
 <tr>
   <th align="left">Jira Tasks</th>
-  <td>${report.tasks.jira}</td>
+  <td>${Number(tasks.jira) || 0}</td>
 </tr>
 
 <tr style="background:#f9fafb;">
   <th align="left">Asana Tasks</th>
-  <td>${report.tasks.asana}</td>
+  <td>${Number(tasks.asana) || 0}</td>
 </tr>
 
 <tr>
   <th align="left">Total Tasks</th>
-  <td><strong>${report.tasks.total}</strong></td>
+  <td><strong>${Number(tasks.total) || 0}</strong></td>
 </tr>
 
 </table>
@@ -275,7 +290,7 @@ Task Summary
 <div style="text-align:center;margin-top:40px;">
 
 <a
-  href="${report.reportUrl}"
+  href="${safeReportUrl}"
   style="
     display:inline-block;
     background:#2563eb;

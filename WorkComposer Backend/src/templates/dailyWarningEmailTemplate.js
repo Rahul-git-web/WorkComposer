@@ -1,8 +1,13 @@
+import { escapeHtml } from "../utils/emailSanitizer.js";
+
 const dailyWarningEmailTemplate = ({
   firstName,
   workedTime,
   expectedTime,
 }) => {
+  const safeFirstName = escapeHtml(firstName || "there") || "there";
+  const safeExpectedTime = escapeHtml(expectedTime || "--") || "--";
+  const safeWorkedTime = escapeHtml(workedTime || "--") || "--";
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -208,7 +213,7 @@ const dailyWarningEmailTemplate = ({
             >
               Hi
               <strong style="color:#374151;">
-                ${firstName || "there"}
+                ${safeFirstName}
               </strong>,
               you stopped tracking today before completing
               your expected working hours.
@@ -378,7 +383,7 @@ const dailyWarningEmailTemplate = ({
                       font-weight:700;
                     "
                   >
-                    ${expectedTime || "--"}
+                    ${safeExpectedTime}
                   </div>
 
                 </td>
@@ -412,7 +417,7 @@ const dailyWarningEmailTemplate = ({
                       font-weight:700;
                     "
                   >
-                    ${workedTime || "--"}
+                    ${safeWorkedTime}
                   </div>
 
                 </td>

@@ -232,6 +232,8 @@ export const processOrganizationEmailReports = async (org, evalNow = new Date())
   return result;
 };
 
+let isEmailReportSweepRunning = false;
+
 /**
  * Sweeps all organizations and evaluates timezone-aware report delivery.
  * Scheduled to run every 15 minutes.
@@ -239,6 +241,12 @@ export const processOrganizationEmailReports = async (org, evalNow = new Date())
  * @param {Date} [evalNow]
  */
 export const runEmailReportSweep = async (evalNow = new Date()) => {
+  if (isEmailReportSweepRunning) {
+    console.warn("[EmailReportsCron] Skipping overlapping sweep while previous sweep is active.");
+    return;
+  }
+
+  isEmailReportSweepRunning = true;
   try {
     const organizations = await organizationRepository.find();
 
@@ -254,6 +262,8 @@ export const runEmailReportSweep = async (evalNow = new Date()) => {
     }
   } catch (err) {
     console.error("[EmailReportsCron] Error during organization sweep:", err);
+  } finally {
+    isEmailReportSweepRunning = false;
   }
 };
 

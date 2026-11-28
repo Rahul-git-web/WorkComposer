@@ -1,8 +1,12 @@
+import { escapeHtml } from "../utils/emailSanitizer.js";
+
 export const dailyOrganizationTrackingReportTemplate = ({
-  owner,
-  reports,
-  date,
+  owner = {},
+  reports = "",
+  date = "",
 }) => {
+  const safeFirstName = escapeHtml(owner.firstName || "there") || "there";
+  const safeDate = escapeHtml(date);
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -207,7 +211,7 @@ export const dailyOrganizationTrackingReportTemplate = ({
             >
               Hello
               <strong style="color:#374151;">
-                ${owner.firstName || "there"}
+                ${safeFirstName}
               </strong>,
               here is your organization's tracking summary
               for the selected day.
@@ -260,7 +264,7 @@ export const dailyOrganizationTrackingReportTemplate = ({
                       font-weight:700;
                     "
                   >
-                    ${date}
+                    ${safeDate}
                   </div>
 
                 </td>

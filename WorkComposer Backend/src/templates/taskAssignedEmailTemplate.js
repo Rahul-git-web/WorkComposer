@@ -1,3 +1,5 @@
+import { escapeHtml, resolveAppBaseUrl, sanitizeHttpUrl } from "../utils/emailSanitizer.js";
+
 const taskAssignedEmailTemplate = ({
   firstName,
   title,
@@ -8,17 +10,19 @@ const taskAssignedEmailTemplate = ({
   createdBy,
   taskId,
 }) => {
-  const taskLink = taskId
-    ? `${process.env.CLIENT_URL}/dashboard/task-management?task=${taskId}`
-    : `${process.env.CLIENT_URL}/dashboard/task-management`;
+  const baseUrl = resolveAppBaseUrl();
+  const rawTaskLink = taskId
+    ? `${baseUrl}/dashboard/task-management?task=${encodeURIComponent(String(taskId))}`
+    : `${baseUrl}/dashboard/task-management`;
+  const taskLink = sanitizeHttpUrl(rawTaskLink, "#");
 
-  const safeFirstName = firstName || "there";
-  const safeTitle = title || "Untitled task";
-  const safeProject = project || "No project";
-  const safePriority = priority || "Not specified";
-  const safeStatus = status || "Not specified";
-  const safeDueDate = dueDate || "No due date";
-  const safeCreatedBy = createdBy || "WorkComposer";
+  const safeFirstName = escapeHtml(firstName || "there") || "there";
+  const safeTitle = escapeHtml(title || "Untitled task") || "Untitled task";
+  const safeProject = escapeHtml(project || "No project") || "No project";
+  const safePriority = escapeHtml(priority || "Not specified") || "Not specified";
+  const safeStatus = escapeHtml(status || "Not specified") || "Not specified";
+  const safeDueDate = escapeHtml(dueDate || "No due date") || "No due date";
+  const safeCreatedBy = escapeHtml(createdBy || "WorkComposer") || "WorkComposer";
 
   return `
 <!DOCTYPE html>

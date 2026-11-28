@@ -1,9 +1,14 @@
+import { escapeHtml } from "../utils/emailSanitizer.js";
+
 export const weeklyTeamTrackingReportTemplate = ({
-  manager,
-  reports,
-  startDate,
-  endDate,
+  manager = {},
+  reports = "",
+  startDate = "",
+  endDate = "",
 }) => {
+  const safeFirstName = escapeHtml(manager.firstName || "there") || "there";
+  const safeStartDate = escapeHtml(startDate);
+  const safeEndDate = escapeHtml(endDate);
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -208,7 +213,7 @@ export const weeklyTeamTrackingReportTemplate = ({
             >
               Hello
               <strong style="color:#374151;">
-                ${manager.firstName || "there"}
+                ${safeFirstName}
               </strong>,
               here is your team's tracking summary
               for the selected period.
@@ -261,7 +266,7 @@ export const weeklyTeamTrackingReportTemplate = ({
                       font-weight:700;
                     "
                   >
-                    ${startDate}
+                    ${safeStartDate}
 
                     <span
                       style="
@@ -272,7 +277,7 @@ export const weeklyTeamTrackingReportTemplate = ({
                       →
                     </span>
 
-                    ${endDate}
+                    ${safeEndDate}
                   </div>
 
                 </td>

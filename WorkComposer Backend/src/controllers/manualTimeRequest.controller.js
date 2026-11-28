@@ -1,5 +1,6 @@
 import { checkSessionOverlap } from "../utils/session.js";
 import sendEmail from "../utils/sendEmail.js";
+import { escapeHtml } from "../utils/emailSanitizer.js";
 import { generateTimeTrackingCSV } from "../services/reportExport.service.js";
 import { createNotification } from "../services/notification.service.js";
 import { resolveEffectiveAuthContext, normalizeId } from "../security/effectiveAuthContext.js";
@@ -744,27 +745,36 @@ export const rejectRequest = async (req, res) => {
     // 2. Dispatch email outside transaction
     if (requester.email) {
       try {
+        const requesterTz = resolveUserTimezone(requester, req);
+        const safeFirstName = escapeHtml(requester.firstName || "User") || "User";
+        const safeRequestType = escapeHtml(request.type || "");
+        const safeRequestDate = escapeHtml(request.date || "");
+        const safeTimeWindow = escapeHtml(
+          `${formatClockTime(request.startTime, requesterTz)} - ${formatClockTime(request.endTime, requesterTz)}`,
+        );
+        const safeManagerComment = escapeHtml(managerComment || "");
+
         await sendEmail(
           requester.email,
           "Manual Time Request Rejected",
           `
         <h2>Manual Time Request Rejected</h2>
-        <p>Hello ${requester.firstName || "User"},</p>
-        <p>Your manual <strong>${request.type}</strong> request has been rejected.</p>
+        <p>Hello ${safeFirstName},</p>
+        <p>Your manual <strong>${safeRequestType}</strong> request has been rejected.</p>
         <table cellpadding="8" cellspacing="0" style="border-collapse:collapse;">
           <tr>
             <td><strong>Date</strong></td>
-            <td>${request.date}</td>
+            <td>${safeRequestDate}</td>
           </tr>
           <tr>
             <td><strong>Time</strong></td>
             <td>
-              ${formatClockTime(request.startTime, resolveUserTimezone(requester, req))} - ${formatClockTime(request.endTime, resolveUserTimezone(requester, req))}
+              ${safeTimeWindow}
             </td>
           </tr>
           <tr>
             <td><strong>Reason from Manager</strong></td>
-            <td>${managerComment}</td>
+            <td>${safeManagerComment}</td>
           </tr>
         </table>
         <p>If you believe this request was rejected by mistake, please contact your manager.</p>

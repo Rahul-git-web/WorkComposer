@@ -25,6 +25,8 @@ const DAY_MAP = {
   Saturday: 6,
 };
 
+const pendingWarningKeys = new Set();
+
 export const checkDailyWarning = async (userId) => {
   try {
     const user = await userRepository.findById(userId, { populateOrganization: true });
@@ -159,24 +161,44 @@ export const checkDailyWarning = async (userId) => {
       }
     }
 
-    const formatDuration = (seconds) => {
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
+    const lockKey = `daily:${String(userId)}:${todayDate}`;
+    if (pendingWarningKeys.has(lockKey)) {
+      return;
+    }
+    pendingWarningKeys.add(lockKey);
 
-      return `${hours}h ${minutes}m`;
-    };
+    try {
+      const formatDuration = (seconds) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
 
-    const html = dailyWarningEmailTemplate({
-      firstName: user.firstName,
-      workedTime: formatDuration(workedSeconds),
-      expectedTime: formatDuration(expectedWorkSeconds),
-    });
+        return `${hours}h ${minutes}m`;
+      };
 
-    await sendEmail(user.email, "Daily Work Time Warning", html);
+      const html = dailyWarningEmailTemplate({
+        firstName: user.firstName,
+        workedTime: formatDuration(workedSeconds),
+        expectedTime: formatDuration(expectedWorkSeconds),
+      });
 
-    await userRepository.findByIdAndUpdate(userId, {
-      lastDailyWarningEmail: new Date(),
-    });
+      const previousSentAt = user.lastDailyWarningEmail || null;
+      await userRepository.findByIdAndUpdate(userId, {
+        lastDailyWarningEmail: new Date(),
+      });
+
+      try {
+        await sendEmail(user.email, "Daily Work Time Warning", html);
+      } catch (sendErr) {
+        await userRepository
+          .findByIdAndUpdate(userId, {
+            lastDailyWarningEmail: previousSentAt,
+          })
+          .catch(() => {});
+        throw sendErr;
+      }
+    } finally {
+      pendingWarningKeys.delete(lockKey);
+    }
   } catch (error) {
     console.error("Error checking daily warning:", error);
   }
@@ -311,24 +333,44 @@ export const checkWeeklyWarning = async (userId) => {
       return;
     }
 
-    const formatDuration = (seconds) => {
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
+    const lockKey = `weekly:${String(userId)}:${mondayDate}`;
+    if (pendingWarningKeys.has(lockKey)) {
+      return;
+    }
+    pendingWarningKeys.add(lockKey);
 
-      return `${hours}h ${minutes}m`;
-    };
+    try {
+      const formatDuration = (seconds) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
 
-    const html = weeklyWarningEmailTemplate({
-      firstName: user.firstName,
-      workedTime: formatDuration(workedSeconds),
-      expectedTime: formatDuration(expectedWorkSeconds),
-    });
+        return `${hours}h ${minutes}m`;
+      };
 
-    await sendEmail(user.email, "Weekly Work Time Warning", html);
+      const html = weeklyWarningEmailTemplate({
+        firstName: user.firstName,
+        workedTime: formatDuration(workedSeconds),
+        expectedTime: formatDuration(expectedWorkSeconds),
+      });
 
-    await userRepository.findByIdAndUpdate(userId, {
-      lastWeeklyWarningEmail: new Date(),
-    });
+      const previousSentAt = user.lastWeeklyWarningEmail || null;
+      await userRepository.findByIdAndUpdate(userId, {
+        lastWeeklyWarningEmail: new Date(),
+      });
+
+      try {
+        await sendEmail(user.email, "Weekly Work Time Warning", html);
+      } catch (sendErr) {
+        await userRepository
+          .findByIdAndUpdate(userId, {
+            lastWeeklyWarningEmail: previousSentAt,
+          })
+          .catch(() => {});
+        throw sendErr;
+      }
+    } finally {
+      pendingWarningKeys.delete(lockKey);
+    }
   } catch (error) {
     console.error("Error checking weekly warning:", error);
   }

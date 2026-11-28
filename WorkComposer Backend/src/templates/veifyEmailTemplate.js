@@ -1,7 +1,11 @@
+import { escapeHtml, sanitizeHttpUrl } from "../utils/emailSanitizer.js";
+
 const verifyEmailTemplate = ({
   verifyUrl,
   firstName,
 }) => {
+  const safeFirstName = escapeHtml(firstName || "there") || "there";
+  const safeVerifyUrl = sanitizeHttpUrl(verifyUrl, "#");
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -206,7 +210,7 @@ const verifyEmailTemplate = ({
             >
               Hi
               <strong style="color:#374151;">
-                ${firstName || "there"}
+                ${safeFirstName}
               </strong>,
               thanks for creating your WorkComposer account.
               Please verify your email address to continue.
@@ -294,7 +298,7 @@ const verifyEmailTemplate = ({
                   >
 
                     <a
-                      href="${verifyUrl}"
+                      href="${safeVerifyUrl}"
                       target="_blank"
                       style="
                         display:inline-block;

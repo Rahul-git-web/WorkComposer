@@ -1,4 +1,8 @@
+import { escapeHtml } from "../utils/emailSanitizer.js";
+
 const twoFactorTemplate = ({ firstName, otp }) => {
+  const safeFirstName = escapeHtml(firstName || "there") || "there";
+  const safeOtp = escapeHtml(otp || "");
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -203,7 +207,7 @@ const twoFactorTemplate = ({ firstName, otp }) => {
             >
               Hello
               <strong style="color:#374151;">
-                ${firstName || "there"}
+                ${safeFirstName}
               </strong>,
               use the verification code below to complete
               your WorkComposer sign-in.
@@ -265,7 +269,7 @@ const twoFactorTemplate = ({ firstName, otp }) => {
                       text-align:center;
                     "
                   >
-                    ${otp}
+                    ${safeOtp}
                   </div>
 
 
