@@ -1,6 +1,6 @@
 "use client";
 
-import { Clipboard, Clock, CirclePause, Play, Square } from "lucide-react";
+import { Clipboard, Clock, CirclePause, FileText, Play, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useProject } from "@/context/ProjectContext";
 import { useDesktop } from "@/context/DesktopContext";
@@ -30,6 +30,9 @@ export default function TopBar() {
     start,
     stop,
     finishDay,
+    lastEndDayReport,
+    emailSentToday,
+    fetchDailyWorkReport,
     duration,
 
     todayWorkSeconds,
@@ -45,6 +48,7 @@ export default function TopBar() {
 
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const [dailyReport, setDailyReport] = useState<any>(null);
   const [showDailyReport, setShowDailyReport] = useState(false);
 
@@ -90,10 +94,22 @@ export default function TopBar() {
         setDailyReport(report);
         setShowFinishModal(false);
         setShowDailyReport(true);
-
       }
     } finally {
       setFinishing(false);
+    }
+  };
+
+  const handleViewSummary = async () => {
+    try {
+      setLoadingSummary(true);
+      const report = lastEndDayReport || (await fetchDailyWorkReport());
+      if (report) {
+        setDailyReport(report);
+        setShowDailyReport(true);
+      }
+    } finally {
+      setLoadingSummary(false);
     }
   };
 
@@ -480,52 +496,68 @@ export default function TopBar() {
         </button>
 
         {/* ===================================================
-          FINISH
+          FINISH / DAY SUMMARY
       ==================================================== */}
-        <button
-          disabled={finishedToday}
-          onClick={() => setShowFinishModal(true)}
-          className={`
-          shrink-0
-
-          font-semibold
-
-          px-4
-          lg:px-5
-          xl:px-6
-
-          py-2
-
-          rounded-lg
-
-          flex
-          items-center
-          justify-center
-          gap-1
-
-          whitespace-nowrap
-
-          transition-shadow
-          duration-300
-
-          ${finishedToday
-              ? "bg-gray-100 dark:bg-[#243447] text-gray-400 cursor-not-allowed"
-              : "bg-gray-200 dark:bg-[#243447] text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-[#30445A] hover:shadow-[0_0_16px_rgba(148,163,184,0.25)]"
-            }
-        `}
-        >
-          {finishedToday ? (
-            <>
-              <span>✓</span>
-              Finished
-            </>
-          ) : (
-            <>
-              <Square size={15} />
-              Finish
-            </>
-          )}
-        </button>
+        {finishedToday ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <span
+              className="
+              inline-flex items-center gap-1
+              rounded-lg px-3 py-2 text-sm font-semibold
+              bg-emerald-50 dark:bg-[#14302A]
+              text-emerald-700 dark:text-emerald-300
+              border border-emerald-200 dark:border-emerald-800/50
+              whitespace-nowrap
+            "
+            >
+              ✓ Finished
+            </span>
+            <button
+              type="button"
+              onClick={handleViewSummary}
+              disabled={loadingSummary}
+              className="
+                inline-flex items-center justify-center gap-1.5
+                rounded-lg px-3.5 py-2 text-sm font-semibold
+                bg-indigo-50 dark:bg-[#243447]
+                text-indigo-700 dark:text-blue-300
+                border border-indigo-200 dark:border-[#30445A]
+                hover:bg-indigo-100 dark:hover:bg-[#30445A]
+                transition-colors whitespace-nowrap cursor-pointer
+                disabled:opacity-50
+              "
+            >
+              <FileText size={15} />
+              {loadingSummary ? "Loading..." : "Day Summary"}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowFinishModal(true)}
+            className="
+            shrink-0
+            font-semibold
+            px-4
+            lg:px-5
+            xl:px-6
+            py-2
+            rounded-lg
+            flex
+            items-center
+            justify-center
+            gap-1
+            whitespace-nowrap
+            cursor-pointer
+            transition-shadow
+            duration-300
+            bg-gray-200 dark:bg-[#243447] text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-[#30445A] hover:shadow-[0_0_16px_rgba(148,163,184,0.25)]
+          "
+          >
+            <Square size={15} />
+            Finish
+          </button>
+        )}
       </div>
 
       {/* =====================================================
@@ -550,7 +582,7 @@ export default function TopBar() {
           <div
             className="
             w-full
-            max-w-[400px]
+            max-w-[420px]
 
             rounded-xl
 
@@ -570,9 +602,21 @@ export default function TopBar() {
             </h2>
 
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-              You&apos;ve finished working for today. You won&apos;t be able
+              This will stop any active timer, finalize today&apos;s attendance,
+              and generate your End-of-Day Summary email. You won&apos;t be able
               to start tracking again until tomorrow.
             </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <ReportStat
+                label="Worked Today"
+                value={formatDuration(displayedWorkSeconds)}
+              />
+              <ReportStat
+                label="Break Time"
+                value={formatDuration(todayBreakSeconds)}
+              />
+            </div>
 
             <div className="flex justify-end gap-3 mt-6">
               <button
@@ -629,6 +673,7 @@ export default function TopBar() {
       {showDailyReport && dailyReport && (
         <DailyWorkReport
           report={dailyReport}
+          emailSent={emailSentToday}
           onClose={() => setShowDailyReport(false)}
         />
       )}
@@ -644,12 +689,12 @@ function ReportStat({
   value: string | number;
 }) {
   return (
-    <div className="rounded-xl border border-[#263852] bg-[#111E33] p-4">
-      <p className="text-xs text-gray-500">
+    <div className="rounded-xl border border-gray-200 dark:border-[#263852] bg-gray-50 dark:bg-[#111E33] p-4">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
         {label}
       </p>
 
-      <p className="mt-2 truncate text-base font-semibold text-white">
+      <p className="mt-2 truncate text-base font-semibold text-gray-900 dark:text-white">
         {value}
       </p>
     </div>

@@ -4,6 +4,8 @@ import { userRepository } from "../db/repositories/user.repository.js";
 import { timerRepository } from "../db/repositories/timer.repository.js";
 import { screenshotRepository } from "../db/repositories/screenshot.repository.js";
 import { activityRepository } from "../db/repositories/activity.repository.js";
+import { projectTrackingRepository } from "../db/repositories/projectTracking.repository.js";
+import { getIO } from "../socket/socket.js";
 import Report from "../models/report.model.js";
 import { getReportUserIds } from "../utils/reportAccess.js";
 import { getAvatarUrl } from "../utils/avatar.js";
@@ -633,6 +635,153 @@ export const getAttendanceData = async (req, res) => {
   }
 };
 
+/**
+ * Merges overlapping session intervals of a given type inside [start, end)
+ * so concurrent or duplicated sessions never double-count daily totals.
+ */
+function sumMergedSessionSeconds(sessions, type, start, end, evalNow) {
+  const intervals = [];
+  for (const s of sessions || []) {
+    if (!s || s.type !== type) continue;
+    const { overlapSeconds, overlapStart, overlapEnd } = calculateIntervalOverlap(
+      s,
+      start,
+      end,
+      evalNow,
+    );
+    if (overlapSeconds > 0 && overlapStart && overlapEnd) {
+      intervals.push({
+        start: overlapStart.getTime(),
+        end: overlapEnd.getTime(),
+      });
+    }
+  }
+
+  if (intervals.length === 0) return 0;
+
+  intervals.sort((a, b) => a.start - b.start || a.end - b.end);
+  const merged = [intervals[0]];
+  for (let i = 1; i < intervals.length; i++) {
+    const curr = intervals[i];
+    const prev = merged[merged.length - 1];
+    if (curr.start <= prev.end) {
+      if (curr.end > prev.end) {
+        prev.end = curr.end;
+      }
+    } else {
+      merged.push(curr);
+    }
+  }
+
+  let totalSeconds = 0;
+  for (const interval of merged) {
+    totalSeconds += Math.floor((interval.end - interval.start) / 1000);
+  }
+  return totalSeconds;
+}
+
+/**
+ * Closes any live running timer, open break marker, or unclosed session on the server
+ * when Finish Day is invoked so final day metrics include work right up to finishTime.
+ */
+async function closeActiveTrackingForFinish({ user, userId, timezone, now }) {
+  let closedTracking = false;
+  let io = null;
+  try {
+    io = getIO();
+  } catch {
+    io = null;
+  }
+
+  const activeTimer = await timerRepository.findActiveTimerByUser(userId).catch(() => null);
+  if (activeTimer && activeTimer.status !== "stopped") {
+    const tId = normalizeId(activeTimer._id || activeTimer.id);
+    const tStart = activeTimer.startTime ? new Date(activeTimer.startTime) : now;
+    const duration = Math.max(0, Math.floor((now.getTime() - tStart.getTime()) / 1000));
+
+    const claim = await timerRepository.stopTimerIfRunning(
+      tId,
+      { endTime: now, duration, status: "stopped" },
+      { userId, populateProject: true, populateTask: true },
+    );
+
+    if (claim?.claimed && claim.count !== 0) {
+      const claimedTimer = claim.timer || activeTimer;
+      const claimedStart = claimedTimer.startTime ? new Date(claimedTimer.startTime) : tStart;
+      const sessionDate = getDateInTimezone(claimedStart, timezone);
+
+      await sessionRepository.create({
+        userId,
+        startTime: claimedStart,
+        endTime: now,
+        duration,
+        type: "work",
+        date: sessionDate,
+      });
+
+      const projId = normalizeId(claimedTimer.project?._id || claimedTimer.project?.id || claimedTimer.project || claimedTimer.projectId);
+      const taskId = normalizeId(claimedTimer.task?._id || claimedTimer.task?.id || claimedTimer.task || claimedTimer.taskId);
+      if (projId && taskId) {
+        await projectTrackingRepository.create({
+          user: userId,
+          project: projId,
+          task: taskId,
+          startTime: claimedStart,
+          endTime: now,
+          duration,
+          date: getDateInTimezone(claimedStart, timezone),
+        });
+      }
+
+      await userRepository.findByIdAndUpdate(userId, { breakStartTime: null });
+      closedTracking = true;
+
+      if (io) {
+        const stoppedPayload = { ...claimedTimer, isBreak: false, status: "stopped" };
+        io.to(`user:${String(userId)}`).emit("timerStopped", stoppedPayload);
+        io.to(`user:${String(userId)}`).emit("tracking:stopped", stoppedPayload);
+      }
+    }
+  } else if (user?.breakStartTime) {
+    const breakStart = new Date(user.breakStartTime);
+    if (!Number.isNaN(breakStart.getTime()) && breakStart < now) {
+      const breakDuration = Math.max(0, Math.floor((now.getTime() - breakStart.getTime()) / 1000));
+      if (breakDuration > 0 && getDateInTimezone(breakStart, timezone) === getDateInTimezone(now, timezone)) {
+        await sessionRepository.create({
+          userId,
+          startTime: breakStart,
+          endTime: now,
+          duration: breakDuration,
+          type: "break",
+          date: getDateInTimezone(breakStart, timezone),
+        });
+      }
+    }
+    await userRepository.findByIdAndUpdate(userId, { breakStartTime: null });
+    closedTracking = true;
+
+    if (io) {
+      const clearedPayload = { isBreak: false, status: "stopped" };
+      io.to(`user:${String(userId)}`).emit("timerStopped", clearedPayload);
+      io.to(`user:${String(userId)}`).emit("tracking:stopped", clearedPayload);
+    }
+  }
+
+  // Defensive check for any dangling open Session record left without endTime
+  const openSession = await sessionRepository.findActiveSession(userId).catch(() => null);
+  if (openSession && !openSession.endTime) {
+    const openStart = openSession.startTime ? new Date(openSession.startTime) : now;
+    const openDuration = Math.max(0, Math.floor((now.getTime() - openStart.getTime()) / 1000));
+    await sessionRepository.findByIdAndUpdate(openSession._id || openSession.id, {
+      endTime: now,
+      duration: openDuration,
+    });
+    closedTracking = true;
+  }
+
+  return { closedTracking, io };
+}
+
 export const getUserAttendanceSummary = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -706,55 +855,35 @@ export const getUserAttendanceSummary = async (req, res) => {
       }
     }
 
-    const sumMergedSeconds = (type) => {
-      const intervals = [];
-      for (const s of sessions) {
-        if (!s || s.type !== type) continue;
-        const { overlapSeconds, overlapStart, overlapEnd } = calculateIntervalOverlap(
-          s,
-          start,
-          end,
-          evalNow,
-        );
-        if (overlapSeconds > 0 && overlapStart && overlapEnd) {
-          intervals.push({
-            start: overlapStart.getTime(),
-            end: overlapEnd.getTime(),
-          });
-        }
+    const workSeconds = sumMergedSessionSeconds(sessions, "work", start, end, evalNow);
+    const breakSeconds = sumMergedSessionSeconds(sessions, "break", start, end, evalNow);
+
+    const isSingleDay = !rawEndDate || rawEndDate === (rawStartDate || today);
+    let attendanceRecord = null;
+    if (isSingleDay) {
+      try {
+        attendanceRecord = await attendanceRepository.findOne({
+          user: targetUserId,
+          date: {
+            gte: start,
+            lt: end,
+          },
+        });
+      } catch {
+        attendanceRecord = null;
       }
+    }
 
-      if (intervals.length === 0) return 0;
-
-      intervals.sort((a, b) => a.start - b.start || a.end - b.end);
-      const merged = [intervals[0]];
-      for (let i = 1; i < intervals.length; i++) {
-        const curr = intervals[i];
-        const prev = merged[merged.length - 1];
-        if (curr.start <= prev.end) {
-          if (curr.end > prev.end) {
-            prev.end = curr.end;
-          }
-        } else {
-          merged.push(curr);
-        }
-      }
-
-      let totalSeconds = 0;
-      for (const interval of merged) {
-        totalSeconds += Math.floor((interval.end - interval.start) / 1000);
-      }
-      return totalSeconds;
-    };
-
-    const workSeconds = sumMergedSeconds("work");
-    const breakSeconds = sumMergedSeconds("break");
+    const finishTime = attendanceRecord?.finishTime || null;
 
     res.json({
       workSeconds,
       breakSeconds,
       workTime: formatTime(workSeconds),
       breakTime: formatTime(breakSeconds),
+      startTime: attendanceRecord?.startTime || null,
+      finishTime,
+      isFinished: Boolean(finishTime),
     });
   } catch (err) {
     console.error("GET USER ATTENDANCE SUMMARY ERROR:", err);
@@ -768,7 +897,7 @@ export const getUserAttendanceSummary = async (req, res) => {
 
 export const finishAttendance = async (req, res) => {
   try {
-    const userId = req.user._id || req.user.id;
+    const userId = normalizeId(req.user._id || req.user.id);
 
     const user = await userRepository.findById(userId);
 
@@ -781,9 +910,16 @@ export const finishAttendance = async (req, res) => {
     const timezone = resolveUserTimezone(user, req);
 
     const now = new Date();
-    const today = getTodayInTimezone(timezone);
+    const today = getTodayInTimezone(timezone, now);
 
     const { start, end } = getZonedDayRange(today, timezone);
+
+    const { io } = await closeActiveTrackingForFinish({
+      user,
+      userId,
+      timezone,
+      now,
+    });
 
     const sessions = await sessionRepository.findOverlappingSessions({
       userId,
@@ -791,24 +927,10 @@ export const finishAttendance = async (req, res) => {
       periodEnd: end,
     });
 
-    let workSeconds = 0;
-    let breakSeconds = 0;
+    const workSeconds = sumMergedSessionSeconds(sessions, "work", start, end, now);
+    const breakSeconds = sumMergedSessionSeconds(sessions, "break", start, end, now);
 
-    for (const session of sessions) {
-      const { overlapSeconds } = calculateIntervalOverlap(
-        session,
-        start,
-        end,
-        now,
-      );
-      if (session.type === "work") {
-        workSeconds += overlapSeconds;
-      } else if (session.type === "break") {
-        breakSeconds += overlapSeconds;
-      }
-    }
-
-    const firstSession = [...sessions].sort(
+    const firstSession = [...(sessions || [])].sort(
       (a, b) => new Date(a.startTime) - new Date(b.startTime),
     )[0];
 
@@ -827,7 +949,7 @@ export const finishAttendance = async (req, res) => {
           date: firstSession?.startTime || now,
           workTime: workSeconds,
           breakTime: breakSeconds,
-          startTime: firstSession?.startTime || null,
+          startTime: firstSession?.startTime || now,
           finishTime: now,
         },
       },
@@ -846,18 +968,37 @@ export const finishAttendance = async (req, res) => {
       endDate: today,
     });
 
-    const report = await generateDailyWorkReport(userId);
+    const report = await generateDailyWorkReport(userId, today, {
+      startTime: attendance?.startTime || firstSession?.startTime || now,
+      finishTime: attendance?.finishTime || now,
+      workSeconds,
+      breakSeconds,
+      timezone,
+    });
 
     // Send the report by email.
     // Email failure must not fail Finish Day.
-    await sendDailyWorkReportEmail({
-      user,
-      report,
-    });
+    const emailSent = Boolean(
+      await sendDailyWorkReportEmail({
+        user,
+        report,
+      }),
+    );
+
+    if (io) {
+      io.to(`user:${String(userId)}`).emit("session:updated", {
+        userId: String(userId),
+        date: today,
+        isFinished: true,
+        finishTime: attendance?.finishTime || now,
+      });
+    }
 
     return res.json({
       success: true,
       message: "Workday finished successfully",
+      emailSent,
+      isFinished: true,
       attendance,
       report,
       reportRecord,
@@ -874,13 +1015,42 @@ export const finishAttendance = async (req, res) => {
 
 export const getDailyWorkReport = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = normalizeId(req.user._id || req.user.id);
     const { date } = req.query;
 
-    const report = await generateDailyWorkReport(userId, date || null);
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const timezone = resolveUserTimezone(user, req);
+    const targetDate =
+      typeof date === "string" && date.trim()
+        ? date.trim()
+        : getTodayInTimezone(timezone);
+    const { start, end } = getZonedDayRange(targetDate, timezone);
+
+    const attendance = await attendanceRepository
+      .findOne({
+        user: userId,
+        date: {
+          gte: start,
+          lt: end,
+        },
+      })
+      .catch(() => null);
+
+    const report = await generateDailyWorkReport(userId, targetDate, {
+      startTime: attendance?.startTime || null,
+      finishTime: attendance?.finishTime || null,
+      timezone,
+    });
 
     return res.json({
       success: true,
+      isFinished: Boolean(attendance?.finishTime),
       report,
     });
   } catch (err) {

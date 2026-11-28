@@ -1,3 +1,5 @@
+import { sanitizeHttpUrl } from "../utils/emailSanitizer.js";
+
 const formatDuration = (seconds = 0) => {
   const safeSeconds = Number(seconds) || 0;
 
@@ -38,14 +40,124 @@ export const dailyTrackingReportTemplate = ({
 
   const summary = report.summary || {};
   const activity = report.activity || {};
+  const shift = report.shift || null;
+  const productivity = report.productivity || null;
+  const manualTime = report.manualTime || null;
+
+  const projects = Array.isArray(report.projects)
+    ? report.projects
+    : [];
 
   const tasks = Array.isArray(report.tasks)
     ? report.tasks
     : [];
 
+  const appsUsed = Array.isArray(report.appsUsed)
+    ? report.appsUsed
+    : [];
+
   const sessions = Array.isArray(report.sessions)
     ? report.sessions
     : [];
+
+  const sanitizedReportUrl = sanitizeHttpUrl(report.reportUrl || "", "");
+
+  const shiftBadgeColor =
+    shift?.status === "overtime"
+      ? "#059669"
+      : shift?.status === "undertime"
+        ? "#b45309"
+        : "#4f46e5";
+
+  const shiftAndManualHtml =
+    shift?.hasShift || (manualTime && manualTime.approvedSeconds > 0) || summary.activeSeconds > 0
+      ? `
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;border-radius:14px;background:#f8fafc;border:1px solid #e5e7eb;overflow:hidden;">
+  <tr>
+    ${
+      shift?.hasShift
+        ? `<td style="padding:14px 16px;border-right:1px solid #e5e7eb;">
+            <div style="color:#9ca3af;font-size:10px;text-transform:uppercase;letter-spacing:0.4px;">Shift Target (${escapeHtml(shift.scheduledStart || "")} - ${escapeHtml(shift.scheduledEnd || "")})</div>
+            <div style="margin-top:4px;color:#111827;font-size:14px;font-weight:700;">
+              ${escapeHtml(shift.expectedTime || "0h 0m")}
+              <span style="margin-left:6px;color:${shiftBadgeColor};font-size:12px;font-weight:700;">(${escapeHtml(shift.varianceTime || "0h 0m")})</span>
+            </div>
+          </td>`
+        : ""
+    }
+    <td style="padding:14px 16px;${manualTime?.approvedSeconds > 0 ? "border-right:1px solid #e5e7eb;" : ""}">
+      <div style="color:#9ca3af;font-size:10px;text-transform:uppercase;letter-spacing:0.4px;">Active / Idle</div>
+      <div style="margin-top:4px;color:#111827;font-size:14px;font-weight:700;">
+        ${escapeHtml(summary.activeTime || formatDuration(summary.activeSeconds || 0))} / ${escapeHtml(summary.idleTime || formatDuration(summary.idleSeconds || 0))}
+      </div>
+    </td>
+    ${
+      manualTime?.approvedSeconds > 0
+        ? `<td style="padding:14px 16px;">
+            <div style="color:#9ca3af;font-size:10px;text-transform:uppercase;letter-spacing:0.4px;">Manual Time (Approved)</div>
+            <div style="margin-top:4px;color:#4f46e5;font-size:14px;font-weight:700;">${escapeHtml(manualTime.approvedTime || "0h 0m")}</div>
+          </td>`
+        : ""
+    }
+  </tr>
+</table>
+`
+      : "";
+
+  const projectRowsHtml = projects.length
+    ? projects
+        .map(
+          (proj) => `
+<tr>
+  <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#111827;font-size:13px;font-weight:600;">
+    ${escapeHtml(proj.name || "Untitled Project")}
+    <span style="margin-left:6px;color:#9ca3af;font-size:11px;font-weight:500;">(${Number(proj.percentage) || 0}%)</span>
+  </td>
+  <td align="right" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#4f46e5;font-size:13px;font-weight:700;white-space:nowrap;">
+    ${escapeHtml(proj.time || formatDuration(proj.duration || 0))}
+  </td>
+</tr>
+`,
+        )
+        .join("")
+    : "";
+
+  const projectSectionHtml = projectRowsHtml
+    ? `
+<div style="margin-top:32px;color:#374151;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">
+  Projects
+</div>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;border-radius:16px;background:#ffffff;border:1px solid #e5e7eb;overflow:hidden;">
+  ${projectRowsHtml}
+</table>
+`
+    : "";
+
+  const topAppsHtml = appsUsed.length
+    ? `
+<div style="margin-top:32px;color:#374151;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">
+  Top Applications${productivity?.totalUsageSeconds > 0 ? ` · ${Number(productivity.score) || 0}% Productive` : ""}
+</div>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;border-radius:16px;background:#ffffff;border:1px solid #e5e7eb;overflow:hidden;">
+  ${appsUsed
+    .slice(0, 6)
+    .map(
+      (app) => `
+<tr>
+  <td style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#111827;font-size:13px;font-weight:600;">
+    ${escapeHtml(app.appName || "App")}
+    <span style="margin-left:6px;color:#6b7280;font-size:11px;font-weight:500;text-transform:capitalize;">(${escapeHtml(app.classification || "neutral")})</span>
+  </td>
+  <td align="right" style="padding:12px 16px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:13px;font-weight:700;white-space:nowrap;">
+    ${escapeHtml(app.time || formatDuration(app.duration || 0))}
+  </td>
+</tr>
+`,
+    )
+    .join("")}
+</table>
+`
+    : "";
 
   const activityScore = Math.min(
     100,
@@ -952,6 +1064,9 @@ export const dailyTrackingReportTemplate = ({
               </tr>
 
             </table>
+            ${shiftAndManualHtml}
+            ${projectSectionHtml}
+            ${topAppsHtml}
 
 
             <!-- ========================================= -->
@@ -1066,7 +1181,7 @@ export const dailyTrackingReportTemplate = ({
             <!-- ========================================= -->
 
             ${
-              report.reportUrl
+              sanitizedReportUrl
                 ? `
 <table
   width="100%"
@@ -1080,9 +1195,7 @@ export const dailyTrackingReportTemplate = ({
     <td align="center">
 
       <a
-        href="${escapeHtml(
-          report.reportUrl,
-        )}"
+        href="${sanitizedReportUrl}"
         target="_blank"
         style="
           display:inline-block;

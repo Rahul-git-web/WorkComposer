@@ -39,6 +39,9 @@ type TimerContextType = {
   stop: (options?: { isBreak?: boolean }) => void;
 
   finishDay: () => Promise<any>;
+  lastEndDayReport: any;
+  emailSentToday: boolean | null;
+  fetchDailyWorkReport: (date?: string) => Promise<any>;
 
   duration: number;
 
@@ -91,6 +94,8 @@ export const TimerProvider = ({ children }: Props) => {
   const [lastStoppedAt, setLastStoppedAt] = useState(0);
   const [lastStartedAt, setLastStartedAt] = useState(0);
   const [finishedToday, setFinishedToday] = useState(false);
+  const [lastEndDayReport, setLastEndDayReport] = useState<any>(null);
+  const [emailSentToday, setEmailSentToday] = useState<boolean | null>(null);
   const [attendanceChecked, setAttendanceChecked] = useState(false);
   const [showIdleModal, setShowIdleModal] = useState(false);
   const [idleCountdown, setIdleCountdown] = useState(20);
@@ -457,36 +462,55 @@ export const TimerProvider = ({ children }: Props) => {
     };
   }, [user, stop]);
 
+  const fetchDailyWorkReport = useCallback(async (date?: string) => {
+    try {
+      const { data } = await API.get("/attendance/daily-report", {
+        params: date ? { date } : undefined,
+      });
+      if (data?.report) {
+        setLastEndDayReport(data.report);
+      }
+      if (typeof data?.isFinished === "boolean") {
+        setFinishedToday(data.isFinished);
+      }
+      return data?.report || null;
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to load daily work report");
+      return null;
+    }
+  }, []);
+
   const finishDay = useCallback(async () => {
     if (finishedToday) {
       toast.error(
         "You have already finished working for today. You can start again tomorrow."
       );
-      return null;
+      return lastEndDayReport || null;
     }
 
     try {
-      // If currently tracking or on break, stop completely first so the
-      // current session is closed and break accumulation stops before finishing.
+      // Stop any local desktop tracking immediately so Electron stops screenshots/hooks right away;
+      // POST /api/attendance/finish also atomically closes any live timer/session server-side.
       if (isTracking || isOnBreak) {
         stop({ isBreak: false });
-
-        // Give the socket/session save a moment to complete.
-        await new Promise((resolve) => setTimeout(resolve, 300));
       }
 
       const { data } = await API.post("/attendance/finish");
 
       setFinishedToday(true);
+      setLastEndDayReport(data?.report || null);
+      setEmailSentToday(
+        typeof data?.emailSent === "boolean" ? data.emailSent : null
+      );
 
-      // Refresh today's totals after finishing.
-      await refreshTodayWork();
+      // Refresh today's totals and stats after server-side closure.
+      await Promise.all([refreshTodayWork(), refreshStats()]);
 
       return data.report;
     } catch (err: any) {
       console.error("FINISH DAY ERROR:", err);
 
-      console.error(
+      toast.error(
         err?.response?.data?.message ||
         "Failed to finish workday"
       );
@@ -495,10 +519,12 @@ export const TimerProvider = ({ children }: Props) => {
     }
   }, [
     finishedToday,
+    lastEndDayReport,
     isTracking,
     isOnBreak,
     stop,
     refreshTodayWork,
+    refreshStats,
   ]);
 
 
@@ -636,9 +662,12 @@ export const TimerProvider = ({ children }: Props) => {
       setLastStoppedAt(now);
     };
 
-    const handleSessionUpdated = () => {
+    const handleSessionUpdated = (payload?: any) => {
       refreshStats();
       refreshTodayWork();
+      if (payload?.isFinished) {
+        setFinishedToday(true);
+      }
     };
 
     const handleSocketReconnect = () => {
@@ -813,7 +842,7 @@ export const TimerProvider = ({ children }: Props) => {
           `/attendance/summary/${currentUserId}`
         );
 
-        setFinishedToday(Boolean(data.finishTime));
+        setFinishedToday(Boolean(data?.isFinished ?? data?.finishTime));
 
       } catch (err) {
 
@@ -838,6 +867,9 @@ export const TimerProvider = ({ children }: Props) => {
         switchTask,
         stop,
         finishDay,
+        lastEndDayReport,
+        emailSentToday,
+        fetchDailyWorkReport,
         duration,
         todayWorkSeconds: displayedWorkSeconds,
         displayedWorkSeconds,
