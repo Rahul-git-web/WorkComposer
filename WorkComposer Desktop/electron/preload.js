@@ -166,6 +166,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   updateTrackingBar: (data) => ipcRenderer.send("tracking-update", data),
 
+  getTrackingBarState: () => ipcRenderer.invoke("get-tracking-bar-state"),
+
   onTrackingUpdate: (callback) => {
     const listener = (_, data) => callback(data);
 

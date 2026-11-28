@@ -44,9 +44,17 @@ const notifySubscribersFailure = (error: any) => {
 
 let isInvalidatingSession = false;
 
+const isSecondaryElectronWindow = (pathname?: string): boolean => {
+    if (!pathname) return false;
+    return pathname.startsWith("/tracking-bar") || pathname.startsWith("/idle");
+};
+
 const handleConfirmedSessionInvalidation = () => {
     disconnectSocket();
     inMemoryCsrfToken = null;
+    if (typeof window !== "undefined" && isSecondaryElectronWindow(window.location?.pathname)) {
+        return;
+    }
     if (typeof localStorage !== "undefined") {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("token");

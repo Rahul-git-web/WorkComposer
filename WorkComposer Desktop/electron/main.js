@@ -250,6 +250,7 @@ async function clearAuthSessionCookies() {
 async function clearElectronAuth(options = {}) {
   const eventName = options?.event || "electron-logged-out";
   authToken = null;
+  lastTrackingBarState = null;
   clearPendingIntegrationOAuthState();
 
   deleteSecureToken("authToken");
@@ -631,6 +632,7 @@ let manuallyStoppedDuringShift = false;
 let stoppedForBreak = false;
 let autoStoppedForBreak = false;
 let lastCapturePauseReason = null;
+let lastTrackingBarState = null;
 
 function getEffectiveShiftTimezone() {
   return (
@@ -960,8 +962,28 @@ async function loadTrackingSettings() {
   }
 }
 
+function ensureTrackingBarLoaded() {
+  if (!trackingBar || trackingBar.isDestroyed() || !authToken) {
+    return;
+  }
+  try {
+    const currentUrl = trackingBar.webContents.getURL() || "";
+    const targetUrl = `${WEB_APP_URL}/tracking-bar`;
+    if (!currentUrl.startsWith(targetUrl)) {
+      trackingBar.loadURL(targetUrl);
+    }
+  } catch (err) {
+    logError(err, "ENSURE TRACKING BAR LOADED");
+  }
+}
+
 function updateTrackingBarVisibility() {
   if (!trackingBar || trackingBar.isDestroyed()) {
+    return;
+  }
+
+  if (!authToken) {
+    trackingBar.hide();
     return;
   }
 
@@ -972,6 +994,7 @@ function updateTrackingBarVisibility() {
 
   switch (visibility) {
     case "always":
+      ensureTrackingBarLoaded();
       clampTrackingBarPosition({ persist: false });
       trackingBar.show();
       break;
@@ -983,6 +1006,7 @@ function updateTrackingBarVisibility() {
 
     case "during_tracking":
       if (isTracking || isOnBreak) {
+        ensureTrackingBarLoaded();
         clampTrackingBarPosition({ persist: false });
         trackingBar.show();
       } else {
@@ -1434,6 +1458,7 @@ async function handleAuthDeepLink(deepLinkUrl) {
 
     saveSecureToken("authToken", accessToken);
     saveSecureToken("refreshToken", refreshToken);
+    ensureTrackingBarLoaded();
 
     devLog("OAUTH TOKENS SAVED FROM DEEP LINK");
 
@@ -1496,6 +1521,7 @@ ipcMain.handle("save-token", async (_, tokens) => {
 
     saveSecureToken("authToken", accessToken);
     saveSecureToken("refreshToken", refreshToken);
+    ensureTrackingBarLoaded();
 
     devLog("ELECTRON AUTH TOKENS SAVED SECURELY");
 
@@ -1830,13 +1856,15 @@ ipcMain.on("trackingbar-stop", () => {
   }
 
   // Hide the floating toolbar immediately unless status bar mode is "always"
+  const stoppedPayload = {
+    duration: 0,
+    isTracking: false,
+    isOnBreak: false,
+    status: "stopped",
+  };
+  lastTrackingBarState = stoppedPayload;
   if (trackingBar && !trackingBar.isDestroyed()) {
-    trackingBar.webContents.send("tracking-update", {
-      duration: 0,
-      isTracking: false,
-      isOnBreak: false,
-      status: "stopped",
-    });
+    trackingBar.webContents.send("tracking-update", stoppedPayload);
 
     if (trackingSettings?.tracking?.statusBarVisibility !== "always") {
       trackingBar.hide();
@@ -1845,9 +1873,14 @@ ipcMain.on("trackingbar-stop", () => {
 });
 
 ipcMain.on("tracking-update", (_, data) => {
+  lastTrackingBarState = data || null;
   if (trackingBar && !trackingBar.isDestroyed()) {
     trackingBar.webContents.send("tracking-update", data);
   }
+});
+
+ipcMain.handle("get-tracking-bar-state", () => {
+  return lastTrackingBarState;
 });
 
 ipcMain.on("reload-tracking-settings", async () => {
@@ -2277,7 +2310,9 @@ function createTrackingBar() {
     maxHeight: TRACKING_BAR_HEIGHT,
     useContentSize: true,
     frame: false,
-    transparent: false,
+    transparent: true,
+    hasShadow: false,
+    backgroundColor: "#00000000",
     resizable: false,
     maximizable: false,
     minimizable: false,
@@ -2295,7 +2330,9 @@ function createTrackingBar() {
 
   devLog("TRACKING BAR OBJECT:", !!trackingBar);
 
-  trackingBar.loadURL(`${WEB_APP_URL}/tracking-bar`);
+  if (authToken) {
+    trackingBar.loadURL(`${WEB_APP_URL}/tracking-bar`);
+  }
 
   windowPolicy.applyWindowSecurityPolicy(trackingBar, {
     webAppUrl: WEB_APP_URL,
@@ -2305,6 +2342,9 @@ function createTrackingBar() {
 
   trackingBar.webContents.on("did-finish-load", () => {
     devLog("TRACKING BAR LOADED");
+    if (lastTrackingBarState && trackingBar && !trackingBar.isDestroyed()) {
+      trackingBar.webContents.send("tracking-update", lastTrackingBarState);
+    }
   });
 
   trackingBar.webContents.on(

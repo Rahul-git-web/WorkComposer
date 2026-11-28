@@ -7,14 +7,15 @@ type BarStatus = "working" | "break" | "idle" | "stopped";
 
 export default function TrackingBar() {
     const [seconds, setSeconds] = useState(0);
-    const [status, setStatus] = useState<BarStatus>("working");
+    const [status, setStatus] = useState<BarStatus>("stopped");
 
     useEffect(() => {
         let baseSeconds = 0;
         let lastWorkSeconds = 0;
         let lastBreakSeconds = 0;
         let lastReceivedAt = 0;
-        let currentStatus: BarStatus = "working";
+        let currentStatus: BarStatus = "stopped";
+        let mounted = true;
 
         const updateTimer = () => {
             if (currentStatus === "stopped" || currentStatus === "idle") {
@@ -29,7 +30,8 @@ export default function TrackingBar() {
             setSeconds(baseSeconds + elapsedSinceUpdate);
         };
 
-        const removeListener = window.electronAPI?.onTrackingUpdate?.((data: any) => {
+        const applyTrackingData = (data: any) => {
+            if (!data || !mounted) return;
             const rawStatus = String(data?.status || "").toLowerCase();
             const isIdle = rawStatus === "idle" || Boolean(data?.isIdle);
             const isBreak =
@@ -67,11 +69,23 @@ export default function TrackingBar() {
 
             setStatus(currentStatus);
             updateTimer();
-        });
+        };
+
+        const electronAPI = window.electronAPI as any;
+        electronAPI?.getTrackingBarState?.()
+            ?.then((initialState: any) => {
+                if (initialState) {
+                    applyTrackingData(initialState);
+                }
+            })
+            ?.catch(() => {});
+
+        const removeListener = window.electronAPI?.onTrackingUpdate?.(applyTrackingData);
 
         const interval = setInterval(updateTimer, 1000);
 
         return () => {
+            mounted = false;
             clearInterval(interval);
             removeListener?.();
         };
@@ -85,7 +99,7 @@ export default function TrackingBar() {
 
     return (
         <div
-            className="fixed inset-0 overflow-hidden bg-transparent flex items-center justify-center select-none"
+            className="wc-tracking-bar-shell fixed inset-0 w-full h-full overflow-hidden bg-transparent select-none"
             style={
                 {
                     WebkitAppRegion: "drag",
@@ -143,7 +157,7 @@ export default function TrackingBar() {
             `}</style>
 
             <div
-                className="relative w-[410px] h-[42px] shrink-0 rounded-xl border border-white/15 bg-gradient-to-r from-[#0f172a]/95 via-[#261042]/90 to-[#110f36]/95 shadow-[0_20px_45px_-10px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.08)_inset] backdrop-blur-2xl flex items-center justify-between px-3 text-white overflow-hidden"
+                className="relative w-full h-full rounded-xl border border-white/15 bg-gradient-to-r from-[#0f172a]/95 via-[#261042]/90 to-[#110f36]/95 shadow-[0_8px_24px_-6px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.08)_inset] backdrop-blur-2xl flex items-center justify-between gap-2 px-3 text-white overflow-hidden"
             >
                 {/* Multi-Color Ambient Glow Spheres */}
                 <div className="pointer-events-none absolute -left-6 -top-8 h-20 w-20 rounded-full bg-cyan-500/30 blur-xl" />
@@ -155,7 +169,7 @@ export default function TrackingBar() {
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-cyan-400/50 via-fuchsia-400/60 to-indigo-400/60" />
 
                 {/* Left: Indicator, Timer, and Status */}
-                <div className="relative z-10 flex items-center gap-2.5 min-w-0">
+                <div className="relative z-10 flex items-center gap-2.5 min-w-0 overflow-hidden">
                     {/* Glowing status pill */}
                     <div
                         className={`relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${
@@ -273,10 +287,12 @@ export default function TrackingBar() {
                     {/* Stop Button */}
                     <button
                         type="button"
+                        aria-label="Stop tracking"
                         onClick={() => {
                             window.electronAPI?.stopTrackingFromBar?.();
                         }}
                         title="Stop tracking"
+                        style={{ WebkitAppRegion: "no-drag" } as any}
                         className="group h-7 w-7 flex items-center justify-center rounded-md bg-transparent hover:bg-rose-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
                     >
                         <Square
@@ -292,10 +308,12 @@ export default function TrackingBar() {
                     {/* Expand Button */}
                     <button
                         type="button"
+                        aria-label="Open dashboard"
                         onClick={() => {
                             window.electronAPI?.openMainWindow?.();
                         }}
                         title="Open dashboard"
+                        style={{ WebkitAppRegion: "no-drag" } as any}
                         className="group h-7 w-7 flex items-center justify-center rounded-md bg-transparent hover:bg-indigo-500/25 active:scale-90 transition-all duration-150 cursor-pointer"
                     >
                         <ChevronRight

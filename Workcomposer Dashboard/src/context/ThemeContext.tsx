@@ -119,10 +119,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Reconcile backend theme preference if user is authenticated
     useEffect(() => {
         if (typeof window === "undefined") return;
+        const pathname = window.location?.pathname || "";
+        if (pathname.startsWith("/tracking-bar") || pathname.startsWith("/idle")) {
+            return;
+        }
 
         let active = true;
-        API.get("/settings/theme")
-            .then((res) => {
+        (async () => {
+            if (window.electronAPI?.getToken) {
+                const token = await window.electronAPI.getToken().catch(() => null);
+                if (!active || !token) return;
+            }
+
+            try {
+                const res = await API.get("/settings/theme");
                 if (!active || !res?.data?.themeMode) return;
                 const remoteMode = res.data.themeMode as ThemeMode;
                 if (
@@ -142,10 +152,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
                         } catch {}
                     }
                 }
-            })
-            .catch(() => {
+            } catch {
                 // Silently ignore if unauthenticated or offline
-            });
+            }
+        })();
 
         return () => {
             active = false;
@@ -203,10 +213,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             }
         } catch {}
 
-        // Persist to backend preference store
-        API.put("/settings/theme", { themeMode: mode }).catch(() => {
-            // Silently ignore if unauthenticated or offline
-        });
+        // Persist to backend preference store (skip secondary compact windows / unauthenticated Electron)
+        if (typeof window !== "undefined") {
+            const pathname = window.location?.pathname || "";
+            if (!pathname.startsWith("/tracking-bar") && !pathname.startsWith("/idle")) {
+                if (window.electronAPI?.getToken) {
+                    void window.electronAPI
+                        .getToken()
+                        .then((token) => {
+                            if (token) {
+                                return API.put("/settings/theme", { themeMode: mode });
+                            }
+                        })
+                        .catch(() => {});
+                } else {
+                    API.put("/settings/theme", { themeMode: mode }).catch(() => {
+                        // Silently ignore if unauthenticated or offline
+                    });
+                }
+            }
+        }
     }, []);
 
     const contextValue = useMemo<ThemeContextValue>(() => ({
